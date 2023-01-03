@@ -1,5 +1,4 @@
-
-pub const LANG_VERSION: &str = "1.0.0"; // TODO: Get this from the compiler.
+pub mod conf;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
