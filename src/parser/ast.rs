@@ -1,8 +1,9 @@
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AstNode {
-    Root(Ast),
     Print(String),
+    String(&'static str),
+    Unit,
 }
 
 #[derive(Debug, Clone)]
