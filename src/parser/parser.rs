@@ -1,6 +1,6 @@
 use std::{path::Path, io::{BufReader, Error, BufRead, Seek}, fs::File};
 
-use crate::lexer::readers::string_reader::BytesReader;
+use crate::lexer::readers::bytes_reader::BytesReader;
 
 use crate::lexer::lexer::Lexer;
 
