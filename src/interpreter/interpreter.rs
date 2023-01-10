@@ -1,6 +1,9 @@
-use std::path::Path;
+use crate::parser::ast::{Ast, AstNode};
 
-
-pub fn interpret_file(file: &Path) -> Result<(), (u8, String)> {
+pub fn interpret_ast(ast: &Ast) -> Result<(), (u8, String)> {
+    match ast.value.as_ref() {
+        AstNode::Print(msg) => println!("{}", msg),
+        _ => todo!("Implement other AST nodes")
+    }
     Ok(())
 }
