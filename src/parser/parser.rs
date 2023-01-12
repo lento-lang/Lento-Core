@@ -4,13 +4,7 @@ use crate::lexer::readers::bytes_reader::BytesReader;
 
 use crate::lexer::lexer::Lexer;
 
-use super::ast::{Ast, AstNode};
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ParserInput<'a> {
-    File(&'a Path),
-    Other(&'a str)
-}
+use super::ast::{Ast, unit};
 
 #[derive(Debug, Clone)]
 pub struct  ParseFail {
@@ -19,61 +13,65 @@ pub struct  ParseFail {
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
 #[derive(Clone)]
-pub struct Parser<'a, R> {
-    lexer: Lexer<R>,
-    input: ParserInput<'a>
+pub struct Parser<R> {
+    lexer: Lexer<R>
 }
 
-impl<'a, R: BufRead + Seek> Parser<'a, R> {
-    pub fn new(lexer: Lexer<R>, input: ParserInput<'a>) -> Self {
+impl<R: BufRead + Seek> Parser<R> {
+    pub fn new(lexer: Lexer<R>) -> Self {
         Self {
-            lexer,
-            input
+            lexer
         }
     }
 
     pub fn parse(&mut self) -> Result<Ast, ParseFail> {
-        Ok(Ast { name: "root".to_string(), value: Box::new(AstNode::Unit) })
+        // Ok(unit())
+        Ok(Ast::FunctionCall("print".to_string(), vec![Ast::String("Hello, world!".to_string())]))
     }
 }
 
-pub fn from_file<'a>(file: File, path: &'a Path) -> Parser<'a, BufReader<File>> {
+//--------------------------------------------------------------------------------------//
+//                               Parser Factory Functions                               //
+//--------------------------------------------------------------------------------------//
+
+pub fn from_file(file: File) -> Parser<BufReader<File>> {
     Parser::new(
-        Lexer::new(BufReader::new(file)), 
-        ParserInput::File(path)
+        Lexer::new(BufReader::new(file))
     )
 }
 
-pub fn from_path<'a>(source_file: &'a Path) -> Result<Parser<'a, BufReader<File>>, Error> {
-    Ok(from_file(File::open(source_file)?, source_file))
+pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
+    Ok(from_file(File::open(source_file)?))
 }
 
-pub fn from_string<'a>(source: &'a String, title: &'a str) -> Parser<'a, BufReader<BytesReader<'a>>> {
+pub fn from_string<'a>(source: &'a String) -> Parser<BufReader<BytesReader<'a>>> {
     Parser::new(
-        Lexer::new(BufReader::new(BytesReader::from(source))), 
-        ParserInput::Other(title)
+        Lexer::new(BufReader::new(BytesReader::from(source)))
     )
 }
 
-pub fn from_str<'a>(source: &'a str, title: &'a str) -> Parser<'a, BufReader<BytesReader<'a>>> {
+pub fn from_str<'a>(source: &'a str) -> Parser<BufReader<BytesReader<'a>>> {
     Parser::new(
-        Lexer::new(BufReader::new(BytesReader::from(source))), 
-        ParserInput::Other(title)
+        Lexer::new(BufReader::new(BytesReader::from(source)))
     )
 }
 
-pub fn parse_string(source: String, title: &str) -> Result<Ast, ParseFail> {
-    from_string(&source, title)
+//--------------------------------------------------------------------------------------//
+//                           Direct Parsing Helper Functions                            //
+//--------------------------------------------------------------------------------------//
+
+pub fn parse_string(source: String) -> Result<Ast, ParseFail> {
+    from_string(&source)
         .parse()
 }
 
-pub fn parse_str(source: &str, title: &str) -> Result<Ast, ParseFail> {
-    from_str(source, title)
+pub fn parse_str(source: &str) -> Result<Ast, ParseFail> {
+    from_str(source)
         .parse()
 }
 
-pub fn parse_file(file: File, path: &Path) -> Result<Ast, ParseFail> {
-    from_file(file, path)
+pub fn parse_file(file: File) -> Result<Ast, ParseFail> {
+    from_file(file)
         .parse()
 }
 
@@ -88,10 +86,9 @@ mod tests {
 
     #[test]
     fn test_parser_hello_world() {
-        let code = "print(\"Hello, World!\")";
-        let result = parse_str(code, "test.lento.print.hello_world");
+        let result = parse_str("print(\"Hello, World!\")");
         assert!(result.is_ok());
-        assert!(result.unwrap().value.as_ref() == &AstNode::Unit);
+        assert!(result.unwrap() == unit());
     }
 
     #[test]
@@ -100,6 +97,6 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_ok());
-        assert!(result.unwrap().value.as_ref() == &AstNode::Unit);
+        assert!(result.unwrap() == unit());
     }
 }
