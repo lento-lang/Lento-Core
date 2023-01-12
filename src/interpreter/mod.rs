@@ -1,2 +1,4 @@
 pub mod interpreter;
-pub mod tester;pub mod error;
+pub mod tester;
+pub mod value;
+pub mod error;
