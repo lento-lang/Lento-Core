@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 num-bigint = "0.4.3"
 num-bigfloat = "1.6.1"
+lazy-regex = "2.4.1"
