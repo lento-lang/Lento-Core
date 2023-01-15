@@ -13,7 +13,7 @@ pub struct  ParseFail {
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
 #[derive(Clone)]
-pub struct Parser<R> {
+pub struct Parser<R: BufRead + Seek> {
     lexer: Lexer<R>
 }
 
