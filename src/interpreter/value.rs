@@ -3,11 +3,15 @@ use std::{collections::HashMap, fmt::Display};
 use num_bigfloat::BigFloat;
 use num_bigint::{BigInt, BigUint};
 
+use crate::{type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, parser::ast::Ast};
+
+use super::interpreter::InterpretResult;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UnsignedInteger {
-    Bit(u8),
-    UByte(u8),
-    UShort(u16),
+    UInt1(u8), // Bit
+    UInt8(u8), // Byte
+    UInt16(u16),
     UInt32(u32),
     UInt64(u64),
     UInt128(u128),
@@ -16,8 +20,8 @@ pub enum UnsignedInteger {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SignedInteger {
-    Byte(i8),
-    Short(i16),
+    Int8(i8),
+    Int16(i16),
     Int32(i32),
     Int64(i64),
     Int128(i128),
@@ -39,6 +43,35 @@ pub enum Number {
     FloatingPoint(FloatingPoint),
 }
 
+impl GetType for Number {
+    fn get_type(&self) -> Type {
+        match self {
+            Number::UnsignedInteger(u) => match u {
+                UnsignedInteger::UInt1(_) => std_primitive_types::UINT1,
+                UnsignedInteger::UInt8(_) => std_primitive_types::UINT8,
+                UnsignedInteger::UInt16(_) => std_primitive_types::UINT16,
+                UnsignedInteger::UInt32(_) => std_primitive_types::UINT32,
+                UnsignedInteger::UInt64(_) => std_primitive_types::UINT64,
+                UnsignedInteger::UInt128(_) => std_primitive_types::UINT128,
+                UnsignedInteger::UIntVar(_) => std_primitive_types::UINTBIG
+            },
+            Number::SignedInteger(i) => match i {
+                SignedInteger::Int8(_) => std_primitive_types::INT8,
+                SignedInteger::Int16(_) => std_primitive_types::INT16,
+                SignedInteger::Int32(_) => std_primitive_types::INT32,
+                SignedInteger::Int64(_) => std_primitive_types::INT64,
+                SignedInteger::Int128(_) => std_primitive_types::INT128,
+                SignedInteger::IntVar(_) => std_primitive_types::INTBIG
+            },
+            Number::FloatingPoint(f) => match f {
+                FloatingPoint::Float32(_) => std_primitive_types::FLOAT32,
+                FloatingPoint::Float64(_) => std_primitive_types::FLOAT64,
+                FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordKey {
     String(String),
@@ -56,6 +89,61 @@ impl Display for RecordKey {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UserFunctionVariation {
+    params: FunctionParameterType,
+    body: Ast,
+    return_type: Type,
+}
+
+/**
+ * Is the value representation of `FunctionParameterType`.
+ */
+#[derive(Debug, Clone, PartialEq)]
+pub enum NativeFunctionParameters {
+    Singles(Vec<Value>),
+    Variadic(Option<Vec<Value>>, Vec<Value>), // Some initial values of different types, followed by the variadic type values
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FunctionVariation {
+    User(UserFunctionVariation),
+    Native(fn(NativeFunctionParameters) -> InterpretResult, FunctionParameterType, Type), // Built-in functions
+}
+
+impl GetType for FunctionVariation {
+    fn get_type(&self) -> Type {
+        match self {
+            FunctionVariation::User(v) => Type::Function(Box::new(v.params.clone()), Box::new(v.return_type.clone())),
+            FunctionVariation::Native(_, v, r) => Type::Function(Box::new(v.clone()), Box::new(r.clone())),
+        }
+    }
+}
+
+impl Display for FunctionVariation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(")?;
+        let ret_type = match self {
+            FunctionVariation::User(v) => { v.params.fmt(f)?; &v.return_type },
+            FunctionVariation::Native(_, v, r) => { v.fmt(f)?; &r },
+        };
+        write!(f, ") -> {}", ret_type) // TODO: Make this a unicode arrow
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    name: String,
+    variations: Vec<FunctionVariation>, // Function types are inferred from variations
+    // TODO: Add an environment for the function
+}
+
+impl Function {
+    pub fn new(name: String, variations: Vec<FunctionVariation>) -> Self {
+        Self { name, variations }
+    }
+}
+
 /**
  * A Lento value is a value that can be stored in a variable, returned from a function, or passed as an argument.
  * These values are stored in the interpreter's memory during runtime and are garbage collected when they are no longer in use.
@@ -65,31 +153,49 @@ impl Display for RecordKey {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Unit,
-    Number(Number),
+    Number(Number, Type),
     String(String),
     Char(char),
-    Tuple(Vec<Value>),
-    List(Vec<Value>),
-    Record(HashMap<RecordKey, Value>),
+    Boolean(bool),
+    Tuple(Vec<Value>, Type),
+    List(Vec<Value>, Type),
+    Record(HashMap<RecordKey, Value>, Type),
+    Function(Function),
+}
+
+impl GetType for Value {
+    fn get_type(&self) -> Type {
+        match self {
+            Value::Unit => Type::Unit,
+            Value::Number(_, t) => t.clone(),
+            Value::String(_) => std_primitive_types::STRING,
+            Value::Char(_) => std_primitive_types::CHAR,
+            Value::Boolean(_) => std_primitive_types::BOOL,
+            Value::Tuple(_, t) => t.clone(),
+            Value::List(_, t) => t.clone(),
+            Value::Record(_, t) => t.clone(),
+            Value::Function(f) => panic!("Cannot get type of functions"), // Because functions can have multiple types
+        }
+    }
 }
 
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::Unit => write!(f, "Unit"),
-            Value::Number(n) => match n {
+            Value::Unit => write!(f, "()"),
+            Value::Number(n, _) => match n {
                 Number::UnsignedInteger(u) => match u {
-                    UnsignedInteger::Bit(b) => write!(f, "{}", b),
-                    UnsignedInteger::UByte(b) => write!(f, "{}", b),
-                    UnsignedInteger::UShort(s) => write!(f, "{}", s),
+                    UnsignedInteger::UInt1(b) => write!(f, "{}", b),
+                    UnsignedInteger::UInt8(b) => write!(f, "{}", b),
+                    UnsignedInteger::UInt16(s) => write!(f, "{}", s),
                     UnsignedInteger::UInt32(i) => write!(f, "{}", i),
                     UnsignedInteger::UInt64(i) => write!(f, "{}", i),
                     UnsignedInteger::UInt128(i) => write!(f, "{}", i),
                     UnsignedInteger::UIntVar(i) => write!(f, "{}", i),
                 },
                 Number::SignedInteger(s) => match s {
-                    SignedInteger::Byte(b) => write!(f, "{}", b),
-                    SignedInteger::Short(s) => write!(f, "{}", s),
+                    SignedInteger::Int8(b) => write!(f, "{}", b),
+                    SignedInteger::Int16(s) => write!(f, "{}", s),
                     SignedInteger::Int32(i) => write!(f, "{}", i),
                     SignedInteger::Int64(i) => write!(f, "{}", i),
                     SignedInteger::Int128(i) => write!(f, "{}", i),
@@ -103,7 +209,8 @@ impl Display for Value {
             },
             Value::String(s) => write!(f, "{}", s),
             Value::Char(c) => write!(f, "{}", c),
-            Value::Tuple(t) => {
+            Value::Boolean(b) => write!(f, "{}", b),
+            Value::Tuple(t, _) => {
                 write!(f, "(")?;
                 for (i, v) in t.iter().enumerate() {
                     write!(f, "{}", v)?;
@@ -113,7 +220,7 @@ impl Display for Value {
                 }
                 write!(f, ")")
             }
-            Value::List(l) => {
+            Value::List(l, _) => {
                 write!(f, "[")?;
                 for (i, v) in l.iter().enumerate() {
                     write!(f, "{}", v)?;
@@ -123,7 +230,7 @@ impl Display for Value {
                 }
                 write!(f, "]")
             }
-            Value::Record(r) => {
+            Value::Record(r, _) => {
                 write!(f, "{{ ")?;
                 for (i, (k, v)) in r.iter().enumerate() {
                     write!(f, "{}: {}", k, v)?;
@@ -133,6 +240,13 @@ impl Display for Value {
                 }
                 write!(f, " }}")
             }
+            Value::Function(fun) => {
+                write!(f, "function[{}] {{", fun.name)?;
+                for (i, v) in fun.variations.iter().enumerate() {
+                    writeln!(f, "\t{}", v)?;
+                }
+                write!(f, "}}")
+            },
         }
     }
 }
