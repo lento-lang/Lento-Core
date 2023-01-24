@@ -1,5 +1,7 @@
+use super::op::Operator;
+
 // Token structure for the Lento programming language
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Token {
     EndOfFile,
     // Expression terminators
@@ -22,19 +24,19 @@ pub enum Token {
     RightBrace,
     LeftBracket,
     RightBracket,
-    // Built-in operators, these are not overloadable and are reserved for the language
     // All other operators will be implemented in a standard library at runtime in the future
     // leaving support for user-defined operators
-    OpAssign,
+    Op(Operator),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct LineInfo {
     pub index: usize,
     pub line: usize,
     pub column: usize,
 }
-#[derive(Clone)]
+
+#[derive(Debug, Clone)]
 pub struct LineInfoSpan {
     pub start: LineInfo,
     pub end: LineInfo,
