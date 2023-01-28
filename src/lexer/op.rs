@@ -28,7 +28,7 @@ pub type OperatorPrecedence = u16;
 
 pub type RuntimeOperatorHandler = Box<FunctionVariation>; // Function reference, verify arity is the same as the operator position
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeOperator {
     pub name: String,           // Descriptive name of the operator
     pub symbol: String,         // The symbol of the operator
@@ -63,7 +63,7 @@ impl RuntimeOperator {
 //--------------------------------------------------------------------------------------//
 
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum StaticOperatorAst {
     Prefix(Ast),
     Infix(Ast, Ast),
