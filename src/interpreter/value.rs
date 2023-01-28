@@ -153,7 +153,7 @@ impl Function {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Unit,
-    Number(Number, Type),
+    Number(Number),
     String(String),
     Char(char),
     Boolean(bool),
@@ -167,7 +167,32 @@ impl GetType for Value {
     fn get_type(&self) -> Type {
         match self {
             Value::Unit => Type::Unit,
-            Value::Number(_, t) => t.clone(),
+            Value::Number(n) => {
+                match n {
+                    Number::UnsignedInteger(u) => match u {
+                        UnsignedInteger::UInt1(_) => std_primitive_types::UINT1,
+                        UnsignedInteger::UInt8(_) => std_primitive_types::UINT8,
+                        UnsignedInteger::UInt16(_) => std_primitive_types::UINT16,
+                        UnsignedInteger::UInt32(_) => std_primitive_types::UINT32,
+                        UnsignedInteger::UInt64(_) => std_primitive_types::UINT64,
+                        UnsignedInteger::UInt128(_) => std_primitive_types::UINT128,
+                        UnsignedInteger::UIntVar(_) => std_primitive_types::UINTBIG
+                    },
+                    Number::SignedInteger(i) => match i {
+                        SignedInteger::Int8(_) => std_primitive_types::INT8,
+                        SignedInteger::Int16(_) => std_primitive_types::INT16,
+                        SignedInteger::Int32(_) => std_primitive_types::INT32,
+                        SignedInteger::Int64(_) => std_primitive_types::INT64,
+                        SignedInteger::Int128(_) => std_primitive_types::INT128,
+                        SignedInteger::IntVar(_) => std_primitive_types::INTBIG
+                    },
+                    Number::FloatingPoint(f) => match f {
+                        FloatingPoint::Float32(_) => std_primitive_types::FLOAT32,
+                        FloatingPoint::Float64(_) => std_primitive_types::FLOAT64,
+                        FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG
+                    },
+                }
+            },
             Value::String(_) => std_primitive_types::STRING,
             Value::Char(_) => std_primitive_types::CHAR,
             Value::Boolean(_) => std_primitive_types::BOOL,
@@ -183,7 +208,7 @@ impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Unit => write!(f, "()"),
-            Value::Number(n, _) => match n {
+            Value::Number(n) => match n {
                 Number::UnsignedInteger(u) => match u {
                     UnsignedInteger::UInt1(b) => write!(f, "{}", b),
                     UnsignedInteger::UInt8(b) => write!(f, "{}", b),
