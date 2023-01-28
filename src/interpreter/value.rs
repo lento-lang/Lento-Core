@@ -72,6 +72,68 @@ impl GetType for Number {
     }
 }
 
+impl Number {
+    fn parse_big_int(s: String) -> Number {
+        let i = BigInt::parse_bytes(s.as_bytes(), 10).unwrap();
+        Number::SignedInteger(SignedInteger::IntVar(i))
+    }
+
+    fn parse_big_uint(s: String) -> Number {
+        let u = BigUint::parse_bytes(s.as_bytes(), 10).unwrap();
+        Number::UnsignedInteger(UnsignedInteger::UIntVar(u))
+    }
+
+    fn parse_big_float(s: String) -> Number {
+        let f = BigFloat::parse(&s).unwrap();
+        Number::FloatingPoint(FloatingPoint::FloatBig(f))
+    }
+
+    pub fn parse(s: String) -> Number {
+        if s.contains('.') { // Floating point number (Only signed floating point numbers are supported)
+            let f = s.parse::<f64>();
+            if f.is_err() { return Number::parse_big_float(s); }
+            let f = f.unwrap();
+            if f >= std::f32::MIN as f64 && f <= std::f32::MAX as f64 {
+                Number::FloatingPoint(FloatingPoint::Float32(f as f32))
+            } else {
+                Number::FloatingPoint(FloatingPoint::Float64(f))
+            }
+        } else {
+            if s.starts_with('-') {
+                let i = s[1..].parse::<i128>();
+                if i.is_err() { return Number::parse_big_int(s); }
+                let i = i.unwrap();
+                if i >= std::i8::MIN as i128 && i <= std::i8::MAX as i128 {
+                    Number::SignedInteger(SignedInteger::Int8(i as i8))
+                } else if i >= std::i16::MIN as i128 && i <= std::i16::MAX as i128 {
+                    Number::SignedInteger(SignedInteger::Int16(i as i16))
+                } else if i >= std::i32::MIN as i128 && i <= std::i32::MAX as i128 {
+                    Number::SignedInteger(SignedInteger::Int32(i as i32))
+                } else if i >= std::i64::MIN as i128 && i <= std::i64::MAX as i128 {
+                    Number::SignedInteger(SignedInteger::Int64(i as i64))
+                } else {
+                    Number::SignedInteger(SignedInteger::Int128(i as i128))
+                }
+            } else {
+                let u = s.parse::<i128>();
+                if u.is_err() { return Number::parse_big_uint(s); }
+                let u = u.unwrap();
+                if u >= std::u8::MIN as i128 && u <= std::u8::MAX as i128 {
+                    Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
+                } else if u >= std::u16::MIN as i128 && u <= std::u16::MAX as i128 {
+                    Number::UnsignedInteger(UnsignedInteger::UInt16(u as u16))
+                } else if u >= std::u32::MIN as i128 && u <= std::u32::MAX as i128 {
+                    Number::UnsignedInteger(UnsignedInteger::UInt32(u as u32))
+                } else if u >= std::u64::MIN as i128 && u <= std::u64::MAX as i128 {
+                    Number::UnsignedInteger(UnsignedInteger::UInt64(u as u64))
+                } else {
+                    Number::UnsignedInteger(UnsignedInteger::UInt128(u as u128))
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordKey {
     String(String),
@@ -89,7 +151,7 @@ impl Display for RecordKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UserFunctionVariation {
     params: FunctionParameterType,
     body: Ast,
@@ -105,7 +167,7 @@ pub enum NativeFunctionParameters {
     Variadic(Option<Vec<Value>>, Vec<Value>), // Some initial values of different types, followed by the variadic type values
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FunctionVariation {
     User(UserFunctionVariation),
     Native(fn(NativeFunctionParameters) -> InterpretResult, FunctionParameterType, Type), // Built-in functions
