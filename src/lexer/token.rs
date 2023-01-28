@@ -13,6 +13,7 @@ pub enum Token {
     Float(String),
     String(String),
     Char(char),
+    Boolean(bool),
     TypeIdentifier(String),
     // Type expression tokens
     TypeLeftAngleBracket,
