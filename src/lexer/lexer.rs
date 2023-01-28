@@ -19,7 +19,8 @@ pub struct Lexer<R: BufRead + Seek> {
     buffer: [u8; BUFFER_SIZE],
     buffer_idx: usize,
     line_info: LineInfoSpan,
-    operators: HashMap<String, Operator>
+    operators: HashMap<String, Operator>,
+    peeked_token: Option<LexResult>,
 }
 
 impl<R: BufRead + Seek> Lexer<R> {
@@ -30,12 +31,19 @@ impl<R: BufRead + Seek> Lexer<R> {
             buffer: [0; BUFFER_SIZE],
             buffer_idx: 0,
             line_info: LineInfoSpan::new(),
-            operators: HashMap::new()
+            operators: HashMap::new(),
+            peeked_token: None,
         }
     }
 
     pub fn define_op(&mut self, op: Operator) {
         self.operators.insert(op.symbol().clone(), op);
+    }
+
+    fn lookup_op(&self, op: &str) -> Option<Operator> {
+        // TODO: Incremental search using peek_char and break when there is no match,
+        //      otherwise, return the longest match while peeking all the way to the end and "eating" the characters if there is a match.
+        self.operators.get(op).cloned()
     }
 
 
@@ -94,10 +102,16 @@ impl<R: BufRead + Seek> Lexer<R> {
         Some(c as char)
     }
 
-    fn lookup_operator(&self, op: &str) -> Option<Operator> {
-        // TODO: Incremental search using peek_char and break when there is no match,
-        //      otherwise, return the longest match while peeking all the way to the end and "eating" the characters if there is a match.
-        self.operators.get(op).cloned()
+    /**
+     * Peek the next token from the source code.
+     */
+    pub fn peek_token(&mut self) -> LexResult {
+        if self.peeked_token.is_some() { self.peeked_token.as_ref().unwrap().clone() }
+        else {
+            let token = self.next_token();
+            self.peeked_token = Some(token.clone());
+            token
+        }
     }
 
     /**
@@ -116,6 +130,7 @@ impl<R: BufRead + Seek> Lexer<R> {
      * This function is the main function of the lexer.
      */
     pub fn next_token(&mut self) -> LexResult {
+        if let Some(token) = self.peeked_token.take() { return token; }
         self.set_info_start_to_current();
         if let Some(c) = self.next_char() {
             if c == ' ' || c == '\t' || c == '\r' {
@@ -140,7 +155,7 @@ impl<R: BufRead + Seek> Lexer<R> {
                 '[' => Token::LeftBracket,
                 ']' => Token::RightBracket,
                 _ => {
-                    if let Some(op) = self.lookup_operator(&c.to_string()) { Token::Op(op) }
+                    if let Some(op) = self.lookup_op(&c.to_string()) { Token::Op(op) }
                     else { return Err(LexerError::unexpected_character(c, self.line_info.clone())); }
                 }
             }) }
