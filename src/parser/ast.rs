@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{lexer::op::RuntimeOperator, type_checker::types::{Type, FunctionParameterType}};
+use crate::{lexer::op::Operator, type_checker::types::{Type, FunctionParameterType}, interpreter::value::Value};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordKeyAst {
@@ -19,19 +19,16 @@ type CheckedType = Option<Type>;
  */
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ast {
-    Integer(String, CheckedType),
-    Float(String, CheckedType),
-    String(String),
-    Char(char),
+    Literal(Value), // Primitive values such as Integer, Float, String, Char and Boolean (NOT compound data structures)
+    Tuple(Vec<Ast>, CheckedType),
+    List(Vec<Ast>, CheckedType),
+    Record(HashMap<RecordKeyAst, Ast>, CheckedType),
     Identifier(String, CheckedType),
     TypeIdentifier(String, CheckedType),
     FunctionCall(String, Vec<Ast>, CheckedType),
     Function(String, FunctionParameterType, Box<Ast>, CheckedType),
-    Tuple(Vec<Ast>, CheckedType),
-    List(Vec<Ast>, CheckedType),
-    Record(HashMap<RecordKeyAst, Ast>, CheckedType),
-    Binary(Box<Ast>, RuntimeOperator, Box<Ast>, CheckedType),
-    Unary(RuntimeOperator, Box<Ast>, CheckedType),
+    Binary(Box<Ast>, Operator, Box<Ast>, CheckedType),
+    Unary(Operator, Box<Ast>, CheckedType),
     Assignment(Box<Ast>, Box<Ast>, CheckedType),
     /**
      * Block expression evaluates all expressions in the block and returns the value of the last expression.
