@@ -34,7 +34,7 @@ pub fn interpret_ast(ast: &Ast, env: &Environment) -> InterpretResult {
             if v.len() == 0 { Value::Unit }
             else { eval_tuple(v, env)? }
         },
-        Ast::String(s) => Value::String(s),
+        Ast::Literal(l) => l,
         _ => todo!("Implement other AST nodes")
     })
 }
