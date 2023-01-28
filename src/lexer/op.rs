@@ -128,6 +128,13 @@ impl Operator {
         }
     }
 
+    pub fn pos(&self) -> OperatorPosition {
+        match self {
+            Operator::Runtime(op) => op.pos.clone(),
+            Operator::Static(op) => op.pos.clone(),
+        }
+    }
+
     pub fn precedence(&self) -> OperatorPrecedence {
         match self {
             Operator::Runtime(op) => op.precedence,
