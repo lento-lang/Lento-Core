@@ -30,6 +30,41 @@ pub enum Token {
     Op(Operator),
 }
 
+impl Token {
+    pub fn is_operator(&self) -> bool {
+        match self {
+            Token::Op(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn get_operator(&self) -> Option<Operator> {
+        match self {
+            Token::Op(op) => Some(op.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn is_literal(&self) -> bool {
+        match self {
+            Token::Integer(_) => true,
+            Token::Float(_) => true,
+            Token::String(_) => true,
+            Token::Char(_) => true,
+            Token::Boolean(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_terminator(&self) -> bool {
+        match self {
+            Token::Newline => true,
+            Token::SemiColon => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LineInfo {
     pub index: usize,
