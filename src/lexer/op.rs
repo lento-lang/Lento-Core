@@ -16,7 +16,6 @@ pub enum OperatorPosition {
 pub enum OperatorAssociativity {
     Left,
     Right,
-    None,
 }
 
 type OperatorPrecedence = u16;
