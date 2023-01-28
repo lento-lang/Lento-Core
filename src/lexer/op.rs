@@ -18,7 +18,7 @@ pub enum OperatorAssociativity {
     Right,
 }
 
-type OperatorPrecedence = u16;
+pub type OperatorPrecedence = u16;
 
 
 //--------------------------------------------------------------------------------------//
