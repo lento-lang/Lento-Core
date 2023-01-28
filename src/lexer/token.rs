@@ -46,8 +46,8 @@ impl LineInfoSpan {
     pub fn new() -> Self {
         let empty = LineInfo {
             index: 0,
-            line: 0,
-            column: 0,
+            line: 1,
+            column: 1,
         };
         Self {
             start: empty.clone(),
