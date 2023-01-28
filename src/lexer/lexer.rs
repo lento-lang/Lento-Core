@@ -2,9 +2,9 @@ use std::{io::{Seek, BufRead}, collections::HashMap};
 
 use lazy_regex::{self, regex_replace_all};
 
-use super::{token::{Token, LineInfoSpan}, error::LexerError, op::Operator};
+use super::{token::{Token, LineInfoSpan, TokenInfo}, error::LexerError, op::Operator};
 
-type LexResult = Result<Token, LexerError>;
+type LexResult = Result<TokenInfo, LexerError>;
 const BUFFER_SIZE: usize = 128;
 
 
@@ -15,8 +15,8 @@ const BUFFER_SIZE: usize = 128;
 #[derive(Clone)]
 pub struct Lexer<R: BufRead + Seek> {
     reader: R,
+    initialized_buffer: bool,
     buffer: [u8; BUFFER_SIZE],
-    first_read: bool,
     buffer_idx: usize,
     line_info: LineInfoSpan,
     operators: HashMap<String, Operator>
@@ -26,8 +26,8 @@ impl<R: BufRead + Seek> Lexer<R> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,
+            initialized_buffer: false,
             buffer: [0; BUFFER_SIZE],
-            first_read: true,
             buffer_idx: 0,
             line_info: LineInfoSpan::new(),
             operators: HashMap::new()
@@ -36,6 +36,14 @@ impl<R: BufRead + Seek> Lexer<R> {
 
     pub fn define_op(&mut self, op: Operator) {
         self.operators.insert(op.symbol().clone(), op);
+    }
+
+
+    fn new_token_info(&self, token: Token) -> LexResult {
+        Ok(TokenInfo {
+            info: self.line_info.clone(),
+            token
+        })
     }
 
     /**
@@ -47,17 +55,23 @@ impl<R: BufRead + Seek> Lexer<R> {
     }
 
     fn peek_char(&mut self, offset: i64) -> Option<char> {
-        let prev_idx = self.reader.seek(std::io::SeekFrom::Current(0)).unwrap();
-        self.reader.seek(std::io::SeekFrom::Current(offset)).unwrap();
-        let c = &mut [0; 1];
-        let reset = |reader: &mut R| { reader.seek(std::io::SeekFrom::Start(prev_idx)).unwrap() }; // Reset the position of the reader
-        if let Ok(n) = self.reader.read(c) {
-            reset(&mut self.reader);
-            if n > 0 { Some(c[0] as char) }
-            else { None }
+        // Read from buffer
+        let idx = self.buffer_idx + offset as usize;
+        if idx < BUFFER_SIZE {
+            let c = self.buffer[idx as usize];
+            if c == 0 { None } else { Some(c as char) }
         } else {
-            reset(&mut self.reader);
-            None
+            // Read from reader
+            let prev_idx = self.reader.seek(std::io::SeekFrom::Current(0)).unwrap();
+            self.reader.seek(std::io::SeekFrom::Current(offset)).unwrap();
+            let c = &mut [0; 1];
+            if let Ok(n) = self.reader.read(c) {
+                self.reader.seek(std::io::SeekFrom::Start(prev_idx)).unwrap();
+                if n > 0 { Some(c[0] as char) } else { None }
+            } else {
+                self.reader.seek(std::io::SeekFrom::Start(prev_idx)).unwrap();
+                None
+            }
         }
     }
 
@@ -65,9 +79,12 @@ impl<R: BufRead + Seek> Lexer<R> {
      * Read a string from the source code using a buffered reader.
      */
     fn next_char(&mut self) -> Option<char> {
-        if self.buffer_idx >= BUFFER_SIZE || self.first_read {
-            if self.reader.read(&mut self.buffer).is_err() { return None; }
-            self.first_read = false;
+        if !self.initialized_buffer || self.buffer_idx >= BUFFER_SIZE {
+            if self.reader.read(&mut self.buffer).is_err() {
+                // Try to re-initialize the buffer the next time
+                return None;
+            }
+            self.initialized_buffer = true;
             self.buffer_idx = 0;
         }
         let c = self.buffer[self.buffer_idx];
@@ -88,7 +105,7 @@ impl<R: BufRead + Seek> Lexer<R> {
      */
     pub fn next_token_no_nl(&mut self) -> LexResult {
         let mut token = self.next_token()?;
-        while token == Token::Newline {
+        while token.token == Token::Newline {
             token = self.next_token()?;
         }
         Ok(token)
@@ -99,13 +116,14 @@ impl<R: BufRead + Seek> Lexer<R> {
      * This function is the main function of the lexer.
      */
     pub fn next_token(&mut self) -> LexResult {
+        self.set_info_start_to_current();
         if let Some(c) = self.next_char() {
             if c == ' ' || c == '\t' || c == '\r' {
-                self.next_token() // Ignore whitespace
+                return self.next_token(); // Ignore whitespace
             } else if c == '\n' {
                 self.line_info.end.line += 1;
-                self.line_info.end.column = 0;
-                Ok(Token::Newline)
+                self.line_info.end.column = 1;
+                self.new_token_info(Token::Newline)
             } else if c == '"' {
                 self.read_string()
             } else if c == '\'' {
@@ -114,7 +132,7 @@ impl<R: BufRead + Seek> Lexer<R> {
                 self.read_number(c)
             } else if Self::is_identifier_head_char(c) {
                 self.read_identifier(c)
-            } else { Ok(match c {
+            } else { self.new_token_info(match c {
                 '(' => Token::LeftParen,
                 ')' => Token::RightParen,
                 '{' => Token::LeftBrace,
@@ -122,16 +140,11 @@ impl<R: BufRead + Seek> Lexer<R> {
                 '[' => Token::LeftBracket,
                 ']' => Token::RightBracket,
                 _ => {
-                    if let Some(op) = self.lookup_operator(&c.to_string()) {
-                        Token::Op(op)
-                    } else {
-                        return Err(LexerError::unexpected_character(c, self.line_info.clone()));
-                    }
+                    if let Some(op) = self.lookup_operator(&c.to_string()) { Token::Op(op) }
+                    else { return Err(LexerError::unexpected_character(c, self.line_info.clone())); }
                 }
             }) }
-        } else {
-            Ok(Token::EndOfFile)
-        }
+        } else { self.new_token_info(Token::EndOfFile) }
     }
 
     pub fn resolve_escape_sequence(s: String) -> String {
@@ -154,7 +167,6 @@ impl<R: BufRead + Seek> Lexer<R> {
     fn read_while(&mut self, init: Option<String>, mut cond: impl FnMut(char) -> bool, mut build_token: impl FnMut(&mut Self, String) -> LexResult) -> LexResult {
         let mut r = init.unwrap_or(String::new());
         while let Some(c) = self.peek_char(0) {
-            println!("read_while: checking cond('{}')", c);
             if cond(c) {
                 self.next_char();
                 r.push(c);
@@ -171,7 +183,8 @@ impl<R: BufRead + Seek> Lexer<R> {
      */
     fn read_string(&mut self) -> LexResult {
         self.read_while(None, |c| c != '"', |this, s| {
-            Ok(Token::String(Lexer::<R>::resolve_escape_sequence(s)))
+            this.next_char(); // Eat the last "
+            this.new_token_info(Token::String(Lexer::<R>::resolve_escape_sequence(s)))
         })
     }
 
@@ -185,7 +198,7 @@ impl<R: BufRead + Seek> Lexer<R> {
             if s.len() != 1 {
                 Err(LexerError::invalid_char(s, this.line_info.clone()))
             } else {
-                Ok(Token::Char(s.chars().next().unwrap()))
+                this.new_token_info(Token::Char(s.chars().next().unwrap()))
             }
         })
     }
@@ -203,7 +216,7 @@ impl<R: BufRead + Seek> Lexer<R> {
             } else {
                 c.is_numeric()
             }
-        }, |_, s| Ok(if has_dot { Token::Float(s) } else { Token::Integer(s) }))
+        }, |this, s| this.new_token_info(if has_dot { Token::Float(s) } else { Token::Integer(s) }))
     }
 
     fn is_identifier_head_char(c: char) -> bool { c.is_alphabetic() || c == '_' }
@@ -213,7 +226,7 @@ impl<R: BufRead + Seek> Lexer<R> {
      * Read an identifier from the source code.
      */
     fn read_identifier(&mut self, c: char) -> LexResult {
-        self.read_while(Some(c.to_string()), Self::is_identifier_body_char, |_, s| Ok(Token::Identifier(s)))
+        self.read_while(Some(c.to_string()), Self::is_identifier_body_char, |this, s| this.new_token_info(Token::Identifier(s)))
     }
 
 }
