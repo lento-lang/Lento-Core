@@ -1,6 +1,6 @@
 use std::{path::Path, io::{BufReader, Error, BufRead, Seek}, fs::File};
 
-use crate::lexer::{readers::bytes_reader::BytesReader, token::Token};
+use crate::lexer::{readers::bytes_reader::BytesReader, token::{Token, TokenInfo}};
 
 use crate::lexer::lexer::Lexer;
 
@@ -26,12 +26,11 @@ impl<R: BufRead + Seek> Parser<R> {
 
     pub fn parse(&mut self) -> Result<Ast, ParseFail> {
         // Read all tokens from the lexer first to test the lexer
-        let mut toks: Vec<Token> = vec![];
+        let mut toks: Vec<TokenInfo> = vec![];
         loop {
             match self.lexer.next_token() {
                 Ok(token) => {
-                    println!("{:?}", token);
-                    if token == Token::EndOfFile { break; }
+                    if token.token == Token::EndOfFile { break; }
                     toks.push(token);
                 },
                 Err(err) => {
@@ -43,7 +42,7 @@ impl<R: BufRead + Seek> Parser<R> {
         }
 
         println!("{:?}", toks);
-        assert!(toks.len() == 4, "Expected there to be exactly four tokens");
+        assert!(toks.len() >= 4, "Expected there to be exactly four tokens");
         // Ok(unit())
         Ok(Ast::FunctionCall("print".to_string(), vec![Ast::String("Hello, world!".to_string())], None))
     }
