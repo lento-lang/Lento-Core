@@ -56,7 +56,7 @@ impl LineInfoSpan {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct TokenInfo {
     pub token: Token,
     pub info: LineInfoSpan,
