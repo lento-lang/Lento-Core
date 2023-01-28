@@ -51,9 +51,9 @@ fn assign_handler(op: StaticOperatorAst) -> Ast {
         let lhs = vals[0].clone();
         let rhs = vals[1].clone();
         if lhs.get_type().subtype(TY_INT) && rhs.get_type().subtype(TY_INT) {
-            let lhs_val = if let Value::Number(Number::SignedInteger(SignedInteger::Int32(v)), _) = lhs { v } else { panic!("add() expects 2 arguments of type '{}'", TY_INT) };
-            let rhs_val = if let Value::Number(Number::SignedInteger(SignedInteger::Int32(v)), _) = rhs { v } else { panic!("add() expects 2 arguments of type '{}'", TY_INT) };
-            Ok(Value::Number(Number::SignedInteger(SignedInteger::Int32(lhs_val + rhs_val)), TY_INT))
+            let lhs_val = if let Value::Number(Number::SignedInteger(SignedInteger::Int32(v))) = lhs { v } else { panic!("add() expects 2 arguments of type '{}'", TY_INT) };
+            let rhs_val = if let Value::Number(Number::SignedInteger(SignedInteger::Int32(v))) = rhs { v } else { panic!("add() expects 2 arguments of type '{}'", TY_INT) };
+            Ok(Value::Number(Number::SignedInteger(SignedInteger::Int32(lhs_val + rhs_val))))
         } else {
             Err(runtime_error(format!("add() expects 2 arguments of type '{}', got '{:?}' and '{:?}'", TY_INT, lhs.get_type(), rhs.get_type())))
         }
