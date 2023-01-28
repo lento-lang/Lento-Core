@@ -1,6 +1,6 @@
 use std::io::{BufRead, Seek};
 
-use crate::{lexer::op::{Operator, RuntimeOperator, StaticOperator, OperatorAssociativity, StaticOperatorHandler, RuntimeOperatorHandler, StaticOperatorAst, OperatorPosition}, parser::ast::Ast, interpreter::{value::{FunctionVariation, NativeFunctionParameters, Value, Number, SignedInteger, Function}, error::{runtime_error, RuntimeError}, environment::Environment}, type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, util::str::Str};
+use crate::{lexer::op::{Operator, RuntimeOperator, StaticOperator, OperatorAssociativity, StaticOperatorHandler, RuntimeOperatorHandler, StaticOperatorAst, OperatorPosition}, parser::ast::Ast, interpreter::{value::{FunctionVariation, NativeFunctionParameters, Value, Number, SignedInteger, Function, FloatingPoint}, error::{runtime_error, RuntimeError}, environment::Environment}, type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, util::str::Str};
 
 use super::super::lexer::lexer::Lexer;
 
@@ -101,6 +101,11 @@ pub fn init_environment(env: &mut Environment) -> Result<(), RuntimeError> {
 
     add_value(env, "true", Value::Boolean(true))?;
     add_value(env, "false", Value::Boolean(false))?;
+    add_value(env, "pi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::PI))))?;
+    add_value(env, "tau", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::TAU))))?;
+    add_value(env, "e", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::E))))?;
+    add_value(env, "phi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(1.6180339887498948482045868343656381177203091798057628621354486227052604628189024497072072041893911374))))?;
+    add_value(env, "sqrt2", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::SQRT_2))))?;
 
 //--------------------------------------------------------------------------------------//
 //                                   Implementations                                    //
