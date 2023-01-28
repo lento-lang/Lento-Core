@@ -36,6 +36,10 @@ pub enum Ast {
     Block(Vec<Ast>, CheckedType),
 }
 
+pub fn tuple(elements: Vec<Ast>) -> Ast {
+    Ast::Tuple(elements, None)
+}
+
 /**
  * Create a new unit AST node.
  * Implemented as a tuple with no elements.
