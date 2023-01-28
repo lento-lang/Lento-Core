@@ -28,7 +28,7 @@ impl<R: BufRead + Seek> Parser<R> {
         // Read all tokens from the lexer first to test the lexer
         let mut toks: Vec<TokenInfo> = vec![];
         loop {
-            match self.lexer.next_token() {
+            match self.lexer.next_token_no_nl() {
                 Ok(token) => {
                     if token.token == Token::EndOfFile { break; }
                     toks.push(token);
