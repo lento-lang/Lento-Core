@@ -63,10 +63,10 @@ impl<'a> Environment<'a> {
      * If the value is not found in the current environment, the parent environment is searched recursively.
      */
     pub fn get_value(&self, name: &str) -> Option<Value> {
-        if let Some(v) = self.variables.get(name) {
-            Some(v.clone())
-        } else if let Some(f) = self.functions.get(name) {
-            Some(Value::Function(f.clone()))
+        if let Some(v) = self.get_variable(name) {
+            Some(v)
+        } else if let Some(f) = self.get_function(name) {
+            Some(f)
         } else if let Some(p) = &self.parent {
             p.get_value(name)
         } else {
