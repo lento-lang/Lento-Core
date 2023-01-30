@@ -88,7 +88,7 @@ impl Environment {
      * Add a type to the environment.
      * If the type already exists in a parent environment, it is shadowed.
      */
-    pub fn add_type(&mut self, name: Str, type_: Type) -> Result<(), RuntimeError> {
+    pub fn add_type(&mut self, name: Str, type_: Type) -> Failable<RuntimeError> {
         // Check if the type already exists in the standard library
         if std_primitive_types::find_type(name.to_string()).is_some() {
             panic!("Type {} already exists in the standard library", name);
@@ -105,7 +105,7 @@ impl Environment {
      * Add a variable (any value or function) to the environment.
      * If the variable already exists in a parent environment, it is shadowed.
      */
-    pub fn add_value(&mut self, name: Str, value: Value) -> Result<(), RuntimeError> {
+    pub fn add_value(&mut self, name: Str, value: Value) -> Failable<RuntimeError> {
         let name = name.to_string();
         // Check if the variable already exists in the standard library
         if self.variables.get(&name).is_some() {

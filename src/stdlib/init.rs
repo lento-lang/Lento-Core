@@ -76,7 +76,7 @@ fn assign_handler(op: StaticOperatorAst) -> Ast {
 //--------------------------------------------------------------------------------------//
 
 
-pub fn init_environment(env: &mut Environment) -> Result<(), RuntimeError> {
+pub fn init_environment(env: &mut Environment) -> Failable<RuntimeError> {
     let add_value = |env: &mut Environment, name: &str, val: Value| {
         env.add_value(Str::String(name.to_string()), val)
     };
