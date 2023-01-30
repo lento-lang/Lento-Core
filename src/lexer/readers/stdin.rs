@@ -25,7 +25,7 @@ impl Read for StdinReader {
             self.stdin.read_line(&mut self.buffer)?;
         }
         let amt = std::cmp::min(buf.len(), self.buffer.len() - self.buffer_pos);
-        buf.copy_from_slice(&self.buffer.as_bytes()[self.buffer_pos..self.buffer_pos + amt]);
+        buf[..amt].copy_from_slice(&self.buffer.as_bytes()[self.buffer_pos..self.buffer_pos + amt]);
         self.buffer_pos += amt;
         Ok(amt)
     }
