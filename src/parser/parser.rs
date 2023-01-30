@@ -1,7 +1,5 @@
 use std::{path::Path, io::{BufReader, Error, BufRead, Seek}, fs::File};
 
-use chumsky::primitive::Container;
-
 use crate::{lexer::{readers::bytes_reader::BytesReader, token::{Token, TokenInfo}, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, error::LexerError, lexer::LexResult}, interpreter::value::{Value, Number}, type_checker::types::Type};
 
 use crate::lexer::lexer::Lexer;
@@ -10,7 +8,7 @@ use super::ast::{Ast, unit};
 
 #[derive(Debug, Clone)]
 pub struct  ParseFail {
-    pub msg: String
+    pub message: String
 }
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
@@ -52,26 +50,26 @@ impl<R: BufRead + Seek> Parser<R> {
     fn parse_call(&mut self, id: String) -> Result<Ast, ParseFail> {
         let mut args = Vec::new();
         let nt = self.lexer.next_token();
-        if nt.is_err() { return Err(ParseFail { msg: "Expected '('".to_string() }); }
+        if nt.is_err() { return Err(ParseFail { message: "Expected '('".to_string() }); }
         assert!(nt.unwrap().token == Token::LeftParen);
         while let Ok(t) = self.lexer.peek_token() {
             if t.token == Token::RightParen { break; }
             let expr = self.parse_top_expr()?;
             args.push(expr);
             let nt = self.lexer.peek_token();
-            if nt.is_err() { return Err(ParseFail { msg: "Expected ')'".to_string() }); }
+            if nt.is_err() { return Err(ParseFail { message: "Expected ')'".to_string() }); }
             let nt = nt.unwrap().token;
             if nt == Token::RightParen {
                 self.lexer.next_token();
                 break;
             }
             let nt = self.lexer.next_token();
-            if nt.is_err() { return Err(ParseFail { msg: "Expected ')'".to_string() }); }
+            if nt.is_err() { return Err(ParseFail { message: "Expected ')'".to_string() }); }
             let nt = nt.unwrap().token;
             if nt.is_terminator() {
                 continue;
             }
-            return Err(ParseFail { msg: "Expected ')'".to_string() });
+            return Err(ParseFail { message: "Expected ')'".to_string() });
         }
         // TODO: Extract read_until_terminator() helper method
         Ok(Ast::FunctionCall(id, args, None))
@@ -95,15 +93,15 @@ impl<R: BufRead + Seek> Parser<R> {
             } else if t.token.is_operator() {
                 let op = t.token.get_operator().unwrap();
                 if op.pos() != OperatorPosition::Prefix {
-                    return Err(ParseFail { msg: format!("Expected prefix operator, found {:?}", op) });
+                    return Err(ParseFail { message: format!("Expected prefix operator, found {:?}", op) });
                 }
                 let rhs = self.parse_primary()?;
                 Ok(Ast::Unary(op, Box::new(rhs), None))
             } else {
-                Err(ParseFail { msg: format!("Expected primary expression, found {:?}", t) })
+                Err(ParseFail { message: format!("Expected primary expression, found {:?}", t) })
             }
         } else {
-            Err(ParseFail { msg: format!("Expected primary expression, but failed due to: {:?}", nt.unwrap_err()) })
+            Err(ParseFail { message: format!("Expected primary expression, but failed due to: {:?}", nt.unwrap_err()) })
         }
     }
 
