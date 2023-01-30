@@ -188,8 +188,8 @@ impl Display for FunctionVariation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
-    name: String,
-    variations: Vec<FunctionVariation>, // Function types are inferred from variations
+    pub name: String,
+    pub variations: Vec<FunctionVariation>, // Function types are inferred from variations
     // TODO: Add an environment for the function
 }
 
