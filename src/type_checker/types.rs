@@ -7,6 +7,7 @@ use crate::util::str::Str;
 //--------------------------------------------------------------------------------------//
 
 pub type NamedType = (String, Type);
+pub type CheckedType = Option<Type>; // None means the type is not checked
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FunctionParameterType {
@@ -371,5 +372,5 @@ pub mod std_primitive_types {
 //--------------------------------------------------------------------------------------//
 
 pub trait GetType {
-    fn get_type(&self) -> Type;
+    fn get_type(&self) -> CheckedType;
 }

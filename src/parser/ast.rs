@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{lexer::op::Operator, type_checker::types::{Type, FunctionParameterType}, interpreter::value::Value};
+use crate::{lexer::op::Operator, type_checker::types::{Type, FunctionParameterType, GetType, CheckedType}, interpreter::value::Value};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordKeyAst {
@@ -9,8 +9,6 @@ pub enum RecordKeyAst {
     Float(String),
     Char(char),
 }
-
-type CheckedType = Option<Type>;
 
 /**
  * The AST is a tree of nodes that represent the program.
@@ -34,6 +32,26 @@ pub enum Ast {
      * Block expression evaluates all expressions in the block and returns the value of the last expression.
      */
     Block(Vec<Ast>, CheckedType),
+}
+
+impl GetType for Ast {
+    fn get_type(&self) -> CheckedType {
+        Some(match self {
+            Ast::Literal(value) => return value.get_type(),
+            Ast::Tuple(_, Some(t)) => t.clone(),
+            Ast::List(_, Some(t)) => t.clone(),
+            Ast::Record(_, Some(t)) => t.clone(),
+            Ast::Identifier(_, Some(t)) => t.clone(),
+            Ast::TypeIdentifier(_, Some(t)) => t.clone(),
+            Ast::FunctionCall(_, _, Some(t)) => t.clone(),
+            Ast::Function(_, _, _, Some(t)) => t.clone(),
+            Ast::Binary(_, _, _, Some(t)) => t.clone(),
+            Ast::Unary(_, _, Some(t)) => t.clone(),
+            Ast::Assignment(_, _, Some(t)) => t.clone(),
+            Ast::Block(_, Some(t)) => t.clone(),
+            _ => return None,
+        })
+    }
 }
 
 pub fn tuple(elements: Vec<Ast>) -> Ast {
