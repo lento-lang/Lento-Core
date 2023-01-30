@@ -102,6 +102,12 @@ pub fn interpret_ast(ast: &Ast, env: &Environment) -> InterpretResult {
             else { eval_tuple(v, env)? }
         },
         Ast::Literal(l) => l,
+        Ast::Identifier(id, _) => {
+            match env.get_value(&id) {
+                Some(v) => v,
+                None => return Err(runtime_error(format!("Unknown identifier: '{}'", id)))
+            }
+        },
         _ => todo!("Implement other AST nodes")
     })
 }
