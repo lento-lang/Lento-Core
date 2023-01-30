@@ -85,7 +85,7 @@ impl Display for FunctionParameterType {
             FunctionParameterType::Singles(types) => FunctionParameterType::fmt_named(f, types),
             FunctionParameterType::Variadic(types, variadic) => {
                 FunctionParameterType::fmt_named(f, types)?;
-                write!(f, ", ")?;
+                if types.len() > 0 { write!(f, ", ")?; }
                 write!(f, "{} ...{}", variadic.1, variadic.0)
             }
         }
@@ -238,7 +238,8 @@ impl Display for Type {
                     FunctionParameterType::Singles(s) => print_params(s)?,
                     FunctionParameterType::Variadic(s, v) => {
                         print_params(s)?;
-                        write!(f, ", ...{}", v.1)?;
+                        if s.len() > 0 { write!(f, ", ")?; }
+                        write!(f, "...{}", v.1)?;
                     }
                 };
                 write!(f, ") -> {}", r)

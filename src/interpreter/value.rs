@@ -350,7 +350,7 @@ impl Display for Value {
                 write!(f, " }}")
             }
             Value::Function(fun) => {
-                write!(f, "function[{}] {{", fun.name)?;
+                write!(f, "function[{}] {{\n", fun.name)?;
                 for (i, v) in fun.variations.iter().enumerate() {
                     writeln!(f, "\t{}", v)?;
                 }
