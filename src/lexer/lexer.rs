@@ -36,6 +36,15 @@ impl<R: BufRead + Seek> Lexer<R> {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.reader.seek(std::io::SeekFrom::Start(0)).unwrap();
+        self.initialized_buffer = false;
+        self.buffer = [0; BUFFER_SIZE];
+        self.buffer_idx = 0;
+        self.line_info = LineInfoSpan::new();
+        self.peeked_token = None;
+    }
+
     pub fn define_op(&mut self, op: Operator) {
         self.operators.insert(op.symbol().clone(), op);
     }

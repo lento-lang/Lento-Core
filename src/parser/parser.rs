@@ -26,6 +26,10 @@ impl<R: BufRead + Seek> Parser<R> {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.lexer.reset();
+    }
+
     pub fn parse(&mut self) -> Result<Ast, ParseFail> {
         // Ok(unit())
         // Ok(Ast::FunctionCall("print".to_string(), vec![Ast::Literal(Value::String("Hello, world!".to_string()))], None))
