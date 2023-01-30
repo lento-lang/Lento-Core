@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::util::str::Str;
+use crate::{util::str::Str, parser::ast::Ast, interpreter::{environment::Environment, value::Value, error::RuntimeError}};
 
 
 //--------------------------------------------------------------------------------------//
@@ -12,7 +12,7 @@ pub type CheckedType = Option<Type>; // None means the type is not checked
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FunctionParameterType {
     Singles(Vec<NamedType>),
-    Variadic(Option<Vec<NamedType>>, NamedType), // Some initial types, followed by a variadic type
+    Variadic(Vec<NamedType>, NamedType), // Some initial types, followed by a variadic type
 }
 
 impl FunctionParameterType {
@@ -23,6 +23,60 @@ impl FunctionParameterType {
         }
         Ok(())
     }
+
+    /**
+     * Match the given arguments to the function parameters.
+     * Return true if the arguments suffice the parameter types.
+     */
+    pub fn match_args(&self, args: &Vec<Ast>) -> bool {
+        match self {
+            FunctionParameterType::Singles(types) => {
+                if types.len() != args.len() { return false; }
+                for (i, (_, t)) in types.iter().enumerate() {
+                    if let Some(arg_type) = args[i].get_type() {
+                        if !t.subtype(&arg_type) { return false; }
+                    } else { panic!("Argument type has not been checked by the type checker!"); }
+                }
+                true
+            },
+            FunctionParameterType::Variadic(types, (_, var_type)) => {
+                if types.len() > args.len() { return false; }
+                for (i, (_, t)) in types.iter().enumerate() {
+                    if let Some(arg_type) = args[i].get_type() {
+                        if !t.subtype(&arg_type) { return false; }
+                    } else { panic!("Argument type has not been checked by the type checker!"); }
+                }
+                for i in types.len()..args.len() {
+                    if let Some(arg_type) = args[i].get_type() {
+                        if !var_type.subtype(&arg_type) { return false; }
+                    } else { panic!("Argument type has not been checked by the type checker!"); }
+                }
+                true
+            }
+        }
+    }
+
+    pub fn is_variadic(&self) -> bool {
+        match self {
+            FunctionParameterType::Singles(_) => false,
+            FunctionParameterType::Variadic(_, _) => true
+        }
+    }
+
+    pub fn as_single(&self) -> Option<&Vec<NamedType>> {
+        match self {
+            FunctionParameterType::Singles(types) => Some(types),
+            FunctionParameterType::Variadic(_, _) => None
+        }
+    }
+
+    pub fn as_variadic(&self) -> Option<(&Vec<NamedType>, &NamedType)> {
+        match self {
+            FunctionParameterType::Singles(_) => None,
+            FunctionParameterType::Variadic(types, variadic) => Some((types, variadic))
+        }
+    }
+
 }
 
 impl Display for FunctionParameterType {
@@ -30,10 +84,8 @@ impl Display for FunctionParameterType {
         match self {
             FunctionParameterType::Singles(types) => FunctionParameterType::fmt_named(f, types),
             FunctionParameterType::Variadic(types, variadic) => {
-                if let Some(t) = types {
-                    FunctionParameterType::fmt_named(f, t)?;
-                    write!(f, ", ")?;
-                }
+                FunctionParameterType::fmt_named(f, types)?;
+                write!(f, ", ")?;
                 write!(f, "{} ...{}", variadic.1, variadic.0)
             }
         }
@@ -121,13 +173,44 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn subtype(&self, other: Type) -> bool {
-        match (self.to_owned(), other) {
-            (Type::Literal(s1), Type::Literal(s2)) => s1 == s2,
+    pub fn subtype(&self, other: &Type) -> bool {
+        match (self, other) {
+            (Type::Literal(s1), Type::Literal(s2)) => *s1 == *s2,
             (Type::Generic(s1, params1, _), Type::Generic(s2, params2, _)) => {
                 s1 == s2 && params1.len() == params2.len() && params1.iter().zip(params2).all(|(p1, p2)| p1.subtype(p2))
-            }
-            _ => todo!("implement subtype"),
+            },
+            (Type::Function(params1, ret1), Type::Function(params2, ret2)) => {
+                match (params1.is_variadic(), params2.is_variadic()) {
+                    (true, true) => {
+                        let (params1, variadic1) = params1.as_variadic().unwrap();
+                        let (params2, variadic2) = params2.as_variadic().unwrap();
+                        params1.len() == params2.len() && params1.iter().zip(params2).all(|((_, p1), (_, p2))| p1.subtype(p2)) && variadic1.1.subtype(&variadic2.1) && ret1.subtype(ret2)
+                    },
+                    (false, false) => {
+                        let params1 = params1.as_single().unwrap();
+                        let params2 = params2.as_single().unwrap();
+                        params1.len() == params2.len() && params1.iter().zip(params2).all(|((_, p1), (_, p2))| p1.subtype(p2)) && ret1.subtype(ret2)
+                    },
+                    (true, false) => return false, // Cannot convert a variadic function to a non-variadic function.
+                    (false, true) => return false, // Cannot convert a non-variadic function to a variadic function.
+                }
+            },
+            (Type::Tuple(types1), Type::Tuple(types2)) => {
+                types1.len() == types2.len() && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
+            },
+            (Type::List(t1), Type::List(t2)) => t1.subtype(t2),
+            (Type::Record(fields1), Type::Record(fields2)) => {
+                fields1.len() == fields2.len() && fields1.iter().zip(fields2).all(|((n1, t1), (n2, t2))| n1 == n2 && t1.subtype(t2))
+            },
+            (Type::Sum(types1), Type::Sum(types2)) => {
+                types1.len() == types2.len() && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
+            },
+            (Type::Enum(name1, variants1), Type::Enum(name2, variants2)) => {
+                name1 == name2 && variants1.len() == variants2.len() && variants1.iter().zip(variants2).all(|((n1, t1), (n2, t2))| n1 == n2 && t1.len() == t2.len() && t1.iter().zip(t2).all(|(t1, t2)| t1.subtype(t2)))
+            },
+            (Type::Any, _) => true,
+            (_, Type::Any) => true,
+            _ => false, // todo!("implement subtype"),
         }
     }
 
@@ -154,7 +237,7 @@ impl Display for Type {
                 match v.as_ref() {
                     FunctionParameterType::Singles(s) => print_params(s)?,
                     FunctionParameterType::Variadic(s, v) => {
-                        if let Some(s) = s { print_params(s)?; }
+                        print_params(s)?;
                         write!(f, ", ...{}", v.1)?;
                     }
                 };
