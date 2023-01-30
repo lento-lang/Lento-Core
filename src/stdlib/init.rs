@@ -1,6 +1,6 @@
-use std::io::{BufRead, Seek};
+use std::{io::{BufRead, Seek}, vec};
 
-use crate::{lexer::op::{Operator, RuntimeOperator, StaticOperator, OperatorAssociativity, StaticOperatorHandler, RuntimeOperatorHandler, StaticOperatorAst, OperatorPosition}, parser::ast::Ast, interpreter::{value::{FunctionVariation, NativeFunctionParameters, Value, Number, SignedInteger, Function, FloatingPoint}, error::{runtime_error, RuntimeError}, environment::Environment}, type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, util::str::Str};
+use crate::{lexer::op::{Operator, RuntimeOperator, StaticOperator, OperatorAssociativity, StaticOperatorHandler, RuntimeOperatorHandler, StaticOperatorAst, OperatorPosition}, parser::ast::Ast, interpreter::{value::{FunctionVariation, NativeFunctionParameters, Value, Number, SignedInteger, Function, FloatingPoint}, error::{runtime_error, RuntimeError}, environment::Environment}, type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, util::{str::Str, failable::Failable}};
 
 use super::super::lexer::lexer::Lexer;
 
@@ -50,7 +50,7 @@ fn assign_handler(op: StaticOperatorAst) -> Ast {
         if vals.len() != 2 { return Err(runtime_error("add() expects 2 arguments".to_string())); }
         let lhs = vals[0].clone();
         let rhs = vals[1].clone();
-        if lhs.get_type().subtype(TY_INT) && rhs.get_type().subtype(TY_INT) {
+        if lhs.get_type().unwrap().subtype(&TY_INT) && rhs.get_type().unwrap().subtype(&TY_INT) {
             let lhs_val = if let Value::Number(Number::SignedInteger(SignedInteger::Int32(v))) = lhs { v } else { panic!("add() expects 2 arguments of type '{}'", TY_INT) };
             let rhs_val = if let Value::Number(Number::SignedInteger(SignedInteger::Int32(v))) = rhs { v } else { panic!("add() expects 2 arguments of type '{}'", TY_INT) };
             Ok(Value::Number(Number::SignedInteger(SignedInteger::Int32(lhs_val + rhs_val))))
@@ -93,7 +93,7 @@ pub fn init_environment(env: &mut Environment) -> Failable<RuntimeError> {
         else { panic!("A native function with Variadic function parameter type should not be able to receive a Singles function parameter type") };
         for val in vals { println!("{}", val); }
         Ok(Value::Unit)
-    }, FunctionParameterType::Variadic(None, ("params".to_string(), TY_ANY)), TY_UNIT);
+    }, FunctionParameterType::Variadic(vec![], ("params".to_string(), TY_ANY)), TY_UNIT);
 
 //--------------------------------------------------------------------------------------//
 //                                      Constants                                       //
