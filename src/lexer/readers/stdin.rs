@@ -1,4 +1,6 @@
-use std::io::{Read, Seek, Stdin};
+use std::io::{Read, Seek, Stdin, BufRead};
+
+use super::Resettable;
 
 pub struct StdinReader {
     stdin: std::io::Stdin,
@@ -20,14 +22,27 @@ impl StdinReader {
 impl Read for StdinReader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.buffer_pos >= self.buffer.len() {
-            self.buffer.clear();
-            self.buffer_pos = 0;
+            self.reset();
             self.stdin.read_line(&mut self.buffer)?;
         }
         let amt = std::cmp::min(buf.len(), self.buffer.len() - self.buffer_pos);
         buf[..amt].copy_from_slice(&self.buffer.as_bytes()[self.buffer_pos..self.buffer_pos + amt]);
         self.buffer_pos += amt;
         Ok(amt)
+    }
+}
+
+impl BufRead for StdinReader {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        if self.buffer_pos >= self.buffer.len() {
+            self.reset();
+            self.stdin.read_line(&mut self.buffer)?;
+        }
+        Ok(&self.buffer.as_bytes()[self.buffer_pos..])
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.buffer_pos = std::cmp::min(self.buffer_pos + amt, self.buffer.len());
     }
 }
 
@@ -52,6 +67,13 @@ impl Seek for StdinReader {
             ));
         }
         Ok(self.buffer_pos as u64)
+    }
+}
+
+impl Resettable for StdinReader {
+    fn reset(&mut self) {
+        self.buffer.clear();
+        self.buffer_pos = 0;
     }
 }
 

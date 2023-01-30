@@ -1,6 +1,7 @@
 use std::{path::Path, io::{BufReader, Error, BufRead, Seek}, fs::File};
 
-use crate::{lexer::{readers::bytes_reader::BytesReader, token::{Token, TokenInfo}, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, error::LexerError, lexer::LexResult}, interpreter::value::{Value, Number}, type_checker::types::Type};
+use crate::{lexer::{readers::{bytes_reader::BytesReader, reset_buf_reader::ResetBufReader}, token::Token, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, lexer::LexResult}, interpreter::value::{Value, Number}};
+use crate::lexer::readers::Resettable;
 
 use crate::lexer::lexer::Lexer;
 
@@ -13,11 +14,11 @@ pub struct  ParseFail {
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
 #[derive(Clone)]
-pub struct Parser<R: BufRead + Seek> {
+pub struct Parser<R> where R: BufRead + Seek + Resettable {
     lexer: Lexer<R>
 }
 
-impl<R: BufRead + Seek> Parser<R> {
+impl<R: BufRead + Seek + Resettable> Parser<R> {
     pub fn new(lexer: Lexer<R>) -> Self {
         Self {
             lexer
@@ -175,25 +176,25 @@ impl<R: BufRead + Seek> Parser<R> {
 //                               Parser Factory Functions                               //
 //--------------------------------------------------------------------------------------//
 
-pub fn from_file(file: File) -> Parser<BufReader<File>> {
+pub fn from_file(file: File) -> Parser<ResetBufReader<File>> {
     Parser::new(
-        Lexer::new(BufReader::new(file))
+        Lexer::new(ResetBufReader::new(file))
     )
 }
 
-pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
+pub fn from_path(source_file: &Path) -> Result<Parser<ResetBufReader<File>>, Error> {
     Ok(from_file(File::open(source_file)?))
 }
 
-pub fn from_string<'a>(source: &'a String) -> Parser<BufReader<BytesReader<'a>>> {
+pub fn from_string<'a>(source: &'a String) -> Parser<ResetBufReader<BytesReader<'a>>> {
     Parser::new(
-        Lexer::new(BufReader::new(BytesReader::from(source)))
+        Lexer::new(ResetBufReader::new(BytesReader::from(source)))
     )
 }
 
-pub fn from_str<'a>(source: &'a str) -> Parser<BufReader<BytesReader<'a>>> {
+pub fn from_str<'a>(source: &'a str) -> Parser<ResetBufReader<BytesReader<'a>>> {
     Parser::new(
-        Lexer::new(BufReader::new(BytesReader::from(source)))
+        Lexer::new(ResetBufReader::new(BytesReader::from(source)))
     )
 }
 

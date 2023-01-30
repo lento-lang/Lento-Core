@@ -2,6 +2,8 @@ use std::{io::{Seek, BufRead}, collections::HashMap};
 
 use lazy_regex::{self, regex_replace_all};
 
+use crate::lexer::readers::Resettable;
+
 use super::{token::{Token, LineInfoSpan, TokenInfo}, error::LexerError, op::Operator};
 
 pub type LexResult = Result<TokenInfo, LexerError>;
@@ -13,7 +15,7 @@ const BUFFER_SIZE: usize = 128;
  * The lexer is a state machine that is used by the parser to generate an AST.
  */
 #[derive(Clone)]
-pub struct Lexer<R: BufRead + Seek> {
+pub struct Lexer<R> where R: BufRead + Seek + Resettable {
     reader: R,
     initialized_buffer: bool,
     buffer: [u8; BUFFER_SIZE],
@@ -23,7 +25,7 @@ pub struct Lexer<R: BufRead + Seek> {
     peeked_token: Option<LexResult>,
 }
 
-impl<R: BufRead + Seek> Lexer<R> {
+impl<R: BufRead + Seek + Resettable> Lexer<R> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,
@@ -37,7 +39,7 @@ impl<R: BufRead + Seek> Lexer<R> {
     }
 
     pub fn reset(&mut self) {
-        self.reader.seek(std::io::SeekFrom::Start(0)).unwrap();
+        self.reader.reset();
         self.initialized_buffer = false;
         self.buffer = [0; BUFFER_SIZE];
         self.buffer_idx = 0;
