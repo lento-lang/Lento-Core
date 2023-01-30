@@ -151,13 +151,6 @@ impl Display for RecordKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct UserFunctionVariation {
-    params: FunctionParameterType,
-    body: Ast,
-    return_type: Type,
-}
-
 /**
  * Is the value representation of `FunctionParameterType`.
  */
@@ -169,7 +162,7 @@ pub enum NativeFunctionParameters {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionVariation {
-    User(UserFunctionVariation),
+    User(FunctionParameterType, Ast, Type),
     Native(fn(NativeFunctionParameters) -> InterpretResult, FunctionParameterType, Type), // Built-in functions
 }
 
