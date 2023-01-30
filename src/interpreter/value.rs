@@ -1,9 +1,9 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, cmp::Ordering};
 
 use num_bigfloat::BigFloat;
 use num_bigint::{BigInt, BigUint};
 
-use crate::{type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, parser::ast::Ast};
+use crate::{type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType, CheckedType}, parser::ast::Ast};
 
 use super::interpreter::InterpretResult;
 
@@ -44,8 +44,8 @@ pub enum Number {
 }
 
 impl GetType for Number {
-    fn get_type(&self) -> Type {
-        match self {
+    fn get_type(&self) -> CheckedType {
+        Some(match self {
             Number::UnsignedInteger(u) => match u {
                 UnsignedInteger::UInt1(_) => std_primitive_types::UINT1,
                 UnsignedInteger::UInt8(_) => std_primitive_types::UINT8,
@@ -68,7 +68,7 @@ impl GetType for Number {
                 FloatingPoint::Float64(_) => std_primitive_types::FLOAT64,
                 FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG
             },
-        }
+        })
     }
 }
 
@@ -157,7 +157,7 @@ impl Display for RecordKey {
 #[derive(Debug, Clone, PartialEq)]
 pub enum NativeFunctionParameters {
     Singles(Vec<Value>),
-    Variadic(Option<Vec<Value>>, Vec<Value>), // Some initial values of different types, followed by the variadic type values
+    Variadic(Vec<Value>, Vec<Value>), // Some initial values of different types, followed by the variadic type values
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -166,12 +166,41 @@ pub enum FunctionVariation {
     Native(fn(NativeFunctionParameters) -> InterpretResult, FunctionParameterType, Type), // Built-in functions
 }
 
-impl GetType for FunctionVariation {
-    fn get_type(&self) -> Type {
+/**
+ * Compares two `FunctionVariation`s by their FunctionParameterType.
+ * Used as compare function in the sort_by function.
+ * This function will sort single functions before variadic functions.
+ */
+pub fn compare_function_variations(a: &FunctionVariation, b: &FunctionVariation) -> Ordering {
+    match (a.get_params(), b.get_params()) {
+        (FunctionParameterType::Singles(_), FunctionParameterType::Variadic(_, _)) => Ordering::Less,
+        (FunctionParameterType::Variadic(_, _), FunctionParameterType::Singles(_)) => Ordering::Greater,
+        _ => Ordering::Equal,
+    }
+}
+
+impl FunctionVariation {
+    pub fn get_params(&self) -> &FunctionParameterType {
         match self {
-            FunctionVariation::User(v) => Type::Function(Box::new(v.params.clone()), Box::new(v.return_type.clone())),
-            FunctionVariation::Native(_, v, r) => Type::Function(Box::new(v.clone()), Box::new(r.clone())),
+            FunctionVariation::User(p, _, _) => p,
+            FunctionVariation::Native(_, p, _) => p,
         }
+    }
+
+    pub fn get_return_type(&self) -> &Type {
+        match self {
+            FunctionVariation::User(_, _, r) => r,
+            FunctionVariation::Native(_, _, r) => r,
+        }
+    }
+}
+
+impl GetType for FunctionVariation {
+    fn get_type(&self) -> CheckedType {
+        Some(match self {
+            FunctionVariation::User(p, _, r) => Type::Function(Box::new(p.clone()), Box::new(r.clone())),
+            FunctionVariation::Native(_, v, r) => Type::Function(Box::new(v.clone()), Box::new(r.clone())),
+        })
     }
 }
 
@@ -179,8 +208,8 @@ impl Display for FunctionVariation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "(")?;
         let ret_type = match self {
-            FunctionVariation::User(v) => { v.params.fmt(f)?; &v.return_type },
-            FunctionVariation::Native(_, v, r) => { v.fmt(f)?; &r },
+            FunctionVariation::User(p, _, r) => { p.fmt(f)?; r },
+            FunctionVariation::Native(_, v, r) => { v.fmt(f)?; r },
         };
         write!(f, ") -> {}", ret_type) // TODO: Make this a unicode arrow
     }
@@ -219,8 +248,8 @@ pub enum Value {
 }
 
 impl GetType for Value {
-    fn get_type(&self) -> Type {
-        match self {
+    fn get_type(&self) -> CheckedType {
+        Some(match self {
             Value::Unit => Type::Unit,
             Value::Number(n) => {
                 match n {
@@ -255,7 +284,7 @@ impl GetType for Value {
             Value::List(_, t) => t.clone(),
             Value::Record(_, t) => t.clone(),
             Value::Function(f) => panic!("Cannot get type of functions"), // Because functions can have multiple types
-        }
+        })
     }
 }
 
