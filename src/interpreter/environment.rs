@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{type_checker::types::{Type, std_primitive_types}, util::str::Str};
+use crate::{type_checker::types::{Type, std_primitive_types}, util::{str::Str, failable::Failable}};
 
 use super::{value::{Value, Function}, error::RuntimeError};
 
@@ -9,15 +9,15 @@ use super::{value::{Value, Function}, error::RuntimeError};
  * The environment is used to store variables and functions.
  */
 #[derive(Debug, Clone)]
-pub struct Environment {
+pub struct Environment<'a> {
     pub name: Str,
     variables: HashMap<String, Value>,
     functions: HashMap<String, Function>, // Sort function values in a way that allows for fast lookup
     types: HashMap<String, Type>,
-    parent: Option<Box<Environment>>,
+    parent: Option<&'a Environment<'a>>,
 }
 
-impl Environment {
+impl<'a> Environment<'a> {
     pub fn new(name: Str) -> Self {
         Self {
             name,
@@ -28,13 +28,13 @@ impl Environment {
         }
     }
 
-    pub fn new_with_parent(parent: Box<Environment>, name: Str) -> Self {
+    pub fn new_child<'b: 'a>(&'a self, name: Str) -> Self {
         Self {
             name,
             variables: HashMap::new(),
             functions: HashMap::new(),
             types: HashMap::new(),
-            parent: Some(parent),
+            parent: Some(self),
         }
     }
 
