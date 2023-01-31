@@ -1,4 +1,4 @@
-use std::{io::{Seek, BufRead, Read}, collections::HashMap};
+use std::{io::{Seek, Read}, collections::HashMap};
 
 use lazy_regex::{self, regex_replace_all};
 

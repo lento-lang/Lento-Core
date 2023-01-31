@@ -283,7 +283,7 @@ impl GetType for Value {
             Value::Tuple(_, t) => t.clone(),
             Value::List(_, t) => t.clone(),
             Value::Record(_, t) => t.clone(),
-            Value::Function(f) => panic!("Cannot get type of functions"), // Because functions can have multiple types
+            Value::Function(_) => panic!("Cannot get type of functions"), // Because functions can have multiple types
         })
     }
 }
@@ -351,7 +351,7 @@ impl Display for Value {
             }
             Value::Function(fun) => {
                 write!(f, "function[{}] {{\n", fun.name)?;
-                for (i, v) in fun.variations.iter().enumerate() {
+                for (_, v) in fun.variations.iter().enumerate() {
                     writeln!(f, "\t{}", v)?;
                 }
                 write!(f, "}}")

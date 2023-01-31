@@ -1,4 +1,4 @@
-use crate::{parser::ast::Ast, type_checker::types::{Type, GetType, FunctionParameterType}, util::{str::Str, failable::Failable}};
+use crate::{parser::ast::Ast, type_checker::types::{Type, GetType, FunctionParameterType}, util::str::Str};
 
 use super::{value::{Value, FunctionVariation, compare_function_variations, NativeFunctionParameters}, error::{RuntimeError, runtime_error}, environment::Environment};
 
@@ -53,7 +53,7 @@ fn eval_function_call(name: String, arg_asts: Vec<Ast>, env: &Environment) -> In
                                 new_env.add_value(Str::String(name.to_string()), arg_vals[i].clone())?;
                             }
                             // Collect rest of the arguments into a list and bind it to the variadic parameter
-                            let mut rest = arg_vals[params.len()..].to_vec();
+                            let rest = arg_vals[params.len()..].to_vec();
                             new_env.add_value(Str::String(var_name.to_string()), Value::List(rest, Type::List(Box::new(var_type.clone()))))?;
                         }
                     };
