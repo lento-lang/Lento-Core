@@ -1,11 +1,12 @@
 use std::fmt::Display;
 use crate::{util::str::Str, parser::ast::Ast, interpreter::{environment::Environment, value::Value, error::RuntimeError}};
 
-
 //--------------------------------------------------------------------------------------//
-//                              Compound Type Expressions                               //
+//                                     Type System                                      //
 //--------------------------------------------------------------------------------------//
 
+
+// Compound Type Expressions
 pub type NamedType = (String, Type);
 pub type CheckedType = Option<Type>; // None means the type is not checked
 

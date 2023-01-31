@@ -2,6 +2,10 @@ use crate::{parser::ast::Ast, type_checker::types::{Type, GetType, FunctionParam
 
 use super::{value::{Value, FunctionVariation, compare_function_variations, NativeFunctionParameters}, error::{RuntimeError, runtime_error}, environment::Environment};
 
+//--------------------------------------------------------------------------------------//
+//                                     Interpreter                                      //
+//--------------------------------------------------------------------------------------//
+
 
 pub type InterpretResult = Result<Value, RuntimeError>;
 

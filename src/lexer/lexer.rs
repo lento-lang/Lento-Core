@@ -4,6 +4,11 @@ use lazy_regex::{self, regex_replace_all};
 
 use super::{token::{Token, LineInfoSpan, TokenInfo}, error::LexerError, op::Operator};
 
+//--------------------------------------------------------------------------------------//
+//                                        Lexer                                         //
+//--------------------------------------------------------------------------------------//
+
+
 pub type LexResult = Result<TokenInfo, LexerError>;
 const BUFFER_SIZE: usize = 128;
 

@@ -6,6 +6,11 @@ use crate::lexer::lexer::Lexer;
 
 use super::{ast::{Ast, unit}, error::ParseError};
 
+//--------------------------------------------------------------------------------------//
+//                                        Parser                                        //
+//--------------------------------------------------------------------------------------//
+
+
 pub type ParseResult = Result<Ast, ParseError>;
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
