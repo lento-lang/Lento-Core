@@ -52,16 +52,6 @@ impl<R: Read + Seek> Lexer<R> {
         self.peeked_tokens.clear();
     }
 
-    fn get_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
-        if self.peeked_tokens.is_empty() { None }
-        else { Some(self.peeked_tokens[offset].clone()) }
-    }
-
-    fn consume_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
-        if self.peeked_tokens.is_empty() { None }
-        else { Some(self.peeked_tokens.remove(offset)) }
-    }
-
     pub fn define_op(&mut self, op: Operator) {
         self.operators.insert(op.symbol().clone(), op);
     }
@@ -126,6 +116,16 @@ impl<R: Read + Seek> Lexer<R> {
         self.buffer_idx += 1;
         self.line_info.end.column += 1;
         Some(c as char)
+    }
+
+    fn get_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
+        if self.peeked_tokens.is_empty() { None }
+        else { Some(self.peeked_tokens[offset].clone()) }
+    }
+
+    fn consume_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
+        if self.peeked_tokens.is_empty() { None }
+        else { Some(self.peeked_tokens.remove(offset)) }
     }
 
     /**
