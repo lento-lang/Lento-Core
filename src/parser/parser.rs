@@ -4,12 +4,9 @@ use crate::{lexer::{readers::{bytes_reader::BytesReader}, token::Token, op::{Ope
 
 use crate::lexer::lexer::Lexer;
 
-use super::ast::{Ast, unit};
+use super::{ast::{Ast, unit}, error::ParseError};
 
-#[derive(Debug, Clone)]
-pub struct  ParseFail {
-    pub message: String
-}
+pub type ParseResult = Result<Ast, ParseError>;
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
 #[derive(Clone)]
@@ -33,8 +30,8 @@ impl<R: BufRead + Seek> Parser<R> {
      * Returns an AST node or an error.
      * If the first token is an EOF, then the parser will return an empty unit expression.
      */
-    pub fn parse(&mut self) -> Result<Ast, ParseFail> {
         if let Ok(t) = self.lexer.peek_token() {
+    pub fn parse(&mut self) -> ParseResult {
             if t.token == Token::EndOfFile { return Ok(unit()); }
         }
         let expr = self.parse_top_expr();
@@ -53,7 +50,7 @@ impl<R: BufRead + Seek> Parser<R> {
         })
     }
 
-    fn parse_call(&mut self, id: String) -> Result<Ast, ParseFail> {
+    fn parse_call(&mut self, id: String) -> ParseResult {
         let mut args = Vec::new();
         let nt = self.lexer.read_next_token_no_nl();
         if nt.is_err() { return Err(ParseFail { message: "Expected '('".to_string() }); }
@@ -81,7 +78,7 @@ impl<R: BufRead + Seek> Parser<R> {
         Ok(Ast::FunctionCall(id, args, None))
     }
 
-    fn parse_primary(&mut self) -> Result<Ast, ParseFail> {
+    fn parse_primary(&mut self) -> ParseResult {
         let nt = self.lexer.read_next_token_no_nl();
         if let Ok(t) = nt {
             if t.token.is_literal() {
@@ -99,15 +96,15 @@ impl<R: BufRead + Seek> Parser<R> {
             } else if t.token.is_operator() {
                 let op = t.token.get_operator().unwrap();
                 if op.pos() != OperatorPosition::Prefix {
-                    return Err(ParseFail { message: format!("Expected prefix operator, found {:?}", op) });
+                    return Err(ParseError { message: format!("Expected prefix operator, found {:?}", op) });
                 }
                 let rhs = self.parse_primary()?;
                 Ok(Ast::Unary(op, Box::new(rhs), None))
             } else {
-                Err(ParseFail { message: format!("Expected primary expression, found {:?}", t) })
+                Err(ParseError { message: format!("Expected primary expression, found {:?}", t) })
             }
         } else {
-            Err(ParseFail { message: format!("Expected primary expression, but failed due to: {:?}", nt.unwrap_err()) })
+            Err(ParseError { message: format!("Expected primary expression, but failed due to: {:?}", nt.unwrap_err()) })
         }
     }
 
@@ -123,8 +120,8 @@ impl<R: BufRead + Seek> Parser<R> {
      * @see https://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
      * @see https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
      */
-    fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> Result<Ast, ParseFail> {
         let mut nt = self.lexer.peek_token();
+    fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut expr = lhs;
         let check_first = |op: &LexResult| -> Option<Operator> {
             /* return true if both:
@@ -170,7 +167,7 @@ impl<R: BufRead + Seek> Parser<R> {
     /**
      * Parse a top-level expression
      */
-    fn parse_top_expr(&mut self) -> Result<Ast, ParseFail> {
+    fn parse_top_expr(&mut self) -> ParseResult {
         let lhs = self.parse_primary()?;
         self.parse_expr(lhs, 0)
     }
@@ -207,22 +204,22 @@ pub fn from_str<'a>(source: &'a str) -> Parser<BytesReader<'a>> {
 //                           Direct Parsing Helper Functions                            //
 //--------------------------------------------------------------------------------------//
 
-pub fn parse_string(source: String) -> Result<Ast, ParseFail> {
+pub fn parse_string(source: String) -> ParseResult {
     from_string(&source)
         .parse()
 }
 
-pub fn parse_str(source: &str) -> Result<Ast, ParseFail> {
+pub fn parse_str(source: &str) -> ParseResult {
     from_str(source)
         .parse()
 }
 
-pub fn parse_file(file: File) -> Result<Ast, ParseFail> {
+pub fn parse_file(file: File) -> ParseResult {
     from_file(file)
         .parse()
 }
 
-pub fn parse_from_path(path: &Path) -> Result<Result<Ast, ParseFail>, Error> {
+pub fn parse_from_path(path: &Path) -> Result<ParseResult, Error> {
     Ok(from_path(path)?
         .parse())
 }
