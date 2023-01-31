@@ -35,8 +35,8 @@ impl<R: Read + Seek> Parser<R> {
      * Returns an AST node or an error.
      * If the first token is an EOF, then the parser will return an empty unit expression.
      */
-        if let Ok(t) = self.lexer.peek_token() {
     pub fn parse(&mut self) -> ParseResult {
+        if let Ok(t) = self.lexer.peek_token(0) {
             if t.token == Token::EndOfFile { return Ok(unit()); }
         }
         let expr = self.parse_top_expr();
@@ -58,26 +58,28 @@ impl<R: Read + Seek> Parser<R> {
     fn parse_call(&mut self, id: String) -> ParseResult {
         let mut args = Vec::new();
         let nt = self.lexer.read_next_token_no_nl();
-        if nt.is_err() { return Err(ParseFail { message: "Expected '('".to_string() }); }
+        if nt.is_err() { return Err(ParseError { message: "Expected '('".to_string() }); }
         assert!(nt.unwrap().token == Token::LeftParen);
-        while let Ok(t) = self.lexer.peek_token() {
+        while let Ok(t) = self.lexer.peek_token(0) {
             if t.token == Token::RightParen { break; }
             let expr = self.parse_top_expr()?;
             args.push(expr);
-            let nt = self.lexer.peek_token();
-            if nt.is_err() { return Err(ParseFail { message: "Expected ')'".to_string() }); }
+            let nt = self.lexer.peek_token(0);
+            if nt.is_err() { return Err(ParseError { message: "Expected ')'".to_string() }); }
             let nt = nt.unwrap().token;
             if nt == Token::RightParen {
-                self.lexer.next_token()?;
+                if let Err(err) = self.lexer.read_next_token() {
+                    return Err(ParseError { message: format!("Expected ')' but failed with: {}", err.message) });
+                }
                 break;
             }
-            let nt = self.lexer.next_token();
-            if nt.is_err() { return Err(ParseFail { message: "Expected ')'".to_string() }); }
+            let nt = self.lexer.read_next_token();
+            if nt.is_err() { return Err(ParseError { message: "Expected ')'".to_string() }); }
             let nt = nt.unwrap().token;
             if nt.is_terminator() {
                 continue;
             }
-            return Err(ParseFail { message: "Expected ')'".to_string() });
+            return Err(ParseError { message: "Expected ')'".to_string() });
         }
         // TODO: Extract read_until_terminator() helper method
         Ok(Ast::FunctionCall(id, args, None))
@@ -90,7 +92,7 @@ impl<R: Read + Seek> Parser<R> {
                 Ok(Ast::Literal(self.parse_literal(t.token).unwrap()))
             } else if let Token::Identifier(id) = t.token {
                 // Check if function call
-                if let Ok(t) = self.lexer.peek_token() {
+                if let Ok(t) = self.lexer.peek_token(0) {
                     if t.token == Token::LeftParen {
                         return self.parse_call(id);
                     }
@@ -125,8 +127,8 @@ impl<R: Read + Seek> Parser<R> {
      * @see https://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
      * @see https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
      */
-        let mut nt = self.lexer.peek_token();
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
+        let mut nt = self.lexer.peek_token(0);
         let mut expr = lhs;
         let check_first = |op: &LexResult| -> Option<Operator> {
             /* return true if both:
@@ -140,9 +142,9 @@ impl<R: Read + Seek> Parser<R> {
             } else { None }
         };
         while let Some(op) = check_first(&nt) {
-            self.lexer.next_token().unwrap(); // consume the peeked binary operator token
+            self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
             let mut rhs = self.parse_primary()?;
-            nt = self.lexer.peek_token();
+            nt = self.lexer.peek_token(0);
             let check_next = |op: &LexResult| {
                 /* return true if either:
                     * 'op' is a binary operator whose precedence is greater than op's
@@ -162,7 +164,7 @@ impl<R: Read + Seek> Parser<R> {
                 let op_prec = nt.unwrap().token.get_operator().unwrap().precedence();
                 let next_prec = op_prec + (op_prec > min_prec) as OperatorPrecedence;
                 rhs = self.parse_expr(rhs, next_prec)?;
-                nt = self.lexer.peek_token();
+                nt = self.lexer.peek_token(0);
             }
             expr = Ast::Binary(Box::new(expr), op, Box::new(rhs), None);
         }

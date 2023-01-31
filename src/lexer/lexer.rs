@@ -24,7 +24,7 @@ pub struct Lexer<R> where R: Read + Seek {
     buffer_idx: usize,
     line_info: LineInfoSpan,
     operators: HashMap<String, Operator>,
-    peeked_token: Option<LexResult>,
+    peeked_tokens: Vec<LexResult>, // Queue of peeked tokens (FIFO)
 }
 
 impl<R: Read + Seek> Lexer<R> {
@@ -36,7 +36,7 @@ impl<R: Read + Seek> Lexer<R> {
             buffer_idx: 0,
             line_info: LineInfoSpan::new(),
             operators: HashMap::new(),
-            peeked_token: None,
+            peeked_tokens: Vec::new(),
         }
     }
 
@@ -49,7 +49,17 @@ impl<R: Read + Seek> Lexer<R> {
         self.buffer = [0; BUFFER_SIZE];
         self.buffer_idx = 0;
         self.line_info = LineInfoSpan::new();
-        self.peeked_token = None;
+        self.peeked_tokens.clear();
+    }
+
+    fn get_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
+        if self.peeked_tokens.is_empty() { None }
+        else { Some(self.peeked_tokens[offset].clone()) }
+    }
+
+    fn consume_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
+        if self.peeked_tokens.is_empty() { None }
+        else { Some(self.peeked_tokens.remove(offset)) }
     }
 
     pub fn define_op(&mut self, op: Operator) {
@@ -121,32 +131,50 @@ impl<R: Read + Seek> Lexer<R> {
     /**
      * Peek the next token from the source code.
      */
-    pub fn peek_token(&mut self) -> LexResult {
-        if self.peeked_token.is_some() { self.peeked_token.as_ref().unwrap().clone() }
+    pub fn peek_token(&mut self, offset: usize) -> LexResult {
+        if self.get_peeked_token(offset).is_some() { self.consume_peeked_token(offset).unwrap() }
         else {
             let token = self.next_token();
-            self.peeked_token = Some(token.clone());
-            token
+            self.peeked_tokens.push(token.clone());
+            self.peek_token(offset)
         }
+    }
+
+    pub fn peek_token_no_nl(&mut self) -> LexResult {
+        let mut idx = 0usize;
+        let mut token = self.peek_token(idx);
+        while let Ok(TokenInfo { token: Token::Newline, .. }) = token {
+            token = self.peek_token(idx + 1);
+            idx += 1;
+        }
+        token
     }
 
     /**
      * Get the next token from the source code, ignoring newlines.
      */
-    pub fn next_token_no_nl(&mut self) -> LexResult {
-        let mut token = self.next_token()?;
-        while token.token == Token::Newline {
-            token = self.next_token()?;
+    pub fn read_next_token_no_nl(&mut self) -> LexResult {
+        let mut token = self.next_token();
+        while let Ok(TokenInfo { token: Token::Newline, .. }) = token {
+            token = self.next_token();
         }
-        Ok(token)
+        token
     }
 
     /**
      * Get the next token from the source code.
      * This function is the main function of the lexer.
+     * Or return the next peeked token.
      */
-    pub fn next_token(&mut self) -> LexResult {
-        if let Some(token) = self.peeked_token.take() { return token; }
+    pub fn read_next_token(&mut self) -> LexResult {
+        if let Some(token) = self.consume_peeked_token(0) { token }
+        else { self.next_token() }
+    }
+
+    /**
+     * This function can only read forward, not handle backtracking or peeking.
+     */
+    fn next_token(&mut self) -> LexResult {
         self.set_info_start_to_current();
         if let Some(c) = self.next_char() {
             if c == ' ' || c == '\t' || c == '\r' {
