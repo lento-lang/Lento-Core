@@ -1,4 +1,4 @@
-use std::{io::{Seek, BufRead}, collections::HashMap};
+use std::{io::{Seek, BufRead, Read}, collections::HashMap};
 
 use lazy_regex::{self, regex_replace_all};
 
@@ -12,13 +12,12 @@ use super::{token::{Token, LineInfoSpan, TokenInfo}, error::LexerError, op::Oper
 pub type LexResult = Result<TokenInfo, LexerError>;
 const BUFFER_SIZE: usize = 128;
 
-
 /**
  * The lexer tokenize and output a stream of tokens that are generated from the source code.
  * The lexer is a state machine that is used by the parser to generate an AST.
  */
 #[derive(Clone)]
-pub struct Lexer<R> where R: BufRead + Seek {
+pub struct Lexer<R> where R: Read + Seek {
     reader: R,
     initialized_buffer: bool,
     buffer: [u8; BUFFER_SIZE],
@@ -28,7 +27,7 @@ pub struct Lexer<R> where R: BufRead + Seek {
     peeked_token: Option<LexResult>,
 }
 
-impl<R: BufRead + Seek> Lexer<R> {
+impl<R: Read + Seek> Lexer<R> {
     pub fn new(reader: R) -> Self {
         Self {
             reader,

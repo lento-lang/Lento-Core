@@ -1,4 +1,4 @@
-use std::{path::Path, io::{BufReader, Error, BufRead, Seek}, fs::File};
+use std::{path::Path, io::{BufReader, Error, Seek, Read}, fs::File};
 
 use crate::{lexer::{readers::{bytes_reader::BytesReader}, token::Token, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, lexer::LexResult}, interpreter::value::{Value, Number}};
 
@@ -15,11 +15,11 @@ pub type ParseResult = Result<Ast, ParseError>;
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
 #[derive(Clone)]
-pub struct Parser<R> where R: BufRead + Seek {
+pub struct Parser<R> where R: Read + Seek {
     lexer: Lexer<R>
 }
 
-impl<R: BufRead + Seek> Parser<R> {
+impl<R: Read + Seek> Parser<R> {
     pub fn new(lexer: Lexer<R>) -> Self {
         Self {
             lexer
