@@ -137,11 +137,13 @@ impl<R: Read + Seek> Lexer<R> {
 
     /**
      * Peek the next token from the source code.
+     * ! Note: This function should not be called from read_next_token() because it will cause an infinite loop (stack overflow)
      */
     pub fn peek_token(&mut self, offset: usize) -> LexResult {
         if let Some(t) = self.get_peeked_token(offset) { t }
         else {
-            self.peeked_tokens.push(self.next_token());
+            let token = self.next_token();
+            self.peeked_tokens.push(token.to_owned());
             self.peek_token(offset)
         }
     }
@@ -160,21 +162,29 @@ impl<R: Read + Seek> Lexer<R> {
      * Get the next token from the source code, ignoring newlines.
      * Or return the next peeked token (again, ignoring newlines)
      */
-    pub fn next_token_no_nl(&mut self) -> LexResult {
-        let mut token = self.next_token();
+    pub fn read_next_token_no_nl(&mut self) -> LexResult {
+        let mut token = self.read_next_token();
         while let Ok(TokenInfo { token: Token::Newline, .. }) = token {
-            token = self.next_token();
+            token = self.read_next_token();
         }
         token
     }
 
     /**
-     * Get the next token from the source code.
-     * This function is the main function of the lexer.
+     * Get the next token from the source code,
      * Or return the next peeked token.
      */
-    pub fn next_token(&mut self) -> LexResult {
-        if let Some(token) = self.consume_peeked_token(0) { return token; }
+    pub fn read_next_token(&mut self) -> LexResult {
+        if let Some(token) = self.consume_peeked_token(0) { token }
+        else { self.next_token() }
+    }
+
+    /**
+     * Get the next token from the source code.
+     * This function is the main function of the lexer.
+     * This function can only move forward, it cannot go back.
+     */
+    fn next_token(&mut self) -> LexResult {
         self.set_info_start_to_current();
         if let Some(c) = self.next_char() {
             if c == ' ' || c == '\t' || c == '\r' {
