@@ -104,12 +104,17 @@ impl<R: Read + Seek> Lexer<R> {
      */
     fn next_char(&mut self) -> Option<char> {
         if !self.initialized_buffer || self.buffer_idx >= BUFFER_SIZE {
-            if self.reader.read(&mut self.buffer).is_err() {
-                // Try to re-initialize the buffer the next time
-                return None;
+            match self.reader.read(&mut self.buffer) {
+                Ok(n) => {
+                    if n == 0 { return None; }
+                    self.initialized_buffer = true;
+                    self.buffer_idx = 0;
+                },
+                Err(_) => {
+                    // Try to re-initialize the buffer the next time
+                    return None;
+                }
             }
-            self.initialized_buffer = true;
-            self.buffer_idx = 0;
         }
         let c = self.buffer[self.buffer_idx];
         if c == 0 { return None; }
@@ -120,11 +125,13 @@ impl<R: Read + Seek> Lexer<R> {
 
     fn get_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
         if self.peeked_tokens.is_empty() { None }
+        else if offset >= self.peeked_tokens.len() { None }
         else { Some(self.peeked_tokens[offset].clone()) }
     }
 
     fn consume_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
         if self.peeked_tokens.is_empty() { None }
+        else if offset >= self.peeked_tokens.len() { None }
         else { Some(self.peeked_tokens.remove(offset)) }
     }
 
@@ -132,10 +139,9 @@ impl<R: Read + Seek> Lexer<R> {
      * Peek the next token from the source code.
      */
     pub fn peek_token(&mut self, offset: usize) -> LexResult {
-        if self.get_peeked_token(offset).is_some() { self.consume_peeked_token(offset).unwrap() }
+        if let Some(t) = self.get_peeked_token(offset) { t }
         else {
-            let token = self.next_token();
-            self.peeked_tokens.push(token.clone());
+            self.peeked_tokens.push(self.next_token());
             self.peek_token(offset)
         }
     }
