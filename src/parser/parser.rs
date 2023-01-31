@@ -103,15 +103,15 @@ impl<R: Read + Seek> Parser<R> {
             } else if t.token.is_operator() {
                 let op = t.token.get_operator().unwrap();
                 if op.pos() != OperatorPosition::Prefix {
-                    return Err(ParseError { message: format!("Expected prefix operator, found {:?}", op) });
+                    return Err(ParseError { message: format!("Expected prefix operator, but found {:?} ({})", op.symbol(), op.name()) });
                 }
                 let rhs = self.parse_primary()?;
                 Ok(Ast::Unary(op, Box::new(rhs), None))
             } else {
-                Err(ParseError { message: format!("Expected primary expression, found {:?}", t) })
+                Err(ParseError { message: format!("Expected primary expression, but found {:?}", t.token) })
             }
         } else {
-            Err(ParseError { message: format!("Expected primary expression, but failed due to: {:?}", nt.unwrap_err()) })
+            Err(ParseError { message: format!("Expected primary expression, but failed due to: {:?}", nt.unwrap_err().message) })
         }
     }
 
