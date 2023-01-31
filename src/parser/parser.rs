@@ -1,7 +1,6 @@
 use std::{path::Path, io::{BufReader, Error, BufRead, Seek}, fs::File};
 
-use crate::{lexer::{readers::{bytes_reader::BytesReader, reset_buf_reader::ResetBufReader}, token::Token, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, lexer::LexResult}, interpreter::value::{Value, Number}};
-use crate::lexer::readers::Resettable;
+use crate::{lexer::{readers::{bytes_reader::BytesReader}, token::Token, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, lexer::LexResult}, interpreter::value::{Value, Number}};
 
 use crate::lexer::lexer::Lexer;
 
@@ -14,24 +13,30 @@ pub struct  ParseFail {
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
 #[derive(Clone)]
-pub struct Parser<R> where R: BufRead + Seek + Resettable {
+pub struct Parser<R> where R: BufRead + Seek {
     lexer: Lexer<R>
 }
 
-impl<R: BufRead + Seek + Resettable> Parser<R> {
+impl<R: BufRead + Seek> Parser<R> {
     pub fn new(lexer: Lexer<R>) -> Self {
         Self {
             lexer
         }
     }
 
-    pub fn reset(&mut self) {
-        self.lexer.reset();
+    pub fn get_lexer(&mut self) -> &mut Lexer<R> {
+        &mut self.lexer
     }
 
+    /**
+     * Parse an expression from the stream of tokens.
+     * Returns an AST node or an error.
+     * If the first token is an EOF, then the parser will return an empty unit expression.
+     */
     pub fn parse(&mut self) -> Result<Ast, ParseFail> {
-        // Ok(unit())
-        // Ok(Ast::FunctionCall("print".to_string(), vec![Ast::Literal(Value::String("Hello, world!".to_string()))], None))
+        if let Ok(t) = self.lexer.peek_token() {
+            if t.token == Token::EndOfFile { return Ok(unit()); }
+        }
         let expr = self.parse_top_expr();
         if let Ok(e) = expr.as_ref() { println!("Parsed expression: {:?}", e); }
         expr
@@ -50,7 +55,7 @@ impl<R: BufRead + Seek + Resettable> Parser<R> {
 
     fn parse_call(&mut self, id: String) -> Result<Ast, ParseFail> {
         let mut args = Vec::new();
-        let nt = self.lexer.next_token();
+        let nt = self.lexer.read_next_token_no_nl();
         if nt.is_err() { return Err(ParseFail { message: "Expected '('".to_string() }); }
         assert!(nt.unwrap().token == Token::LeftParen);
         while let Ok(t) = self.lexer.peek_token() {
@@ -61,7 +66,7 @@ impl<R: BufRead + Seek + Resettable> Parser<R> {
             if nt.is_err() { return Err(ParseFail { message: "Expected ')'".to_string() }); }
             let nt = nt.unwrap().token;
             if nt == Token::RightParen {
-                self.lexer.next_token();
+                self.lexer.next_token()?;
                 break;
             }
             let nt = self.lexer.next_token();
@@ -77,7 +82,7 @@ impl<R: BufRead + Seek + Resettable> Parser<R> {
     }
 
     fn parse_primary(&mut self) -> Result<Ast, ParseFail> {
-        let nt = self.lexer.next_token();
+        let nt = self.lexer.read_next_token_no_nl();
         if let Ok(t) = nt {
             if t.token.is_literal() {
                 Ok(Ast::Literal(self.parse_literal(t.token).unwrap()))
@@ -176,25 +181,25 @@ impl<R: BufRead + Seek + Resettable> Parser<R> {
 //                               Parser Factory Functions                               //
 //--------------------------------------------------------------------------------------//
 
-pub fn from_file(file: File) -> Parser<ResetBufReader<File>> {
+pub fn from_file(file: File) -> Parser<BufReader<File>> {
     Parser::new(
-        Lexer::new(ResetBufReader::new(file))
+        Lexer::new(BufReader::new(file))
     )
 }
 
-pub fn from_path(source_file: &Path) -> Result<Parser<ResetBufReader<File>>, Error> {
+pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
     Ok(from_file(File::open(source_file)?))
 }
 
-pub fn from_string<'a>(source: &'a String) -> Parser<ResetBufReader<BytesReader<'a>>> {
+pub fn from_string<'a>(source: &'a String) -> Parser<BytesReader<'a>> {
     Parser::new(
-        Lexer::new(ResetBufReader::new(BytesReader::from(source)))
+        Lexer::new(BytesReader::from(source))
     )
 }
 
-pub fn from_str<'a>(source: &'a str) -> Parser<ResetBufReader<BytesReader<'a>>> {
+pub fn from_str<'a>(source: &'a str) -> Parser<BytesReader<'a>> {
     Parser::new(
-        Lexer::new(ResetBufReader::new(BytesReader::from(source)))
+        Lexer::new(BytesReader::from(source))
     )
 }
 

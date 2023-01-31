@@ -1,11 +1,10 @@
 use std::io::{Read, Seek, Stdin, BufRead};
 
-use super::Resettable;
-
 pub struct StdinReader {
     stdin: std::io::Stdin,
     buffer: String,
     buffer_pos: usize,
+    should_read: bool,
 }
 
 impl StdinReader {
@@ -15,15 +14,27 @@ impl StdinReader {
             stdin,
             buffer: String::new(),
             buffer_pos: 0,
+            should_read: true,
         }
+    }
+
+    fn reset_buffer(&mut self) {
+        self.buffer.clear();
+        self.buffer_pos = 0;
+    }
+
+    pub fn reset_reader(&mut self) {
+        self.reset_buffer();
+        self.should_read = true;
     }
 }
 
 impl Read for StdinReader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if self.buffer_pos >= self.buffer.len() {
-            self.reset();
+        if self.should_read || self.buffer_pos >= self.buffer.len() {
+            self.reset_buffer();
             self.stdin.read_line(&mut self.buffer)?;
+            self.should_read = false;
         }
         let amt = std::cmp::min(buf.len(), self.buffer.len() - self.buffer_pos);
         buf[..amt].copy_from_slice(&self.buffer.as_bytes()[self.buffer_pos..self.buffer_pos + amt]);
@@ -34,10 +45,9 @@ impl Read for StdinReader {
 
 impl BufRead for StdinReader {
     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
-        if self.buffer_pos >= self.buffer.len() {
-            self.reset();
-            self.stdin.read_line(&mut self.buffer)?;
-        }
+        // Use the read method to fill the buffer if it's empty.
+        let _ = self.read(&mut [])?;
+        // Return the previous buffer contents or new content if the buffer was empty.
         Ok(&self.buffer.as_bytes()[self.buffer_pos..])
     }
 
@@ -67,13 +77,6 @@ impl Seek for StdinReader {
             ));
         }
         Ok(self.buffer_pos as u64)
-    }
-}
-
-impl Resettable for StdinReader {
-    fn reset(&mut self) {
-        self.buffer.clear();
-        self.buffer_pos = 0;
     }
 }
 

@@ -1,3 +1,4 @@
+use std::io::BufRead;
 use std::io::Read;
 use std::io::Result;
 use std::io::Seek;
@@ -28,6 +29,16 @@ impl<'a> Read for BytesReader<'a> {
         buf.copy_from_slice(&self.data[self.pos..self.pos + amt]);
         self.pos += amt;
         Ok(amt)
+    }
+}
+
+impl<'a> BufRead for BytesReader<'a> {
+    fn fill_buf(&mut self) -> Result<&[u8]> {
+        Ok(&self.data[self.pos..])
+    }
+
+    fn consume(&mut self, amt: usize) {
+        self.pos = std::cmp::min(self.pos + amt, self.data.len());
     }
 }
 

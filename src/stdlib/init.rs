@@ -1,6 +1,6 @@
 use std::{io::{BufRead, Seek}, vec};
 
-use crate::{lexer::{op::{Operator, RuntimeOperator, StaticOperator, OperatorAssociativity, StaticOperatorHandler, RuntimeOperatorHandler, StaticOperatorAst, OperatorPosition}, readers::Resettable}, parser::ast::Ast, interpreter::{value::{FunctionVariation, NativeFunctionParameters, Value, Number, SignedInteger, Function, FloatingPoint}, error::{runtime_error, RuntimeError}, environment::Environment}, type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, util::{str::Str, failable::Failable}};
+use crate::{lexer::{op::{Operator, RuntimeOperator, StaticOperator, OperatorAssociativity, StaticOperatorHandler, RuntimeOperatorHandler, StaticOperatorAst, OperatorPosition}}, parser::ast::Ast, interpreter::{value::{FunctionVariation, NativeFunctionParameters, Value, Number, SignedInteger, Function, FloatingPoint}, error::{runtime_error, RuntimeError}, environment::Environment}, type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, util::{str::Str, failable::Failable}};
 
 use super::super::lexer::lexer::Lexer;
 
@@ -16,7 +16,7 @@ const TY_UNIT: Type = std_primitive_types::UNIT;
 //--------------------------------------------------------------------------------------//
 
 
-pub fn init_lexer<R: BufRead + Seek + Resettable>(lexer: &mut Lexer<R>) {
+pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
 
 //--------------------------------------------------------------------------------------//
 //                                       Helpers                                        //
