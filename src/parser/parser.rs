@@ -57,7 +57,7 @@ impl<R: Read + Seek> Parser<R> {
 
     fn parse_call(&mut self, id: String) -> ParseResult {
         let mut args = Vec::new();
-        let nt = self.lexer.read_next_token_no_nl();
+        let nt = self.lexer.next_token_no_nl();
         if nt.is_err() { return Err(ParseError { message: "Expected '('".to_string() }); }
         assert!(nt.unwrap().token == Token::LeftParen);
         while let Ok(t) = self.lexer.peek_token(0) {
@@ -68,12 +68,12 @@ impl<R: Read + Seek> Parser<R> {
             if nt.is_err() { return Err(ParseError { message: "Expected ')'".to_string() }); }
             let nt = nt.unwrap().token;
             if nt == Token::RightParen {
-                if let Err(err) = self.lexer.read_next_token() {
+                if let Err(err) = self.lexer.next_token() {
                     return Err(ParseError { message: format!("Expected ')' but failed with: {}", err.message) });
                 }
                 break;
             }
-            let nt = self.lexer.read_next_token();
+            let nt = self.lexer.next_token();
             if nt.is_err() { return Err(ParseError { message: "Expected ')'".to_string() }); }
             let nt = nt.unwrap().token;
             if nt.is_terminator() {
@@ -86,7 +86,7 @@ impl<R: Read + Seek> Parser<R> {
     }
 
     fn parse_primary(&mut self) -> ParseResult {
-        let nt = self.lexer.read_next_token_no_nl();
+        let nt = self.lexer.next_token_no_nl();
         if let Ok(t) = nt {
             if t.token.is_literal() {
                 Ok(Ast::Literal(self.parse_literal(t.token).unwrap()))
@@ -142,7 +142,7 @@ impl<R: Read + Seek> Parser<R> {
             } else { None }
         };
         while let Some(op) = check_first(&nt) {
-            self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
+            self.lexer.next_token().unwrap(); // consume the peeked binary operator token
             let mut rhs = self.parse_primary()?;
             nt = self.lexer.peek_token(0);
             let check_next = |op: &LexResult| {
