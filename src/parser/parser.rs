@@ -36,7 +36,7 @@ impl<R: Read + Seek> Parser<R> {
      * If the first token is an EOF, then the parser will return an empty unit expression.
      */
     pub fn parse(&mut self) -> ParseResult {
-        if let Ok(t) = self.lexer.peek_token(0) {
+        if let Ok(t) = self.lexer.peek_token_no_nl() {
             if t.token == Token::EndOfFile { return Ok(unit()); }
         }
         let expr = self.parse_top_expr();
