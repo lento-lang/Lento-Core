@@ -1,6 +1,5 @@
 use super::token::LineInfoSpan;
 
-// Lexer error
 #[derive(Debug, Clone)]
 pub struct LexerError {
     pub message: String,
