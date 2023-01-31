@@ -152,8 +152,9 @@ impl<R: Read + Seek> Lexer<R> {
 
     /**
      * Get the next token from the source code, ignoring newlines.
+     * Or return the next peeked token (again, ignoring newlines)
      */
-    pub fn read_next_token_no_nl(&mut self) -> LexResult {
+    pub fn next_token_no_nl(&mut self) -> LexResult {
         let mut token = self.next_token();
         while let Ok(TokenInfo { token: Token::Newline, .. }) = token {
             token = self.next_token();
@@ -166,15 +167,8 @@ impl<R: Read + Seek> Lexer<R> {
      * This function is the main function of the lexer.
      * Or return the next peeked token.
      */
-    pub fn read_next_token(&mut self) -> LexResult {
-        if let Some(token) = self.consume_peeked_token(0) { token }
-        else { self.next_token() }
-    }
-
-    /**
-     * This function can only read forward, not handle backtracking or peeking.
-     */
-    fn next_token(&mut self) -> LexResult {
+    pub fn next_token(&mut self) -> LexResult {
+        if let Some(token) = self.consume_peeked_token(0) { return token; }
         self.set_info_start_to_current();
         if let Some(c) = self.next_char() {
             if c == ' ' || c == '\t' || c == '\r' {
