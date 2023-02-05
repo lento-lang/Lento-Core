@@ -237,6 +237,31 @@ impl Type {
     pub fn cast(&self, _other: &Self) -> bool {
         todo!("implement type casting")
     }
+
+    pub fn simplify(&self) -> Self {
+        match self {
+            Type::Literal(_) => self.clone(),
+            Type::Generic(s, params, body) => Type::Generic(s.clone(), params.iter().map(Type::simplify).collect(), Box::new(body.simplify())),
+            Type::Function(params, ret) => Type::Function(params.clone(), Box::new(ret.simplify())),
+            Type::Tuple(types) => Type::Tuple(types.iter().map(Type::simplify).collect()),
+            Type::List(t) => Type::List(Box::new(t.simplify())),
+            Type::Record(fields) => Type::Record(fields.iter().map(|(n, t)| (n.clone(), t.simplify())).collect()),
+            Type::Sum(types) => {
+                // Flatten nested sums.
+                let mut result = vec![];
+                for t in types {
+                    match t.simplify() {
+                        Type::Sum(types) => result.extend(types),
+                        t => result.push(t),
+                    }
+                }
+                Type::Sum(result)
+            }
+            Type::Enum(name, variants) => Type::Enum(name.clone(), variants.iter().map(|(n, t)| (n.clone(), t.iter().map(Type::simplify).collect())).collect()),
+            Type::Any => self.clone(),
+            Type::Unit => self.clone(),
+        }
+    }
 }
 
 impl Display for Type {
