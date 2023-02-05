@@ -1,4 +1,4 @@
-use crate::{parser::ast::Ast, type_checker::types::{Type, GetType, FunctionParameterType}, util::str::Str};
+use crate::{parser::ast::Ast, type_checker::types::{Type, GetType, FunctionParameterType}, util::str::Str, lexer::op::Operator};
 
 use super::{value::{Value, FunctionVariation, compare_function_variations, NativeFunctionParameters}, error::{RuntimeError, runtime_error}, environment::Environment};
 
@@ -9,6 +9,53 @@ use super::{value::{Value, FunctionVariation, compare_function_variations, Nativ
 
 pub type InterpretResult = Result<Value, RuntimeError>;
 
+fn eval_function_variation_invocation(name: String, variation: FunctionVariation, arg_asts: Vec<Ast>, env: &Environment) -> InterpretResult {
+    // Bind the arguments to the parameters of the function variation
+    let var_params = variation.get_params();
+
+    // Evaluate the arguments
+    let mut arg_vals: Vec<Value> = vec![];
+    for a in arg_asts { arg_vals.push(interpret_ast(&a, env)?); }
+
+    // Evaluate the function body or invoke the native handler
+    match variation.clone() {
+        FunctionVariation::User(_, body, _) => {
+            let mut new_env = env.new_child(Str::String(format!("Function closure: {}", name)));
+            // Zip and add parameters and arguments as constants in the environment
+            match var_params {
+                FunctionParameterType::Singles(params) => {
+                    for (i, (name, _)) in params.iter().enumerate() {
+                        new_env.add_value(Str::String(name.to_string()), arg_vals[i].clone())?;
+                    }
+                },
+                FunctionParameterType::Variadic(params, (var_name, var_type)) => {
+                    for (i, (name, _)) in params.iter().enumerate() {
+                        new_env.add_value(Str::String(name.to_string()), arg_vals[i].clone())?;
+                    }
+                    // Collect rest of the arguments into a list and bind it to the variadic parameter
+                    let rest = arg_vals[params.len()..].to_vec();
+                    new_env.add_value(Str::String(var_name.to_string()), Value::List(rest, Type::List(Box::new(var_type.clone()))))?;
+                }
+            };
+            interpret_ast(&body, &new_env)
+        },
+        FunctionVariation::Native(handler, _, _) => {
+            // Setup NativeFunctionParameters and invoke the handler
+            let args_native: NativeFunctionParameters = match var_params {
+                FunctionParameterType::Singles(_) => NativeFunctionParameters::Singles(arg_vals),
+                FunctionParameterType::Variadic(params, _) => {
+                    // Create a new vec to store the same number of arguments as the params length
+                    // Then place the rest of the arguments into the variadic parameter
+                    // Assume that the type checker has already checked that the variadic parameter is a list
+                    let singles = arg_vals[0..params.len()].to_vec();
+                    let variadic = arg_vals[params.len()..].to_vec();
+                    NativeFunctionParameters::Variadic(singles, variadic)
+                }
+            };
+            handler(args_native)
+        }
+    }
+}
 
 fn eval_function_call(name: String, arg_asts: Vec<Ast>, env: &Environment) -> InterpretResult {
     // Look for the name in the environment
@@ -29,52 +76,7 @@ fn eval_function_call(name: String, arg_asts: Vec<Ast>, env: &Environment) -> In
             }
             // Bind the arguments to the parameters
             if found.is_none() { return Err(runtime_error(format!("No matching function variation for {}", name))); }
-
-            // Bind the arguments to the parameters of the function variation
-            let variation = found.unwrap();
-            let var_params = variation.get_params();
-
-            // Evaluate the arguments
-            let mut arg_vals: Vec<Value> = vec![];
-            for a in arg_asts { arg_vals.push(interpret_ast(&a, env)?); }
-
-            // Evaluate the function body or invoke the native handler
-            match variation.clone() {
-                FunctionVariation::User(_, body, _) => {
-                    let mut new_env = env.new_child(Str::String(format!("Function closure: {}", name)));
-                    match var_params {
-                        FunctionParameterType::Singles(params) => {
-                            for (i, (name, _)) in params.iter().enumerate() {
-                                new_env.add_value(Str::String(name.to_string()), arg_vals[i].clone())?;
-                            }
-                        },
-                        FunctionParameterType::Variadic(params, (var_name, var_type)) => {
-                            for (i, (name, _)) in params.iter().enumerate() {
-                                new_env.add_value(Str::String(name.to_string()), arg_vals[i].clone())?;
-                            }
-                            // Collect rest of the arguments into a list and bind it to the variadic parameter
-                            let rest = arg_vals[params.len()..].to_vec();
-                            new_env.add_value(Str::String(var_name.to_string()), Value::List(rest, Type::List(Box::new(var_type.clone()))))?;
-                        }
-                    };
-                    interpret_ast(&body, &new_env)
-                },
-                FunctionVariation::Native(handler, _, _) => {
-                    // Setup NativeFunctionParameters and invoke the handler
-                    let args_native: NativeFunctionParameters = match var_params {
-                        FunctionParameterType::Singles(_) => NativeFunctionParameters::Singles(arg_vals),
-                        FunctionParameterType::Variadic(params, _) => {
-                            // Create a new vec to store the same number of arguments as the params length
-                            // Then place the rest of the arguments into the variadic parameter
-                            // Assume that the type checker has already checked that the variadic parameter is a list
-                            let singles = arg_vals[0..params.len()].to_vec();
-                            let variadic = arg_vals[params.len()..].to_vec();
-                            NativeFunctionParameters::Variadic(singles, variadic)
-                        }
-                    };
-                    handler(args_native)
-                }
-            }
+            eval_function_variation_invocation(name, found.unwrap(), arg_asts, env)
         },
         Some(_) => Err(runtime_error(format!("{} is not a function", name))),
         None => Err(runtime_error(format!("Unknown function: {}", name)))
@@ -88,8 +90,7 @@ fn eval_tuple(elems: Vec<Ast>, env: &Environment) -> InterpretResult {
     let values = elems.iter().map(|e| interpret_ast(e, env)).collect::<Result<Vec<Value>, _>>()?;
     let mut type_ = vec![Type::Any; values.len()];
     for (i, v) in values.iter().enumerate() {
-        if let Some(t) = v.get_type() { type_[i] = t; }
-        else { return Err(runtime_error(format!("Cannot infer type of tuple element {}", i))); }
+        type_[i] = v.get_type().unwrap().to_owned();
     }
     Ok(Value::Tuple(values, Type::Tuple(type_)))
 }
@@ -106,12 +107,17 @@ pub fn interpret_ast(ast: &Ast, env: &Environment) -> InterpretResult {
             else { eval_tuple(v, env)? }
         },
         Ast::Literal(l) => l,
-        Ast::Identifier(id, _) => {
-            match env.get_value(&id) {
-                Some(v) => v,
-                None => return Err(runtime_error(format!("Unknown identifier: '{}'", id)))
+        Ast::Identifier(id, _) => match env.get_value(&id) {
+            Some(v) => v,
+            None => return Err(runtime_error(format!("Unknown identifier: '{}'", id)))
+        },
+        Ast::Binary(lhs, op, rhs, _) => match op {
+            Operator::Runtime(rt) =>
+                eval_function_variation_invocation(rt.name, *rt.handler, vec![*lhs, *rhs], env)?,
+            Operator::Static(_st) => {
+                todo!()
             }
         },
-        _ => todo!("Implement other AST nodes")
+        _ => todo!("Implement AST node")
     })
 }
