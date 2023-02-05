@@ -1,4 +1,5 @@
 // Lexer error
+#[derive(Debug, Clone)]
 pub struct RuntimeError {
     pub message: String
 }
