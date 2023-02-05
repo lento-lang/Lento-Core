@@ -40,7 +40,7 @@ impl<R: Read + Seek> Parser<R> {
             if t.token == Token::EndOfFile { return Ok(unit()); }
         }
         let expr = self.parse_top_expr();
-        if let Ok(e) = expr.as_ref() { println!("Parsed expression: {:?}", e); }
+        // if let Ok(e) = expr.as_ref() { println!("Parsed expression: {:?}", e); }
         expr
     }
 
@@ -129,7 +129,9 @@ impl<R: Read + Seek> Parser<R> {
      */
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut nt = self.lexer.peek_token(0);
+        // println!("parse_expr: nt = {:?}", nt);
         let mut expr = lhs;
+        // println!("parse_expr: expr = {:?}", expr);
         let check_first = |op: &LexResult| -> Option<Operator> {
             /* return true if both:
                 * the result is ok
