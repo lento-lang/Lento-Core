@@ -2,6 +2,8 @@ use std::{io::{Seek, Read}, collections::HashMap};
 
 use lazy_regex::{self, regex_replace_all};
 
+use crate::{util::failable::Failable, interpreter::error::{RuntimeError, runtime_error}};
+
 use super::{token::{Token, LineInfoSpan, TokenInfo}, error::LexerError, op::Operator};
 
 //--------------------------------------------------------------------------------------//
@@ -19,7 +21,8 @@ const BUFFER_SIZE: usize = 128;
 #[derive(Clone)]
 pub struct Lexer<R> where R: Read + Seek {
     reader: R,
-    initialized_buffer: bool,
+    is_stream: bool,
+    should_read: bool,
     buffer: [u8; BUFFER_SIZE],
     buffer_idx: usize,
     line_info: LineInfoSpan,
@@ -28,10 +31,33 @@ pub struct Lexer<R> where R: Read + Seek {
 }
 
 impl<R: Read + Seek> Lexer<R> {
+    /**
+     * Create a new lexer from a reader.
+     * The lexer will read from the reader until it reaches the end of the file.
+     */
     pub fn new(reader: R) -> Self {
         Self {
             reader,
-            initialized_buffer: false,
+            is_stream: false,
+            should_read: true,
+            buffer: [0; BUFFER_SIZE],
+            buffer_idx: 0,
+            line_info: LineInfoSpan::new(),
+            operators: HashMap::new(),
+            peeked_tokens: Vec::new(),
+        }
+    }
+
+    /**
+     * Create a new lexer from a reader.
+     * The lexer will read from the reader until it reaches the end of the stream, then the parser must call `refill_on_read` to refill the buffer.
+     * If the reader is a stream, the lexer will be able to refill the buffer with new data from the reader on the next read (at any time)
+     */
+    pub fn new_stream(reader: R) -> Self {
+        Self {
+            reader,
+            is_stream: true,
+            should_read: true,
             buffer: [0; BUFFER_SIZE],
             buffer_idx: 0,
             line_info: LineInfoSpan::new(),
@@ -45,15 +71,17 @@ impl<R: Read + Seek> Lexer<R> {
     }
 
     pub fn reset(&mut self) {
-        self.initialized_buffer = false;
+        self.should_read = true;
         self.buffer = [0; BUFFER_SIZE];
         self.buffer_idx = 0;
         self.line_info = LineInfoSpan::new();
         self.peeked_tokens.clear();
     }
 
-    pub fn define_op(&mut self, op: Operator) {
+    pub fn define_op(&mut self, op: Operator) -> Failable<RuntimeError> {
+        if self.operators.contains_key(&op.symbol()) { return Err(runtime_error(format!("Cannot override operator '{}'", op.symbol()))); }
         self.operators.insert(op.symbol().clone(), op);
+        Ok(())
     }
 
     fn lookup_op(&self, op: &str) -> Option<Operator> {
@@ -103,11 +131,11 @@ impl<R: Read + Seek> Lexer<R> {
      * Read a string from the source code using a buffered reader.
      */
     fn next_char(&mut self) -> Option<char> {
-        if !self.initialized_buffer || self.buffer_idx >= BUFFER_SIZE {
+        if self.should_read || self.buffer_idx >= BUFFER_SIZE {
             match self.reader.read(&mut self.buffer) {
                 Ok(n) => {
                     if n == 0 { return None; }
-                    self.initialized_buffer = true;
+                    self.should_read = false;
                     self.buffer_idx = 0;
                 },
                 Err(_) => {
@@ -143,6 +171,8 @@ impl<R: Read + Seek> Lexer<R> {
         if let Some(t) = self.get_peeked_token(offset) { t }
         else {
             let token = self.next_token();
+            // Do not push EOF to the peeked tokens list
+            if let Ok(TokenInfo { token: Token::EndOfFile, .. }) = token { return token; }
             self.peeked_tokens.push(token.to_owned());
             self.peek_token(offset)
         }
@@ -177,6 +207,47 @@ impl<R: Read + Seek> Lexer<R> {
     pub fn read_next_token(&mut self) -> LexResult {
         if let Some(token) = self.consume_peeked_token(0) { token }
         else { self.next_token() }
+    }
+
+    /**
+     * Refill the buffer with new data from the reader on the next read.
+     * This should only be called from the parser when the lexer has reached an unexpected end of file.
+     * Usually only used in REPL mode.
+     */
+    pub fn refill_on_read(&mut self) {
+        // If the reader is a stream, we can refill the buffer on the next read
+        self.should_read = self.is_stream;
+    }
+
+    /**
+     * Expect there to be a token (not EOF).
+     * If there is a token, return it.
+     * Else, try to read from the source if the reader is a stream.
+     * Then return the first read token (can be EOF but will throw error later)
+     */
+    fn expect_next_token(&mut self) -> LexResult {
+        let token = self.read_next_token()?;
+        if token.token == Token::EndOfFile {
+            self.should_read = self.is_stream;
+            self.read_next_token()
+        } else { Ok(token) }
+    }
+
+    /**
+     * Expect there to be a token (not EOF) while ignoring newlines.
+     * If there is a token, return it.
+     * Else, try to read from the source if the reader is a stream.
+     * Then return the first read token (can be EOF but will throw error later)
+     * Or return the next peeked token (again, ignoring newlines)
+     *
+     * Direct copy of `read_next_token_no_nl` but expecting tokens from the stream.
+     */
+    pub fn expect_next_token_no_nl(&mut self) -> LexResult {
+        let mut token = self.expect_next_token();
+        while let Ok(TokenInfo { token: Token::Newline, .. }) = token {
+            token = self.expect_next_token();
+        }
+        token
     }
 
     /**
