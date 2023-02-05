@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 use crate::{util::str::Str, parser::ast::Ast};
 
 //--------------------------------------------------------------------------------------//
@@ -8,7 +8,31 @@ use crate::{util::str::Str, parser::ast::Ast};
 
 // Compound Type Expressions
 pub type NamedType = (String, Type);
-pub type CheckedType = Option<Type>; // None means the type is not checked
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CheckedType {
+    Checked(Type),
+    Unchecked
+}
+
+impl CheckedType {
+    /// Should always be ok after type checking
+    pub fn unwrap(&self) -> &Type {
+        match self {
+            CheckedType::Checked(t) => t,
+            CheckedType::Unchecked => panic!("Type has not been checked by the type checker!")
+        }
+    }
+}
+
+impl Display for CheckedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CheckedType::Checked(t) => write!(f, "{}", t),
+            CheckedType::Unchecked => write!(f, "unchecked")
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FunctionParameterType {
@@ -34,23 +58,17 @@ impl FunctionParameterType {
             FunctionParameterType::Singles(types) => {
                 if types.len() != args.len() { return false; }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if let Some(arg_type) = args[i].get_type() {
-                        if !t.subtype(&arg_type) { return false; }
-                    } else { panic!("Argument type has not been checked by the type checker!"); }
+                    if !t.subtype(args[i].get_type().unwrap()) { return false; }
                 }
                 true
             },
             FunctionParameterType::Variadic(types, (_, var_type)) => {
                 if types.len() > args.len() { return false; }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if let Some(arg_type) = args[i].get_type() {
-                        if !t.subtype(&arg_type) { return false; }
-                    } else { panic!("Argument type has not been checked by the type checker!"); }
+                    if !t.subtype(args[i].get_type().unwrap()) { return false; }
                 }
                 for i in types.len()..args.len() {
-                    if let Some(arg_type) = args[i].get_type() {
-                        if !var_type.subtype(&arg_type) { return false; }
-                    } else { panic!("Argument type has not been checked by the type checker!"); }
+                    if !var_type.subtype(args[i].get_type().unwrap()) { return false; }
                 }
                 true
             }
