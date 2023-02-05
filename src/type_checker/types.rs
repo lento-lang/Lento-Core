@@ -496,6 +496,46 @@ pub mod std_primitive_types {
 
 }
 
+pub mod std_compount_types {
+    use super::*;
+
+    pub fn any_signed_integer() -> Type { Type::Sum(vec![
+        std_primitive_types::INT8,
+        std_primitive_types::INT16,
+        std_primitive_types::INT32,
+        std_primitive_types::INT64,
+        std_primitive_types::INT128,
+        std_primitive_types::INTBIG
+    ]) }
+
+    pub fn any_unsigned_integer() -> Type { Type::Sum(vec![
+        std_primitive_types::UINT1,
+        std_primitive_types::UINT8,
+        std_primitive_types::UINT16,
+        std_primitive_types::UINT32,
+        std_primitive_types::UINT64,
+        std_primitive_types::UINT128,
+        std_primitive_types::UINTBIG
+    ]) }
+
+    pub fn any_float() -> Type { Type::Sum(vec![
+        std_primitive_types::FLOAT32,
+        std_primitive_types::FLOAT64,
+        std_primitive_types::FLOATBIG,
+    ]) }
+
+    pub fn any_integer() -> Type { Type::Sum(vec![
+        any_signed_integer(),
+        any_unsigned_integer()
+    ]) }
+
+    pub fn any_number() -> Type { Type::Sum(vec![
+        any_integer(),
+        any_float()
+    ]) }
+
+}
+
 //--------------------------------------------------------------------------------------//
 //                                     Value trait                                      //
 //--------------------------------------------------------------------------------------//
