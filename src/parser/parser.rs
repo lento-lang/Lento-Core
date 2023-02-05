@@ -1,6 +1,6 @@
 use std::{path::Path, io::{BufReader, Error, Seek, Read}, fs::File};
 
-use crate::{lexer::{readers::{bytes_reader::BytesReader}, token::Token, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, lexer::LexResult}, interpreter::value::{Value, Number}};
+use crate::{lexer::{readers::{bytes_reader::BytesReader, stdin::StdinReader}, token::Token, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, lexer::LexResult}, interpreter::{value::{Value, Number}, error::RuntimeError}, stdlib::init::init_lexer, type_checker::types::CheckedType};
 
 use crate::lexer::lexer::Lexer;
 
@@ -82,11 +82,11 @@ impl<R: Read + Seek> Parser<R> {
             return Err(ParseError { message: "Expected ')'".to_string() });
         }
         // TODO: Extract read_until_terminator() helper method
-        Ok(Ast::FunctionCall(id, args, None))
+        Ok(Ast::FunctionCall(id, args, CheckedType::Unchecked))
     }
 
     fn parse_primary(&mut self) -> ParseResult {
-        let nt = self.lexer.read_next_token_no_nl();
+        let nt = self.lexer.expect_next_token_no_nl();
         if let Ok(t) = nt {
             if t.token.is_literal() {
                 Ok(Ast::Literal(self.parse_literal(t.token).unwrap()))
@@ -97,16 +97,16 @@ impl<R: Read + Seek> Parser<R> {
                         return self.parse_call(id);
                     }
                 }
-                Ok(Ast::Identifier(id, None))
+                Ok(Ast::Identifier(id, CheckedType::Unchecked))
             } else if let Token::TypeIdentifier(t) = t.token {
-                Ok(Ast::TypeIdentifier(t, None))
+                Ok(Ast::TypeIdentifier(t, CheckedType::Unchecked))
             } else if t.token.is_operator() {
                 let op = t.token.get_operator().unwrap();
                 if op.pos() != OperatorPosition::Prefix {
                     return Err(ParseError { message: format!("Expected prefix operator, but found {:?} ({})", op.symbol(), op.name()) });
                 }
                 let rhs = self.parse_primary()?;
-                Ok(Ast::Unary(op, Box::new(rhs), None))
+                Ok(Ast::Unary(op, Box::new(rhs), CheckedType::Unchecked))
             } else {
                 Err(ParseError { message: format!("Expected primary expression, but found {:?}", t.token) })
             }
@@ -166,7 +166,7 @@ impl<R: Read + Seek> Parser<R> {
                 rhs = self.parse_expr(rhs, next_prec)?;
                 nt = self.lexer.peek_token(0);
             }
-            expr = Ast::Binary(Box::new(expr), op, Box::new(rhs), None);
+            expr = Ast::Binary(Box::new(expr), op, Box::new(rhs), CheckedType::Unchecked);
         }
         Ok(expr)
     }
