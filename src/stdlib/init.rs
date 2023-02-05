@@ -1,12 +1,10 @@
 use std::{io::{BufRead, Seek}, vec};
 
-use crate::{lexer::{op::{Operator, RuntimeOperator, StaticOperator, OperatorAssociativity, StaticOperatorHandler, RuntimeOperatorHandler, StaticOperatorAst, OperatorPosition}}, parser::ast::Ast, interpreter::{value::{FunctionVariation, NativeFunctionParameters, Value, Number, SignedInteger, Function, FloatingPoint}, error::{runtime_error, RuntimeError}, environment::Environment}, type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType}, util::{str::Str, failable::Failable}};
+use crate::{lexer::op::{Operator, RuntimeOperator, StaticOperator, OperatorAssociativity, StaticOperatorHandler, RuntimeOperatorHandler, StaticOperatorAst, OperatorPosition}, parser::ast::Ast, interpreter::{value::{FunctionVariation, NativeFunctionParameters, Value, Number, ArithmeticOperations, Function, FloatingPoint}, error::runtime_error, environment::Environment}, type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType, std_compount_types, CheckedType}, util::str::Str};
 
 use super::super::lexer::lexer::Lexer;
 
-
 const TY_ANY: Type = std_primitive_types::ANY;
-const TY_INT: Type = std_primitive_types::INT32;
 const TY_UNIT: Type = std_primitive_types::UNIT;
 
 //--------------------------------------------------------------------------------------//
@@ -17,16 +15,21 @@ const TY_UNIT: Type = std_primitive_types::UNIT;
 
 
 pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
+    let ty_num = std_compount_types::any_number();
 
 //--------------------------------------------------------------------------------------//
 //                                       Helpers                                        //
 //--------------------------------------------------------------------------------------//
 
     let add_static = |lexer: &mut Lexer<R>, name: &str, sym: &str, pos: OperatorPosition, prec: u16, assoc: OperatorAssociativity, overloadable: bool, handler: StaticOperatorHandler| {
-        lexer.define_op(Operator::Static(StaticOperator::new_str(name, sym, pos, prec, assoc, overloadable, handler)));
+        if let Err(e) = lexer.define_op(Operator::Static(StaticOperator::new_str(name, sym, pos, prec, assoc, overloadable, handler))) {
+            panic!("Failed to initialize lexer when adding static operator '{}': {:?}", name, e);
+        }
     };
     let add_runtime = |lexer: &mut Lexer<R>, name: &str, sym: &str, pos: OperatorPosition, prec: u16, assoc: OperatorAssociativity, overloadable: bool, handler: RuntimeOperatorHandler| {
-        lexer.define_op(Operator::Runtime(RuntimeOperator::new_str(name, sym, pos, prec, assoc, overloadable, handler)));
+        if let Err(e) = lexer.define_op(Operator::Runtime(RuntimeOperator::new_str(name, sym, pos, prec, assoc, overloadable, handler))) {
+            panic!("Failed to initialize lexer when adding runtime operator '{}': {:?}", name, e);
+        }
     };
 
 //--------------------------------------------------------------------------------------//
@@ -35,7 +38,7 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
 
 fn assign_handler(op: StaticOperatorAst) -> Ast {
     if let StaticOperatorAst::Infix(lhs, rhs) = op {
-        Ast::Assignment(Box::new(lhs), Box::new(rhs), None)
+        Ast::Assignment(Box::new(lhs), Box::new(rhs), CheckedType::Unchecked)
     } else {
         panic!("assign_handler() expects an infix operator")
     }
@@ -46,18 +49,20 @@ fn assign_handler(op: StaticOperatorAst) -> Ast {
 //--------------------------------------------------------------------------------------//
 
     let rt_add: FunctionVariation = FunctionVariation::Native(|vals| {
+        let ty_num = std_compount_types::any_number();
         let vals = if let NativeFunctionParameters::Singles(v) = vals { v } else { panic!("A native function with Singles function parameter type should not be able to receive a Variadic function parameter type") };
         if vals.len() != 2 { return Err(runtime_error("add() expects 2 arguments".to_string())); }
         let lhs = vals[0].clone();
         let rhs = vals[1].clone();
-        if lhs.get_type().unwrap().subtype(&TY_INT) && rhs.get_type().unwrap().subtype(&TY_INT) {
-            let lhs_val = if let Value::Number(Number::SignedInteger(SignedInteger::Int32(v))) = lhs { v } else { panic!("add() expects 2 arguments of type '{}'", TY_INT) };
-            let rhs_val = if let Value::Number(Number::SignedInteger(SignedInteger::Int32(v))) = rhs { v } else { panic!("add() expects 2 arguments of type '{}'", TY_INT) };
-            Ok(Value::Number(Number::SignedInteger(SignedInteger::Int32(lhs_val + rhs_val))))
+        if lhs.get_type().unwrap().subtype(&ty_num) && rhs.get_type().unwrap().subtype(&ty_num) {
+            match (lhs, rhs) {
+                (Value::Number(l), Value::Number(r)) => Ok(Value::Number(Number::add(&l, &r))),
+                _ => panic!("add() expects 2 arguments of type '{}'", ty_num)
+            }
         } else {
-            Err(runtime_error(format!("add() expects 2 arguments of type '{}', got '{:?}' and '{:?}'", TY_INT, lhs.get_type(), rhs.get_type())))
+            Err(runtime_error(format!("add() expects 2 arguments of type '{}', got '{}' and '{}'", ty_num, lhs.get_type(), rhs.get_type())))
         }
-    }, FunctionParameterType::Singles(vec![("lhs".to_string(), TY_INT), ("rhs".to_string(), TY_INT)]), TY_INT);
+    }, FunctionParameterType::Singles(vec![("lhs".to_string(), ty_num.clone()), ("rhs".to_string(), ty_num.clone())]), ty_num.clone());
 
 //--------------------------------------------------------------------------------------//
 //                                   Implementations                                    //
@@ -76,9 +81,12 @@ fn assign_handler(op: StaticOperatorAst) -> Ast {
 //--------------------------------------------------------------------------------------//
 
 
-pub fn init_environment(env: &mut Environment) -> Failable<RuntimeError> {
+pub fn init_environment(env: &mut Environment) {
+
     let add_value = |env: &mut Environment, name: &str, val: Value| {
-        env.add_value(Str::String(name.to_string()), val)
+        if let Err(e) = env.add_value(Str::String(name.to_string()), val) {
+            panic!("Failed to initialize environment when adding value '{}': {:?}", name, e);
+        }
     };
     let add_func = |env: &mut Environment, name: &str, variations: Vec<FunctionVariation>| {
         add_value(env, name, Value::Function(Function::new(name.to_string(), variations)))
@@ -99,18 +107,17 @@ pub fn init_environment(env: &mut Environment) -> Failable<RuntimeError> {
 //                                      Constants                                       //
 //--------------------------------------------------------------------------------------//
 
-    add_value(env, "true", Value::Boolean(true))?;
-    add_value(env, "false", Value::Boolean(false))?;
-    add_value(env, "pi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::PI))))?;
-    add_value(env, "tau", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::TAU))))?;
-    add_value(env, "e", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::E))))?;
-    add_value(env, "phi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(1.6180339887498948482045868343656381177203091798057628621354486227052604628189024497072072041893911374))))?;
-    add_value(env, "sqrt2", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::SQRT_2))))?;
+    add_value(env, "true", Value::Boolean(true));
+    add_value(env, "false", Value::Boolean(false));
+    add_value(env, "pi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::PI))));
+    add_value(env, "tau", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::TAU))));
+    add_value(env, "e", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::E))));
+    add_value(env, "phi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(1.6180339887498948482045868343656381177203091798057628621354486227052604628189024497072072041893911374))));
+    add_value(env, "sqrt2", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::SQRT_2))));
 
 //--------------------------------------------------------------------------------------//
 //                                   Implementations                                    //
 //--------------------------------------------------------------------------------------//
 
-    add_func(env, "print", vec![rt_print])?;
-    Ok(())
+    add_func(env, "print", vec![rt_print]);
 }
