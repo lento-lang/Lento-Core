@@ -186,9 +186,9 @@ impl<R: Read + Seek> Parser<R> {
 //--------------------------------------------------------------------------------------//
 
 pub fn from_file(file: File) -> Parser<BufReader<File>> {
-    Parser::new(
-        Lexer::new(BufReader::new(file))
-    )
+    let mut lexer = Lexer::new(BufReader::new(file));
+    init_lexer(&mut lexer);
+    Parser::new(lexer)
 }
 
 pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
@@ -196,15 +196,21 @@ pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
 }
 
 pub fn from_string<'a>(source: &'a String) -> Parser<BytesReader<'a>> {
-    Parser::new(
-        Lexer::new(BytesReader::from(source))
-    )
+    let mut lexer = Lexer::new(BytesReader::from(source));
+    init_lexer(&mut lexer);
+    Parser::new(lexer)
 }
 
 pub fn from_str<'a>(source: &'a str) -> Parser<BytesReader<'a>> {
-    Parser::new(
-        Lexer::new(BytesReader::from(source))
-    )
+    let mut lexer = Lexer::new(BytesReader::from(source));
+    init_lexer(&mut lexer);
+    Parser::new(lexer)
+}
+
+pub fn from_stdin() -> Parser<StdinReader> {
+    let mut lexer = Lexer::new_stream(StdinReader::new(std::io::stdin()));
+    init_lexer(&mut lexer);
+    Parser::new(lexer)
 }
 
 //--------------------------------------------------------------------------------------//
