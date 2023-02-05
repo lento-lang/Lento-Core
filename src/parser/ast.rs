@@ -36,26 +36,26 @@ pub enum Ast {
 
 impl GetType for Ast {
     fn get_type(&self) -> CheckedType {
-        Some(match self {
+        CheckedType::Checked(match self {
             Ast::Literal(value) => return value.get_type(),
-            Ast::Tuple(_, Some(t)) => t.clone(),
-            Ast::List(_, Some(t)) => t.clone(),
-            Ast::Record(_, Some(t)) => t.clone(),
-            Ast::Identifier(_, Some(t)) => t.clone(),
-            Ast::TypeIdentifier(_, Some(t)) => t.clone(),
-            Ast::FunctionCall(_, _, Some(t)) => t.clone(),
-            Ast::Function(_, _, _, Some(t)) => t.clone(),
-            Ast::Binary(_, _, _, Some(t)) => t.clone(),
-            Ast::Unary(_, _, Some(t)) => t.clone(),
-            Ast::Assignment(_, _, Some(t)) => t.clone(),
-            Ast::Block(_, Some(t)) => t.clone(),
-            _ => return None,
+            Ast::Tuple(_, CheckedType::Checked(t)) => t.clone(),
+            Ast::List(_, CheckedType::Checked(t)) => t.clone(),
+            Ast::Record(_, CheckedType::Checked(t)) => t.clone(),
+            Ast::Identifier(_, CheckedType::Checked(t)) => t.clone(),
+            Ast::TypeIdentifier(_, CheckedType::Checked(t)) => t.clone(),
+            Ast::FunctionCall(_, _, CheckedType::Checked(t)) => t.clone(),
+            Ast::Function(_, _, _, CheckedType::Checked(t)) => t.clone(),
+            Ast::Binary(_, _, _, CheckedType::Checked(t)) => t.clone(),
+            Ast::Unary(_, _, CheckedType::Checked(t)) => t.clone(),
+            Ast::Assignment(_, _, CheckedType::Checked(t)) => t.clone(),
+            Ast::Block(_, CheckedType::Checked(t)) => t.clone(),
+            _ => return CheckedType::Unchecked,
         })
     }
 }
 
 pub fn tuple(elements: Vec<Ast>) -> Ast {
-    Ast::Tuple(elements, None)
+    Ast::Tuple(elements, CheckedType::Unchecked)
 }
 
 /**
@@ -63,5 +63,5 @@ pub fn tuple(elements: Vec<Ast>) -> Ast {
  * Implemented as a tuple with no elements.
  */
 pub fn unit() -> Ast {
-    Ast::Tuple(vec![], Some(Type::Unit))
+    Ast::Tuple(vec![], CheckedType::Checked(Type::Unit))
 }
