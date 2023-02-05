@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{type_checker::types::{Type, std_primitive_types}, util::{str::Str, failable::Failable}};
+use crate::{type_checker::types::{Type, std_primitive_types}, util::{str::Str, failable::Failable}, stdlib::init::init_environment};
 
 use super::{value::{Value, Function}, error::RuntimeError};
 
@@ -130,4 +130,11 @@ impl<'a> Environment<'a> {
             Ok(())
         }
     }
+}
+
+
+pub fn global_env() -> Environment<'static> {
+    let mut global_env = Environment::new(Str::from("global"));
+    init_environment(&mut global_env);
+    global_env
 }
