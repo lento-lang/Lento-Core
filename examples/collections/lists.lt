@@ -5,5 +5,8 @@ l3 = [0..3] // Lazy list
 // hd1 = 1, hd2 = 2, tl = [3, 4]
 
 // Functions
+myList = [1, 2, 3, 4, 5]
+myList.foreach(item => println(item))
+
 f = (x) => x + 1
-l1 map f // [2, 3, 4, 5]
+l1.map(f) // [2, 3, 4, 5]
