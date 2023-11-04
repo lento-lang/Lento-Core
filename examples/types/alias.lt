@@ -1,0 +1,5 @@
+// Primitive types have lowercase names
+type Index = usize
+
+// User-defined types and type classes have uppercase names
+type Age = Nat

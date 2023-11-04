@@ -1,0 +1,4 @@
+type Day = Int in 1..31
+type Month = Int in 1..12
+type Year = Int in 0..9999
+type Date = (day: Day, month: Month, year: Year)

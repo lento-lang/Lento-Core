@@ -1,0 +1,9 @@
+
+
+// Named tuples
+myVar = (value: 10, status: Status.Succeeded)
+// Inferred type (implicit): (value: int, status: Status)
+
+// Explicit
+myVar : (status: Status, value: int)
+myVar = (value: 10, status: Status.Succeeded)

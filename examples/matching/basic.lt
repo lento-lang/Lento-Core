@@ -1,0 +1,18 @@
+match user_input {
+    "start" => start_game(),
+    "load" => load_game(),
+    "quit" => quit_game(),
+    _ => println "Invalid command",
+}
+
+match user_data {
+    {name, age, "Sweden"} => "Swedish user named {name}, age {age}",
+    {name, age, country} => "User from {country} named {name}, age {age}",
+    _ => "Unknown user data format"
+}
+
+match shape {
+    Circle(radius) => "Circle with radius: " + radius,
+    Rectangle(width, height) => "Rectangle with dimensions: " + width + "x" + height,
+    _ => "Unknown shape"
+}

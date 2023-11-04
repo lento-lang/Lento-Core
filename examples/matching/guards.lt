@@ -1,0 +1,10 @@
+match numbers {
+    {x, y} when x > y => "x is greater than y",
+    {x, y} when x < y => "x is less than y",
+    {x, y} => "x is equal to y"
+}
+
+match number_list {
+    [] => "The list is empty",
+    [head | tail] => "Head: " + head + ", Tail: " + tail
+}
