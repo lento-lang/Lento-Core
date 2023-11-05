@@ -301,17 +301,27 @@ mod tests {
 
     #[test]
     fn test_parser_hello_world() {
-        let result = parse_str("print(\"Hello, World!\")");
+        let result = parse_str("println(\"Hello, World!\")");
+        let expected = Ast::FunctionCall(
+            "println".to_string(),
+            vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+            CheckedType::Unchecked,
+        );
         assert!(result.is_ok());
-        assert!(result.unwrap() == unit());
+        assert!(result.unwrap() == expected);
     }
 
     #[test]
     fn test_parser_hello_world_file() {
         let result = parse_from_path(Path::new("./examples/basic/hello_world.lt"));
+        let expected = Ast::FunctionCall(
+            "println".to_string(),
+            vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+            CheckedType::Unchecked,
+        );
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_ok());
-        assert!(result.unwrap() == unit());
+        assert!(result.unwrap() == expected);
     }
 }
