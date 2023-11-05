@@ -9,26 +9,26 @@ use std::io::Seek;
 pub struct BytesReader<'a> {
     data: &'a [u8],
     pos: usize,
-    seek_pos: usize
+    seek_pos: usize,
 }
 
 impl<'a> BytesReader<'a> {
-	/// Wrap a string in a `StringReader`, which implements `std::io::Read`.
+    /// Wrap a string in a `StringReader`, which implements `std::io::Read`.
     pub fn new(data: &'a [u8]) -> Self {
         Self {
             data,
             pos: 0,
-            seek_pos: 0
+            seek_pos: 0,
         }
     }
 }
 
 impl<'a> Read for BytesReader<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let amt = std::cmp::min(buf.len(), self.data.len() - self.pos);
-        buf[..amt].copy_from_slice(&self.data[self.pos..self.pos + amt]);
-        self.pos += amt;
-        Ok(amt)
+        let len = std::cmp::min(buf.len(), self.data.len() - self.pos);
+        buf[..len].copy_from_slice(&self.data[self.pos..self.pos + len]);
+        self.pos += len;
+        Ok(len)
     }
 }
 
@@ -47,17 +47,20 @@ impl<'a> Seek for BytesReader<'a> {
         match pos {
             std::io::SeekFrom::Start(pos) => {
                 self.seek_pos = pos as usize;
-            },
+            }
             std::io::SeekFrom::End(pos) => {
                 self.seek_pos = (self.data.len() as i64 - pos) as usize;
-            },
+            }
             std::io::SeekFrom::Current(pos) => {
                 self.seek_pos = (self.seek_pos as i64 + pos) as usize;
             }
         }
         // Check if the seek position is valid.
         if self.seek_pos > self.data.len() {
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid seek to a negative or overflowing position"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid seek to a negative or overflowing position",
+            ));
         }
         Ok(self.seek_pos as u64)
     }
