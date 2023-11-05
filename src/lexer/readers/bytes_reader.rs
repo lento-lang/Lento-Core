@@ -26,7 +26,7 @@ impl<'a> BytesReader<'a> {
 impl<'a> Read for BytesReader<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let amt = std::cmp::min(buf.len(), self.data.len() - self.pos);
-        buf.copy_from_slice(&self.data[self.pos..self.pos + amt]);
+        buf[..amt].copy_from_slice(&self.data[self.pos..self.pos + amt]);
         self.pos += amt;
         Ok(amt)
     }
