@@ -1,10 +1,9 @@
-use std::fmt::{Display, Debug};
-use crate::{util::str::Str, parser::ast::Ast};
+use crate::{parser::ast::Ast, util::str::Str};
+use std::fmt::{Debug, Display};
 
 //--------------------------------------------------------------------------------------//
 //                                     Type System                                      //
 //--------------------------------------------------------------------------------------//
-
 
 // Compound Type Expressions
 pub type NamedType = (String, Type);
@@ -12,7 +11,7 @@ pub type NamedType = (String, Type);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CheckedType {
     Checked(Type),
-    Unchecked
+    Unchecked,
 }
 
 impl CheckedType {
@@ -20,7 +19,7 @@ impl CheckedType {
     pub fn unwrap(&self) -> &Type {
         match self {
             CheckedType::Checked(t) => t,
-            CheckedType::Unchecked => panic!("Type has not been checked by the type checker!")
+            CheckedType::Unchecked => panic!("Type has not been checked by the type checker!"),
         }
     }
 }
@@ -29,7 +28,7 @@ impl Display for CheckedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CheckedType::Checked(t) => write!(f, "{}", t),
-            CheckedType::Unchecked => write!(f, "unchecked")
+            CheckedType::Unchecked => write!(f, "unchecked"),
         }
     }
 }
@@ -43,7 +42,9 @@ pub enum FunctionParameterType {
 impl FunctionParameterType {
     fn fmt_named(f: &mut std::fmt::Formatter<'_>, named: &Vec<NamedType>) -> std::fmt::Result {
         for (i, (name, t)) in named.iter().enumerate() {
-            if i != 0 { write!(f, ", ")?; }
+            if i != 0 {
+                write!(f, ", ")?;
+            }
             write!(f, "{} {}", t, name)?;
         }
         Ok(())
@@ -56,19 +57,29 @@ impl FunctionParameterType {
     pub fn match_args(&self, args: &Vec<Ast>) -> bool {
         match self {
             FunctionParameterType::Singles(types) => {
-                if types.len() != args.len() { return false; }
+                if types.len() != args.len() {
+                    return false;
+                }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !t.subtype(args[i].get_type().unwrap()) { return false; }
+                    if !t.subtype(args[i].get_type().unwrap()) {
+                        return false;
+                    }
                 }
                 true
-            },
+            }
             FunctionParameterType::Variadic(types, (_, var_type)) => {
-                if types.len() > args.len() { return false; }
+                if types.len() > args.len() {
+                    return false;
+                }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !t.subtype(args[i].get_type().unwrap()) { return false; }
+                    if !t.subtype(args[i].get_type().unwrap()) {
+                        return false;
+                    }
                 }
                 for i in types.len()..args.len() {
-                    if !var_type.subtype(args[i].get_type().unwrap()) { return false; }
+                    if !var_type.subtype(args[i].get_type().unwrap()) {
+                        return false;
+                    }
                 }
                 true
             }
@@ -78,24 +89,23 @@ impl FunctionParameterType {
     pub fn is_variadic(&self) -> bool {
         match self {
             FunctionParameterType::Singles(_) => false,
-            FunctionParameterType::Variadic(_, _) => true
+            FunctionParameterType::Variadic(_, _) => true,
         }
     }
 
     pub fn as_single(&self) -> Option<&Vec<NamedType>> {
         match self {
             FunctionParameterType::Singles(types) => Some(types),
-            FunctionParameterType::Variadic(_, _) => None
+            FunctionParameterType::Variadic(_, _) => None,
         }
     }
 
     pub fn as_variadic(&self) -> Option<(&Vec<NamedType>, &NamedType)> {
         match self {
             FunctionParameterType::Singles(_) => None,
-            FunctionParameterType::Variadic(types, variadic) => Some((types, variadic))
+            FunctionParameterType::Variadic(types, variadic) => Some((types, variadic)),
         }
     }
-
 }
 
 impl Display for FunctionParameterType {
@@ -104,7 +114,9 @@ impl Display for FunctionParameterType {
             FunctionParameterType::Singles(types) => FunctionParameterType::fmt_named(f, types),
             FunctionParameterType::Variadic(types, variadic) => {
                 FunctionParameterType::fmt_named(f, types)?;
-                if types.len() > 0 { write!(f, ", ")?; }
+                if types.len() > 0 {
+                    write!(f, ", ")?;
+                }
                 write!(f, "{} ...{}", variadic.1, variadic.0)
             }
         }
@@ -196,38 +208,63 @@ impl Type {
         match (self, other) {
             (Type::Literal(s1), Type::Literal(s2)) => *s1 == *s2,
             (Type::Generic(s1, params1, _), Type::Generic(s2, params2, _)) => {
-                s1 == s2 && params1.len() == params2.len() && params1.iter().zip(params2).all(|(p1, p2)| p1.subtype(p2))
-            },
+                s1 == s2
+                    && params1.len() == params2.len()
+                    && params1.iter().zip(params2).all(|(p1, p2)| p1.subtype(p2))
+            }
             (Type::Function(params1, ret1), Type::Function(params2, ret2)) => {
                 match (params1.is_variadic(), params2.is_variadic()) {
                     (true, true) => {
                         let (params1, variadic1) = params1.as_variadic().unwrap();
                         let (params2, variadic2) = params2.as_variadic().unwrap();
-                        params1.len() == params2.len() && params1.iter().zip(params2).all(|((_, p1), (_, p2))| p1.subtype(p2)) && variadic1.1.subtype(&variadic2.1) && ret1.subtype(ret2)
-                    },
+                        params1.len() == params2.len()
+                            && params1
+                                .iter()
+                                .zip(params2)
+                                .all(|((_, p1), (_, p2))| p1.subtype(p2))
+                            && variadic1.1.subtype(&variadic2.1)
+                            && ret1.subtype(ret2)
+                    }
                     (false, false) => {
                         let params1 = params1.as_single().unwrap();
                         let params2 = params2.as_single().unwrap();
-                        params1.len() == params2.len() && params1.iter().zip(params2).all(|((_, p1), (_, p2))| p1.subtype(p2)) && ret1.subtype(ret2)
-                    },
+                        params1.len() == params2.len()
+                            && params1
+                                .iter()
+                                .zip(params2)
+                                .all(|((_, p1), (_, p2))| p1.subtype(p2))
+                            && ret1.subtype(ret2)
+                    }
                     (true, false) => return false, // Cannot convert a variadic function to a non-variadic function.
                     (false, true) => return false, // Cannot convert a non-variadic function to a variadic function.
                 }
-            },
+            }
             (Type::Tuple(types1), Type::Tuple(types2)) => {
-                types1.len() == types2.len() && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
-            },
+                types1.len() == types2.len()
+                    && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
+            }
             (Type::List(t1), Type::List(t2)) => t1.subtype(t2),
             (Type::Record(fields1), Type::Record(fields2)) => {
-                fields1.len() == fields2.len() && fields1.iter().zip(fields2).all(|((n1, t1), (n2, t2))| n1 == n2 && t1.subtype(t2))
-            },
+                fields1.len() == fields2.len()
+                    && fields1
+                        .iter()
+                        .zip(fields2)
+                        .all(|((n1, t1), (n2, t2))| n1 == n2 && t1.subtype(t2))
+            }
             (Type::Sum(types1), Type::Sum(types2)) => {
-                types1.len() == types2.len() && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
-            },
+                types1.len() == types2.len()
+                    && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
+            }
             (_, Type::Sum(types)) => types.iter().any(|t| self.subtype(t)),
             (Type::Enum(name1, variants1), Type::Enum(name2, variants2)) => {
-                name1 == name2 && variants1.len() == variants2.len() && variants1.iter().zip(variants2).all(|((n1, t1), (n2, t2))| n1 == n2 && t1.len() == t2.len() && t1.iter().zip(t2).all(|(t1, t2)| t1.subtype(t2)))
-            },
+                name1 == name2
+                    && variants1.len() == variants2.len()
+                    && variants1.iter().zip(variants2).all(|((n1, t1), (n2, t2))| {
+                        n1 == n2
+                            && t1.len() == t2.len()
+                            && t1.iter().zip(t2).all(|(t1, t2)| t1.subtype(t2))
+                    })
+            }
             (Type::Any, _) => true,
             (_, Type::Any) => true,
             _ => false, // todo!("implement subtype"),
@@ -241,11 +278,20 @@ impl Type {
     pub fn simplify(&self) -> Self {
         match self {
             Type::Literal(_) => self.clone(),
-            Type::Generic(s, params, body) => Type::Generic(s.clone(), params.iter().map(Type::simplify).collect(), Box::new(body.simplify())),
+            Type::Generic(s, params, body) => Type::Generic(
+                s.clone(),
+                params.iter().map(Type::simplify).collect(),
+                Box::new(body.simplify()),
+            ),
             Type::Function(params, ret) => Type::Function(params.clone(), Box::new(ret.simplify())),
             Type::Tuple(types) => Type::Tuple(types.iter().map(Type::simplify).collect()),
             Type::List(t) => Type::List(Box::new(t.simplify())),
-            Type::Record(fields) => Type::Record(fields.iter().map(|(n, t)| (n.clone(), t.simplify())).collect()),
+            Type::Record(fields) => Type::Record(
+                fields
+                    .iter()
+                    .map(|(n, t)| (n.clone(), t.simplify()))
+                    .collect(),
+            ),
             Type::Sum(types) => {
                 // Flatten nested sums.
                 let mut result = vec![];
@@ -257,7 +303,13 @@ impl Type {
                 }
                 Type::Sum(result)
             }
-            Type::Enum(name, variants) => Type::Enum(name.clone(), variants.iter().map(|(n, t)| (n.clone(), t.iter().map(Type::simplify).collect())).collect()),
+            Type::Enum(name, variants) => Type::Enum(
+                name.clone(),
+                variants
+                    .iter()
+                    .map(|(n, t)| (n.clone(), t.iter().map(Type::simplify).collect()))
+                    .collect(),
+            ),
             Type::Any => self.clone(),
             Type::Unit => self.clone(),
         }
@@ -274,7 +326,9 @@ impl Display for Type {
                 write!(f, "(")?;
                 let mut print_params = |p: &Vec<NamedType>| -> std::fmt::Result {
                     for (i, (_, t)) in p.iter().enumerate() {
-                        if i > 0 { write!(f, ", ")?; }
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
                         write!(f, "{}", t)?;
                     }
                     Ok(())
@@ -283,7 +337,9 @@ impl Display for Type {
                     FunctionParameterType::Singles(s) => print_params(s)?,
                     FunctionParameterType::Variadic(s, v) => {
                         print_params(s)?;
-                        if s.len() > 0 { write!(f, ", ")?; }
+                        if s.len() > 0 {
+                            write!(f, ", ")?;
+                        }
                         write!(f, "...{}", v.1)?;
                     }
                 };
@@ -331,7 +387,7 @@ impl Display for Type {
                     }
                 }
                 write!(f, ">")
-            },
+            }
             Type::Enum(e, _) => write!(f, "{}", e),
         }
     }
@@ -369,9 +425,9 @@ pub mod std_primitive_types {
      */
     pub const BOOL: Type = Type::Literal(Str::Str("bool"));
 
-//--------------------------------------------------------------------------------------//
-//                                Unsigned integer types                                //
-//--------------------------------------------------------------------------------------//
+    //--------------------------------------------------------------------------------------//
+    //                                Unsigned integer types                                //
+    //--------------------------------------------------------------------------------------//
 
     /**
      * A 1-bit binary value (or boolean).
@@ -408,9 +464,9 @@ pub mod std_primitive_types {
      */
     pub const UINTBIG: Type = Type::Literal(Str::Str("ubig"));
 
-//--------------------------------------------------------------------------------------//
-//                                 Signed integer types                                 //
-//--------------------------------------------------------------------------------------//
+    //--------------------------------------------------------------------------------------//
+    //                                 Signed integer types                                 //
+    //--------------------------------------------------------------------------------------//
 
     /**
      * A 8-bit (1 byte) signed integer.
@@ -442,9 +498,9 @@ pub mod std_primitive_types {
      */
     pub const INTBIG: Type = Type::Literal(Str::Str("ibig"));
 
-//--------------------------------------------------------------------------------------//
-//                             Signed floating-point types                              //
-//--------------------------------------------------------------------------------------//
+    //--------------------------------------------------------------------------------------//
+    //                             Signed floating-point types                              //
+    //--------------------------------------------------------------------------------------//
 
     /**
      * A 32-bit (4 byte) signed floating-point number.
@@ -493,47 +549,49 @@ pub mod std_primitive_types {
     pub fn find_type_str(t: &str) -> Option<Type> {
         find_type(t.to_string())
     }
-
 }
 
 pub mod std_compount_types {
     use super::*;
 
-    pub fn any_signed_integer() -> Type { Type::Sum(vec![
-        std_primitive_types::INT8,
-        std_primitive_types::INT16,
-        std_primitive_types::INT32,
-        std_primitive_types::INT64,
-        std_primitive_types::INT128,
-        std_primitive_types::INTBIG
-    ]) }
+    pub fn any_signed_integer() -> Type {
+        Type::Sum(vec![
+            std_primitive_types::INT8,
+            std_primitive_types::INT16,
+            std_primitive_types::INT32,
+            std_primitive_types::INT64,
+            std_primitive_types::INT128,
+            std_primitive_types::INTBIG,
+        ])
+    }
 
-    pub fn any_unsigned_integer() -> Type { Type::Sum(vec![
-        std_primitive_types::UINT1,
-        std_primitive_types::UINT8,
-        std_primitive_types::UINT16,
-        std_primitive_types::UINT32,
-        std_primitive_types::UINT64,
-        std_primitive_types::UINT128,
-        std_primitive_types::UINTBIG
-    ]) }
+    pub fn any_unsigned_integer() -> Type {
+        Type::Sum(vec![
+            std_primitive_types::UINT1,
+            std_primitive_types::UINT8,
+            std_primitive_types::UINT16,
+            std_primitive_types::UINT32,
+            std_primitive_types::UINT64,
+            std_primitive_types::UINT128,
+            std_primitive_types::UINTBIG,
+        ])
+    }
 
-    pub fn any_float() -> Type { Type::Sum(vec![
-        std_primitive_types::FLOAT32,
-        std_primitive_types::FLOAT64,
-        std_primitive_types::FLOATBIG,
-    ]) }
+    pub fn any_float() -> Type {
+        Type::Sum(vec![
+            std_primitive_types::FLOAT32,
+            std_primitive_types::FLOAT64,
+            std_primitive_types::FLOATBIG,
+        ])
+    }
 
-    pub fn any_integer() -> Type { Type::Sum(vec![
-        any_signed_integer(),
-        any_unsigned_integer()
-    ]) }
+    pub fn any_integer() -> Type {
+        Type::Sum(vec![any_signed_integer(), any_unsigned_integer()])
+    }
 
-    pub fn any_number() -> Type { Type::Sum(vec![
-        any_integer(),
-        any_float()
-    ]) }
-
+    pub fn any_number() -> Type {
+        Type::Sum(vec![any_integer(), any_float()])
+    }
 }
 
 //--------------------------------------------------------------------------------------//

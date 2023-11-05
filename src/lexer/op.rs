@@ -1,5 +1,4 @@
-use crate::{parser::ast::Ast, interpreter::value::FunctionVariation};
-
+use crate::{interpreter::value::FunctionVariation, parser::ast::Ast};
 
 //--------------------------------------------------------------------------------------//
 //                               Execution Agnostic Data                                //
@@ -7,9 +6,9 @@ use crate::{parser::ast::Ast, interpreter::value::FunctionVariation};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OperatorPosition {
-    Prefix,     // Unary operator
-    Infix,      // Binary operator
-    Postfix,    // Unary operator
+    Prefix,  // Unary operator
+    Infix,   // Binary operator
+    Postfix, // Unary operator
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,27 +19,33 @@ pub enum OperatorAssociativity {
 
 pub type OperatorPrecedence = u16;
 
-
 //--------------------------------------------------------------------------------------//
 //                                   Runtime Operator                                   //
 //--------------------------------------------------------------------------------------//
-
 
 pub type RuntimeOperatorHandler = Box<FunctionVariation>; // Function reference, verify arity is the same as the operator position
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RuntimeOperator {
-    pub name: String,           // Descriptive name of the operator
-    pub symbol: String,         // The symbol of the operator
-    pub pos: OperatorPosition,  // The position of the operator
-    pub precedence: OperatorPrecedence,        // The precedence of the operator
+    pub name: String,                         // Descriptive name of the operator
+    pub symbol: String,                       // The symbol of the operator
+    pub pos: OperatorPosition,                // The position of the operator
+    pub precedence: OperatorPrecedence,       // The precedence of the operator
     pub associativity: OperatorAssociativity, // The associativity of the operator
-    pub overloadable: bool,     // If the operator is overloadable (false for built-in operators)
+    pub overloadable: bool, // If the operator is overloadable (false for built-in operators)
     pub handler: RuntimeOperatorHandler, // The runtime handler for the operator
 }
 
 impl RuntimeOperator {
-    pub fn new(name: String, symbol: String, pos: OperatorPosition, precedence: u16, associativity: OperatorAssociativity, overloadable: bool, handler: RuntimeOperatorHandler) -> Self {
+    pub fn new(
+        name: String,
+        symbol: String,
+        pos: OperatorPosition,
+        precedence: u16,
+        associativity: OperatorAssociativity,
+        overloadable: bool,
+        handler: RuntimeOperatorHandler,
+    ) -> Self {
         Self {
             name,
             symbol,
@@ -52,16 +57,30 @@ impl RuntimeOperator {
         }
     }
 
-    pub fn new_str(name: &str, symbol: &str, pos: OperatorPosition, precedence: u16, associativity: OperatorAssociativity, overloadable: bool, handler: RuntimeOperatorHandler) -> Self {
-        Self::new(name.to_string(), symbol.to_string(), pos, precedence, associativity, overloadable, handler)
+    pub fn new_str(
+        name: &str,
+        symbol: &str,
+        pos: OperatorPosition,
+        precedence: u16,
+        associativity: OperatorAssociativity,
+        overloadable: bool,
+        handler: RuntimeOperatorHandler,
+    ) -> Self {
+        Self::new(
+            name.to_string(),
+            symbol.to_string(),
+            pos,
+            precedence,
+            associativity,
+            overloadable,
+            handler,
+        )
     }
 }
-
 
 //--------------------------------------------------------------------------------------//
 //                                   Static Operator                                    //
 //--------------------------------------------------------------------------------------//
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StaticOperatorAst {
@@ -74,17 +93,25 @@ pub type StaticOperatorHandler = fn(StaticOperatorAst) -> Ast;
 
 #[derive(Clone, Debug)]
 pub struct StaticOperator {
-    pub name: String,           // Descriptive name of the operator
-    pub symbol: String,         // The symbol of the operator
-    pub pos: OperatorPosition,  // The position of the operator
-    pub precedence: OperatorPrecedence,        // The precedence of the operator
+    pub name: String,                         // Descriptive name of the operator
+    pub symbol: String,                       // The symbol of the operator
+    pub pos: OperatorPosition,                // The position of the operator
+    pub precedence: OperatorPrecedence,       // The precedence of the operator
     pub associativity: OperatorAssociativity, // The associativity of the operator
-    pub overloadable: bool,     // If the operator is overloadable (false for built-in operators)
+    pub overloadable: bool, // If the operator is overloadable (false for built-in operators)
     pub handler: StaticOperatorHandler, // The compile-time handler for the operator
 }
 
 impl StaticOperator {
-    pub fn new(name: String, symbol: String, pos: OperatorPosition, precedence: u16, associativity: OperatorAssociativity, overloadable: bool, handler: StaticOperatorHandler) -> Self {
+    pub fn new(
+        name: String,
+        symbol: String,
+        pos: OperatorPosition,
+        precedence: u16,
+        associativity: OperatorAssociativity,
+        overloadable: bool,
+        handler: StaticOperatorHandler,
+    ) -> Self {
         Self {
             name,
             symbol,
@@ -96,21 +123,35 @@ impl StaticOperator {
         }
     }
 
-    pub fn new_str(name: &str, symbol: &str, pos: OperatorPosition, precedence: u16, associativity: OperatorAssociativity, overloadable: bool, handler: StaticOperatorHandler) -> Self {
-        Self::new(name.to_string(), symbol.to_string(), pos, precedence, associativity, overloadable, handler)
+    pub fn new_str(
+        name: &str,
+        symbol: &str,
+        pos: OperatorPosition,
+        precedence: u16,
+        associativity: OperatorAssociativity,
+        overloadable: bool,
+        handler: StaticOperatorHandler,
+    ) -> Self {
+        Self::new(
+            name.to_string(),
+            symbol.to_string(),
+            pos,
+            precedence,
+            associativity,
+            overloadable,
+            handler,
+        )
     }
 }
-
 
 //--------------------------------------------------------------------------------------//
 //                                       Prelude                                        //
 //--------------------------------------------------------------------------------------//
 
-
 #[derive(Clone, Debug)]
 pub enum Operator {
-    Runtime(RuntimeOperator),   // Runtime operators (functions)
-    Static(StaticOperator),     // Compile-time operators (macros or syntax extensions/sugar)
+    Runtime(RuntimeOperator), // Runtime operators (functions)
+    Static(StaticOperator),   // Compile-time operators (macros or syntax extensions/sugar)
 }
 
 impl Operator {

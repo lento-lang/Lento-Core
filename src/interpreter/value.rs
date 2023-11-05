@@ -1,9 +1,12 @@
-use std::{collections::HashMap, fmt::Display, cmp::Ordering, ops::Add};
+use std::{cmp::Ordering, collections::HashMap, fmt::Display, ops::Add};
 
 use num_bigfloat::BigFloat;
 use num_bigint::{BigInt, BigUint};
 
-use crate::{type_checker::types::{Type, FunctionParameterType, std_primitive_types, GetType, CheckedType}, parser::ast::Ast};
+use crate::{
+    parser::ast::Ast,
+    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, GetType, Type},
+};
 
 use super::interpreter::InterpretResult;
 
@@ -48,7 +51,7 @@ impl UnsignedInteger {
     fn is_biguint(&self) -> bool {
         match self {
             UnsignedInteger::UIntVar(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -60,7 +63,7 @@ impl UnsignedInteger {
             UnsignedInteger::UInt32(v) => *v as u128,
             UnsignedInteger::UInt64(v) => *v as u128,
             UnsignedInteger::UInt128(v) => *v,
-            UnsignedInteger::UIntVar(v) => return None
+            UnsignedInteger::UIntVar(v) => return None,
         })
     }
 
@@ -72,7 +75,7 @@ impl UnsignedInteger {
             UnsignedInteger::UInt32(v) => BigUint::from(*v),
             UnsignedInteger::UInt64(v) => BigUint::from(*v),
             UnsignedInteger::UInt128(v) => BigUint::from(*v),
-            UnsignedInteger::UIntVar(v) => v.clone()
+            UnsignedInteger::UIntVar(v) => v.clone(),
         })
     }
 }
@@ -86,27 +89,69 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
     /// This is the responsibility of the caller
     fn up_cast_type(&self, to_reference_size: &UnsignedInteger) -> UnsignedInteger {
         match (self, to_reference_size) {
-            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt8(_)) => UnsignedInteger::UInt8(*v as u8),
-            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt16(_)) => UnsignedInteger::UInt16(*v as u16),
-            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt32(_)) => UnsignedInteger::UInt32(*v as u32),
-            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt64(_)) => UnsignedInteger::UInt64(*v as u64),
-            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt128(_)) => UnsignedInteger::UInt128(*v as u128),
-            (UnsignedInteger::UInt1(v), UnsignedInteger::UIntVar(_)) => UnsignedInteger::UIntVar(BigUint::from(*v)),
-            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt16(_)) => UnsignedInteger::UInt16(*v as u16),
-            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt32(_)) => UnsignedInteger::UInt32(*v as u32),
-            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt64(_)) => UnsignedInteger::UInt64(*v as u64),
-            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt128(_)) => UnsignedInteger::UInt128(*v as u128),
-            (UnsignedInteger::UInt8(v), UnsignedInteger::UIntVar(_)) => UnsignedInteger::UIntVar(BigUint::from(*v)),
-            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt32(_)) => UnsignedInteger::UInt32(*v as u32),
-            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt64(_)) => UnsignedInteger::UInt64(*v as u64),
-            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt128(_)) => UnsignedInteger::UInt128(*v as u128),
-            (UnsignedInteger::UInt16(v), UnsignedInteger::UIntVar(_)) => UnsignedInteger::UIntVar(BigUint::from(*v)),
-            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt64(_)) => UnsignedInteger::UInt64(*v as u64),
-            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt128(_)) => UnsignedInteger::UInt128(*v as u128),
-            (UnsignedInteger::UInt32(v), UnsignedInteger::UIntVar(_)) => UnsignedInteger::UIntVar(BigUint::from(*v)),
-            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt128(_)) => UnsignedInteger::UInt128(*v as u128),
-            (UnsignedInteger::UInt64(v), UnsignedInteger::UIntVar(_)) => UnsignedInteger::UIntVar(BigUint::from(*v)),
-            (UnsignedInteger::UInt128(v), UnsignedInteger::UIntVar(_)) => UnsignedInteger::UIntVar(BigUint::from(*v)),
+            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt8(_)) => {
+                UnsignedInteger::UInt8(*v as u8)
+            }
+            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt16(_)) => {
+                UnsignedInteger::UInt16(*v as u16)
+            }
+            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt32(_)) => {
+                UnsignedInteger::UInt32(*v as u32)
+            }
+            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt64(_)) => {
+                UnsignedInteger::UInt64(*v as u64)
+            }
+            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt128(_)) => {
+                UnsignedInteger::UInt128(*v as u128)
+            }
+            (UnsignedInteger::UInt1(v), UnsignedInteger::UIntVar(_)) => {
+                UnsignedInteger::UIntVar(BigUint::from(*v))
+            }
+            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt16(_)) => {
+                UnsignedInteger::UInt16(*v as u16)
+            }
+            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt32(_)) => {
+                UnsignedInteger::UInt32(*v as u32)
+            }
+            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt64(_)) => {
+                UnsignedInteger::UInt64(*v as u64)
+            }
+            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt128(_)) => {
+                UnsignedInteger::UInt128(*v as u128)
+            }
+            (UnsignedInteger::UInt8(v), UnsignedInteger::UIntVar(_)) => {
+                UnsignedInteger::UIntVar(BigUint::from(*v))
+            }
+            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt32(_)) => {
+                UnsignedInteger::UInt32(*v as u32)
+            }
+            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt64(_)) => {
+                UnsignedInteger::UInt64(*v as u64)
+            }
+            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt128(_)) => {
+                UnsignedInteger::UInt128(*v as u128)
+            }
+            (UnsignedInteger::UInt16(v), UnsignedInteger::UIntVar(_)) => {
+                UnsignedInteger::UIntVar(BigUint::from(*v))
+            }
+            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt64(_)) => {
+                UnsignedInteger::UInt64(*v as u64)
+            }
+            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt128(_)) => {
+                UnsignedInteger::UInt128(*v as u128)
+            }
+            (UnsignedInteger::UInt32(v), UnsignedInteger::UIntVar(_)) => {
+                UnsignedInteger::UIntVar(BigUint::from(*v))
+            }
+            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt128(_)) => {
+                UnsignedInteger::UInt128(*v as u128)
+            }
+            (UnsignedInteger::UInt64(v), UnsignedInteger::UIntVar(_)) => {
+                UnsignedInteger::UIntVar(BigUint::from(*v))
+            }
+            (UnsignedInteger::UInt128(v), UnsignedInteger::UIntVar(_)) => {
+                UnsignedInteger::UIntVar(BigUint::from(*v))
+            }
             _ => panic!("Cannot upcast type {:?} to {:?}", self, to_reference_size), // Unreachable
         }
     }
@@ -121,34 +166,166 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
     /// This is the responsibility of the caller.
     fn try_down_cast_ref(&self, to_reference_size: &UnsignedInteger) -> Option<UnsignedInteger> {
         match (self, to_reference_size) {
-            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt1(_)) => if *v <= 1 { Some(UnsignedInteger::UInt1(*v as u8)) } else { None },
-            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt1(_)) => if *v <= 1 { Some(UnsignedInteger::UInt1(*v as u8)) } else { None },
-            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt1(_)) => if *v <= 1 { Some(UnsignedInteger::UInt1(*v as u8)) } else { None },
-            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt1(_)) => if *v <= 1 { Some(UnsignedInteger::UInt1(*v as u8)) } else { None },
-            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt1(_)) => if *v <= 1 { Some(UnsignedInteger::UInt1(*v as u8)) } else { None },
-            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt1(_)) =>
-                if v.le(&BigUint::from(1u8)) { Some(UnsignedInteger::UInt1(v.iter_u32_digits().nth(0).unwrap() as u8)) } else { None },
-            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt8(_)) => if *v <= u8::MAX as u16 { Some(UnsignedInteger::UInt8(*v as u8)) } else { None },
-            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt8(_)) => if *v <= u8::MAX as u32 { Some(UnsignedInteger::UInt8(*v as u8)) } else { None },
-            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt8(_)) => if *v <= u8::MAX as u64 { Some(UnsignedInteger::UInt8(*v as u8)) } else { None },
-            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt8(_)) => if *v <= u8::MAX as u128 { Some(UnsignedInteger::UInt8(*v as u8)) } else { None },
-            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt8(_)) =>
-                if v.le(&BigUint::from(u8::MAX)) { Some(UnsignedInteger::UInt8(v.iter_u32_digits().nth(0).unwrap() as u8)) } else { None },
-            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt16(_)) => if *v <= u16::MAX as u32 { Some(UnsignedInteger::UInt16(*v as u16)) } else { None },
-            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt16(_)) => if *v <= u16::MAX as u64 { Some(UnsignedInteger::UInt16(*v as u16)) } else { None },
-            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt16(_)) => if *v <= u16::MAX as u128 { Some(UnsignedInteger::UInt16(*v as u16)) } else { None },
-            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt16(_)) =>
-                if v.le(&BigUint::from(u16::MAX)) { Some(UnsignedInteger::UInt16(v.iter_u32_digits().nth(0).unwrap() as u16)) } else { None },
-            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt32(_)) => if *v <= u32::MAX as u64 { Some(UnsignedInteger::UInt32(*v as u32)) } else { None },
-            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt32(_)) => if *v <= u32::MAX as u128 { Some(UnsignedInteger::UInt32(*v as u32)) } else { None },
-            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt32(_)) =>
-                if v.le(&BigUint::from(u32::MAX)) { Some(UnsignedInteger::UInt32(v.iter_u32_digits().nth(0).unwrap() as u32)) } else { None },
-            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt64(_)) => if *v <= u64::MAX as u128 { Some(UnsignedInteger::UInt64(*v as u64)) } else { None },
-            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt64(_)) =>
-                if v.le(&BigUint::from(u64::MAX)) { Some(UnsignedInteger::UInt64(v.iter_u32_digits().nth(0).unwrap() as u64)) } else { None },
-            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt128(_)) =>
-                if v.le(&BigUint::from(u128::MAX)) { Some(UnsignedInteger::UInt128(v.iter_u32_digits().nth(0).unwrap() as u128)) } else { None },
-            _ => panic!("Cannot downcast type {:?} to {:?}", self, to_reference_size)
+            (UnsignedInteger::UInt8(v), UnsignedInteger::UInt1(_)) => {
+                if *v <= 1 {
+                    Some(UnsignedInteger::UInt1(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt1(_)) => {
+                if *v <= 1 {
+                    Some(UnsignedInteger::UInt1(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt1(_)) => {
+                if *v <= 1 {
+                    Some(UnsignedInteger::UInt1(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt1(_)) => {
+                if *v <= 1 {
+                    Some(UnsignedInteger::UInt1(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt1(_)) => {
+                if *v <= 1 {
+                    Some(UnsignedInteger::UInt1(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt1(_)) => {
+                if v.le(&BigUint::from(1u8)) {
+                    Some(UnsignedInteger::UInt1(
+                        v.iter_u32_digits().nth(0).unwrap() as u8
+                    ))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt16(v), UnsignedInteger::UInt8(_)) => {
+                if *v <= u8::MAX as u16 {
+                    Some(UnsignedInteger::UInt8(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt8(_)) => {
+                if *v <= u8::MAX as u32 {
+                    Some(UnsignedInteger::UInt8(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt8(_)) => {
+                if *v <= u8::MAX as u64 {
+                    Some(UnsignedInteger::UInt8(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt8(_)) => {
+                if *v <= u8::MAX as u128 {
+                    Some(UnsignedInteger::UInt8(*v as u8))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt8(_)) => {
+                if v.le(&BigUint::from(u8::MAX)) {
+                    Some(UnsignedInteger::UInt8(
+                        v.iter_u32_digits().nth(0).unwrap() as u8
+                    ))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt32(v), UnsignedInteger::UInt16(_)) => {
+                if *v <= u16::MAX as u32 {
+                    Some(UnsignedInteger::UInt16(*v as u16))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt16(_)) => {
+                if *v <= u16::MAX as u64 {
+                    Some(UnsignedInteger::UInt16(*v as u16))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt16(_)) => {
+                if *v <= u16::MAX as u128 {
+                    Some(UnsignedInteger::UInt16(*v as u16))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt16(_)) => {
+                if v.le(&BigUint::from(u16::MAX)) {
+                    Some(UnsignedInteger::UInt16(
+                        v.iter_u32_digits().nth(0).unwrap() as u16
+                    ))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt64(v), UnsignedInteger::UInt32(_)) => {
+                if *v <= u32::MAX as u64 {
+                    Some(UnsignedInteger::UInt32(*v as u32))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt32(_)) => {
+                if *v <= u32::MAX as u128 {
+                    Some(UnsignedInteger::UInt32(*v as u32))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt32(_)) => {
+                if v.le(&BigUint::from(u32::MAX)) {
+                    Some(UnsignedInteger::UInt32(
+                        v.iter_u32_digits().nth(0).unwrap() as u32
+                    ))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UInt128(v), UnsignedInteger::UInt64(_)) => {
+                if *v <= u64::MAX as u128 {
+                    Some(UnsignedInteger::UInt64(*v as u64))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt64(_)) => {
+                if v.le(&BigUint::from(u64::MAX)) {
+                    Some(UnsignedInteger::UInt64(
+                        v.iter_u32_digits().nth(0).unwrap() as u64
+                    ))
+                } else {
+                    None
+                }
+            }
+            (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt128(_)) => {
+                if v.le(&BigUint::from(u128::MAX)) {
+                    Some(UnsignedInteger::UInt128(
+                        v.iter_u32_digits().nth(0).unwrap() as u128,
+                    ))
+                } else {
+                    None
+                }
+            }
+            _ => panic!("Cannot downcast type {:?} to {:?}", self, to_reference_size),
         }
     }
 
@@ -164,53 +341,98 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
     /// # Panics
     /// If the current type is larger than the reference type and cannot be downcasted
     fn cast_to_ref(&self, to_reference_size: &UnsignedInteger) -> Option<UnsignedInteger> {
-        let cmp_res = self.get_size_order().cmp(&to_reference_size.get_size_order());
-        if cmp_res == Ordering::Equal { Some(self.clone()) } // No casting needed
+        let cmp_res = self
+            .get_size_order()
+            .cmp(&to_reference_size.get_size_order());
+        if cmp_res == Ordering::Equal {
+            Some(self.clone())
+        }
+        // No casting needed
         // self < reference, upcast to the reference size
-        else if cmp_res == Ordering::Less { Some(self.up_cast_type(to_reference_size)) }
+        else if cmp_res == Ordering::Less {
+            Some(self.up_cast_type(to_reference_size))
+        }
         // self > reference, try to downcast to the reference size
-        else { self.try_down_cast_ref(to_reference_size) }
+        else {
+            self.try_down_cast_ref(to_reference_size)
+        }
     }
 
     /// Returns the smallest possible type that can hold the current value without loss of precision or overflow.
     fn down_cast_max(&self) -> UnsignedInteger {
         match self {
             UnsignedInteger::UInt1(_) => self.clone(),
-            UnsignedInteger::UInt8(v) => if *v <= 1 { UnsignedInteger::UInt1(*v) } else { self.clone() },
+            UnsignedInteger::UInt8(v) => {
+                if *v <= 1 {
+                    UnsignedInteger::UInt1(*v)
+                } else {
+                    self.clone()
+                }
+            }
             UnsignedInteger::UInt16(v) => {
-                if *v <= 1 { UnsignedInteger::UInt1(*v as u8) }
-                else if *v <= u8::MAX as u16 { UnsignedInteger::UInt8(*v as u8) }
-                else { self.clone() }
-            },
+                if *v <= 1 {
+                    UnsignedInteger::UInt1(*v as u8)
+                } else if *v <= u8::MAX as u16 {
+                    UnsignedInteger::UInt8(*v as u8)
+                } else {
+                    self.clone()
+                }
+            }
             UnsignedInteger::UInt32(v) => {
-                if *v <= 1 { UnsignedInteger::UInt1(*v as u8) }
-                else if *v <= u8::MAX as u32 { UnsignedInteger::UInt8(*v as u8) }
-                else if *v <= u16::MAX as u32 { UnsignedInteger::UInt16(*v as u16) }
-                else { self.clone() }
-            },
+                if *v <= 1 {
+                    UnsignedInteger::UInt1(*v as u8)
+                } else if *v <= u8::MAX as u32 {
+                    UnsignedInteger::UInt8(*v as u8)
+                } else if *v <= u16::MAX as u32 {
+                    UnsignedInteger::UInt16(*v as u16)
+                } else {
+                    self.clone()
+                }
+            }
             UnsignedInteger::UInt64(v) => {
-                if *v <= 1 { UnsignedInteger::UInt1(*v as u8) }
-                else if *v <= u8::MAX as u64 { UnsignedInteger::UInt8(*v as u8) }
-                else if *v <= u16::MAX as u64 { UnsignedInteger::UInt16(*v as u16) }
-                else if *v <= u32::MAX as u64 { UnsignedInteger::UInt32(*v as u32) }
-                else { self.clone() }
-            },
+                if *v <= 1 {
+                    UnsignedInteger::UInt1(*v as u8)
+                } else if *v <= u8::MAX as u64 {
+                    UnsignedInteger::UInt8(*v as u8)
+                } else if *v <= u16::MAX as u64 {
+                    UnsignedInteger::UInt16(*v as u16)
+                } else if *v <= u32::MAX as u64 {
+                    UnsignedInteger::UInt32(*v as u32)
+                } else {
+                    self.clone()
+                }
+            }
             UnsignedInteger::UInt128(v) => {
-                if *v <= 1 { UnsignedInteger::UInt1(*v as u8) }
-                else if *v <= u8::MAX as u128 { UnsignedInteger::UInt8(*v as u8) }
-                else if *v <= u16::MAX as u128 { UnsignedInteger::UInt16(*v as u16) }
-                else if *v <= u32::MAX as u128 { UnsignedInteger::UInt32(*v as u32) }
-                else if *v <= u64::MAX as u128 { UnsignedInteger::UInt64(*v as u64) }
-                else { self.clone() }
-            },
+                if *v <= 1 {
+                    UnsignedInteger::UInt1(*v as u8)
+                } else if *v <= u8::MAX as u128 {
+                    UnsignedInteger::UInt8(*v as u8)
+                } else if *v <= u16::MAX as u128 {
+                    UnsignedInteger::UInt16(*v as u16)
+                } else if *v <= u32::MAX as u128 {
+                    UnsignedInteger::UInt32(*v as u32)
+                } else if *v <= u64::MAX as u128 {
+                    UnsignedInteger::UInt64(*v as u64)
+                } else {
+                    self.clone()
+                }
+            }
             UnsignedInteger::UIntVar(v) => {
-                if v.le(&BigUint::from(1u8)) { UnsignedInteger::UInt1(v.iter_u32_digits().nth(0).unwrap() as u8) }
-                else if v.le(&BigUint::from(u8::MAX)) { UnsignedInteger::UInt8(v.iter_u32_digits().nth(0).unwrap() as u8) }
-                else if v.le(&BigUint::from(u16::MAX)) { UnsignedInteger::UInt16(v.iter_u32_digits().nth(0).unwrap() as u16) }
-                else if v.le(&BigUint::from(u32::MAX)) { UnsignedInteger::UInt32(v.iter_u32_digits().nth(0).unwrap() as u32) }
-                else if v.le(&BigUint::from(u64::MAX)) { UnsignedInteger::UInt64(v.iter_u32_digits().nth(0).unwrap() as u64) }
-                else if v.le(&BigUint::from(u128::MAX)) { UnsignedInteger::UInt128(v.iter_u32_digits().nth(0).unwrap() as u128) }
-                else { self.clone() }
+                if v.le(&BigUint::from(1u8)) {
+                    UnsignedInteger::UInt1(v.iter_u32_digits().nth(0).unwrap() as u8)
+                } else if v.le(&BigUint::from(u8::MAX)) {
+                    UnsignedInteger::UInt8(v.iter_u32_digits().nth(0).unwrap() as u8)
+                } else if v.le(&BigUint::from(u16::MAX)) {
+                    UnsignedInteger::UInt16(v.iter_u32_digits().nth(0).unwrap() as u16)
+                } else if v.le(&BigUint::from(u32::MAX)) {
+                    UnsignedInteger::UInt32(v.iter_u32_digits().nth(0).unwrap() as u32)
+                } else if v.le(&BigUint::from(u64::MAX)) {
+                    UnsignedInteger::UInt64(v.iter_u32_digits().nth(0).unwrap() as u64)
+                } else if v.le(&BigUint::from(u128::MAX)) {
+                    UnsignedInteger::UInt128(v.iter_u32_digits().nth(0).unwrap() as u128)
+                } else {
+                    self.clone()
+                }
             }
         }
     }
@@ -282,7 +504,7 @@ pub enum FloatingPoint {
     Float32(f32),
     Float64(f64),
     FloatBig(BigFloat), // Increased precision floating point numbers (fixed but large size)
-    // Look at https://github.com/stencillogic/astro-float for handling Arbitrary precision floating point numbers (variable size)
+                        // Look at https://github.com/stencillogic/astro-float for handling Arbitrary precision floating point numbers (variable size)
 }
 
 impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
@@ -320,7 +542,7 @@ impl GetType for Number {
                 UnsignedInteger::UInt32(_) => std_primitive_types::UINT32,
                 UnsignedInteger::UInt64(_) => std_primitive_types::UINT64,
                 UnsignedInteger::UInt128(_) => std_primitive_types::UINT128,
-                UnsignedInteger::UIntVar(_) => std_primitive_types::UINTBIG
+                UnsignedInteger::UIntVar(_) => std_primitive_types::UINTBIG,
             },
             Number::SignedInteger(i) => match i {
                 SignedInteger::Int8(_) => std_primitive_types::INT8,
@@ -328,12 +550,12 @@ impl GetType for Number {
                 SignedInteger::Int32(_) => std_primitive_types::INT32,
                 SignedInteger::Int64(_) => std_primitive_types::INT64,
                 SignedInteger::Int128(_) => std_primitive_types::INT128,
-                SignedInteger::IntVar(_) => std_primitive_types::INTBIG
+                SignedInteger::IntVar(_) => std_primitive_types::INTBIG,
             },
             Number::FloatingPoint(f) => match f {
                 FloatingPoint::Float32(_) => std_primitive_types::FLOAT32,
                 FloatingPoint::Float64(_) => std_primitive_types::FLOAT64,
-                FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG
+                FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG,
             },
         })
     }
@@ -356,9 +578,12 @@ impl Number {
     }
 
     pub fn parse(s: String) -> Number {
-        if s.contains('.') { // Floating point number (Only signed floating point numbers are supported)
+        if s.contains('.') {
+            // Floating point number (Only signed floating point numbers are supported)
             let f = s.parse::<f64>();
-            if f.is_err() { return Number::parse_big_float(s); }
+            if f.is_err() {
+                return Number::parse_big_float(s);
+            }
             let f = f.unwrap();
             if f >= std::f32::MIN as f64 && f <= std::f32::MAX as f64 {
                 Number::FloatingPoint(FloatingPoint::Float32(f as f32))
@@ -368,7 +593,9 @@ impl Number {
         } else {
             if s.starts_with('-') {
                 let i = s[1..].parse::<i128>();
-                if i.is_err() { return Number::parse_big_int(s); }
+                if i.is_err() {
+                    return Number::parse_big_int(s);
+                }
                 let i = i.unwrap();
                 if i >= std::i8::MIN as i128 && i <= std::i8::MAX as i128 {
                     Number::SignedInteger(SignedInteger::Int8(i as i8))
@@ -383,7 +610,9 @@ impl Number {
                 }
             } else {
                 let u = s.parse::<u128>();
-                if u.is_err() { return Number::parse_big_uint(s); }
+                if u.is_err() {
+                    return Number::parse_big_uint(s);
+                }
                 let u = u.unwrap();
                 if u >= std::u8::MIN as u128 && u <= std::u8::MAX as u128 {
                     Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
@@ -404,10 +633,12 @@ impl Number {
 impl ArithmeticOperations<Number> for Number {
     fn add(lhs: &Number, rhs: &Number) -> Number {
         match (lhs, rhs) {
-            (Number::UnsignedInteger(lhs), Number::UnsignedInteger(rhs)) => Number::UnsignedInteger(UnsignedInteger::add(lhs, rhs)),
+            (Number::UnsignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
+                Number::UnsignedInteger(UnsignedInteger::add(lhs, rhs))
+            }
             (Number::SignedInteger(lhs), Number::SignedInteger(rhs)) => todo!(),
             (Number::FloatingPoint(lhs), Number::FloatingPoint(rhs)) => todo!(),
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
@@ -453,7 +684,11 @@ pub enum NativeFunctionParameters {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionVariation {
     User(FunctionParameterType, Ast, Type),
-    Native(fn(NativeFunctionParameters) -> InterpretResult, FunctionParameterType, Type), // Built-in functions
+    Native(
+        fn(NativeFunctionParameters) -> InterpretResult,
+        FunctionParameterType,
+        Type,
+    ), // Built-in functions
 }
 
 /**
@@ -463,8 +698,12 @@ pub enum FunctionVariation {
  */
 pub fn compare_function_variations(a: &FunctionVariation, b: &FunctionVariation) -> Ordering {
     match (a.get_params(), b.get_params()) {
-        (FunctionParameterType::Singles(_), FunctionParameterType::Variadic(_, _)) => Ordering::Less,
-        (FunctionParameterType::Variadic(_, _), FunctionParameterType::Singles(_)) => Ordering::Greater,
+        (FunctionParameterType::Singles(_), FunctionParameterType::Variadic(_, _)) => {
+            Ordering::Less
+        }
+        (FunctionParameterType::Variadic(_, _), FunctionParameterType::Singles(_)) => {
+            Ordering::Greater
+        }
         _ => Ordering::Equal,
     }
 }
@@ -488,8 +727,12 @@ impl FunctionVariation {
 impl GetType for FunctionVariation {
     fn get_type(&self) -> CheckedType {
         CheckedType::Checked(match self {
-            FunctionVariation::User(p, _, r) => Type::Function(Box::new(p.clone()), Box::new(r.clone())),
-            FunctionVariation::Native(_, v, r) => Type::Function(Box::new(v.clone()), Box::new(r.clone())),
+            FunctionVariation::User(p, _, r) => {
+                Type::Function(Box::new(p.clone()), Box::new(r.clone()))
+            }
+            FunctionVariation::Native(_, v, r) => {
+                Type::Function(Box::new(v.clone()), Box::new(r.clone()))
+            }
         })
     }
 }
@@ -498,8 +741,14 @@ impl Display for FunctionVariation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "(")?;
         let ret_type = match self {
-            FunctionVariation::User(p, _, r) => { p.fmt(f)?; r },
-            FunctionVariation::Native(_, v, r) => { v.fmt(f)?; r },
+            FunctionVariation::User(p, _, r) => {
+                p.fmt(f)?;
+                r
+            }
+            FunctionVariation::Native(_, v, r) => {
+                v.fmt(f)?;
+                r
+            }
         };
         write!(f, ") -> {}", ret_type) // TODO: Make this a unicode arrow
     }
@@ -509,7 +758,7 @@ impl Display for FunctionVariation {
 pub struct Function {
     pub name: String,
     pub variations: Vec<FunctionVariation>, // Function types are inferred from variations
-    // TODO: Add an environment for the function
+                                            // TODO: Add an environment for the function
 }
 
 impl Function {
@@ -541,31 +790,29 @@ impl GetType for Value {
     fn get_type(&self) -> CheckedType {
         CheckedType::Checked(match self {
             Value::Unit => Type::Unit,
-            Value::Number(n) => {
-                match n {
-                    Number::UnsignedInteger(u) => match u {
-                        UnsignedInteger::UInt1(_) => std_primitive_types::UINT1,
-                        UnsignedInteger::UInt8(_) => std_primitive_types::UINT8,
-                        UnsignedInteger::UInt16(_) => std_primitive_types::UINT16,
-                        UnsignedInteger::UInt32(_) => std_primitive_types::UINT32,
-                        UnsignedInteger::UInt64(_) => std_primitive_types::UINT64,
-                        UnsignedInteger::UInt128(_) => std_primitive_types::UINT128,
-                        UnsignedInteger::UIntVar(_) => std_primitive_types::UINTBIG
-                    },
-                    Number::SignedInteger(i) => match i {
-                        SignedInteger::Int8(_) => std_primitive_types::INT8,
-                        SignedInteger::Int16(_) => std_primitive_types::INT16,
-                        SignedInteger::Int32(_) => std_primitive_types::INT32,
-                        SignedInteger::Int64(_) => std_primitive_types::INT64,
-                        SignedInteger::Int128(_) => std_primitive_types::INT128,
-                        SignedInteger::IntVar(_) => std_primitive_types::INTBIG
-                    },
-                    Number::FloatingPoint(f) => match f {
-                        FloatingPoint::Float32(_) => std_primitive_types::FLOAT32,
-                        FloatingPoint::Float64(_) => std_primitive_types::FLOAT64,
-                        FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG
-                    },
-                }
+            Value::Number(n) => match n {
+                Number::UnsignedInteger(u) => match u {
+                    UnsignedInteger::UInt1(_) => std_primitive_types::UINT1,
+                    UnsignedInteger::UInt8(_) => std_primitive_types::UINT8,
+                    UnsignedInteger::UInt16(_) => std_primitive_types::UINT16,
+                    UnsignedInteger::UInt32(_) => std_primitive_types::UINT32,
+                    UnsignedInteger::UInt64(_) => std_primitive_types::UINT64,
+                    UnsignedInteger::UInt128(_) => std_primitive_types::UINT128,
+                    UnsignedInteger::UIntVar(_) => std_primitive_types::UINTBIG,
+                },
+                Number::SignedInteger(i) => match i {
+                    SignedInteger::Int8(_) => std_primitive_types::INT8,
+                    SignedInteger::Int16(_) => std_primitive_types::INT16,
+                    SignedInteger::Int32(_) => std_primitive_types::INT32,
+                    SignedInteger::Int64(_) => std_primitive_types::INT64,
+                    SignedInteger::Int128(_) => std_primitive_types::INT128,
+                    SignedInteger::IntVar(_) => std_primitive_types::INTBIG,
+                },
+                Number::FloatingPoint(f) => match f {
+                    FloatingPoint::Float32(_) => std_primitive_types::FLOAT32,
+                    FloatingPoint::Float64(_) => std_primitive_types::FLOAT64,
+                    FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG,
+                },
             },
             Value::String(_) => std_primitive_types::STRING,
             Value::Char(_) => std_primitive_types::CHAR,
@@ -645,7 +892,7 @@ impl Display for Value {
                     writeln!(f, "\t{}", v)?;
                 }
                 write!(f, "}}")
-            },
+            }
         }
     }
 }

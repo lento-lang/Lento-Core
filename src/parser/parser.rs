@@ -1,29 +1,49 @@
-use std::{path::Path, io::{BufReader, Error, Seek, Read}, fs::File};
+use std::{
+    fs::File,
+    io::{BufReader, Error, Read, Seek},
+    path::Path,
+};
 
-use crate::{lexer::{readers::{bytes_reader::BytesReader, stdin::StdinReader}, token::Token, op::{OperatorPrecedence, OperatorPosition, OperatorAssociativity, Operator}, lexer::LexResult}, interpreter::{value::{Value, Number}, error::RuntimeError}, stdlib::init::init_lexer, type_checker::types::CheckedType};
+use crate::{
+    interpreter::{
+        error::RuntimeError,
+        value::{Number, Value},
+    },
+    lexer::{
+        lexer::LexResult,
+        op::{Operator, OperatorAssociativity, OperatorPosition, OperatorPrecedence},
+        readers::{bytes_reader::BytesReader, stdin::StdinReader},
+        token::Token,
+    },
+    stdlib::init::init_lexer,
+    type_checker::types::CheckedType,
+};
 
 use crate::lexer::lexer::Lexer;
 
-use super::{ast::{Ast, unit}, error::ParseError};
+use super::{
+    ast::{unit, Ast},
+    error::ParseError,
+};
 
 //--------------------------------------------------------------------------------------//
 //                                        Parser                                        //
 //--------------------------------------------------------------------------------------//
 
-
 pub type ParseResult = Result<Ast, ParseError>;
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
 #[derive(Clone)]
-pub struct Parser<R> where R: Read + Seek {
-    lexer: Lexer<R>
+pub struct Parser<R>
+where
+    R: Read + Seek,
+{
+    lexer: Lexer<R>,
 }
 
 impl<R: Read + Seek> Parser<R> {
     pub fn new(lexer: Lexer<R>) -> Self {
-        Self {
-            lexer
-        }
+        Self { lexer }
     }
 
     pub fn get_lexer(&mut self) -> &mut Lexer<R> {
@@ -37,7 +57,9 @@ impl<R: Read + Seek> Parser<R> {
      */
     pub fn parse(&mut self) -> ParseResult {
         if let Ok(t) = self.lexer.peek_token_no_nl() {
-            if t.token == Token::EndOfFile { return Ok(unit()); }
+            if t.token == Token::EndOfFile {
+                return Ok(unit());
+            }
         }
         let expr = self.parse_top_expr();
         // if let Ok(e) = expr.as_ref() { println!("Parsed expression: {:?}", e); }
@@ -51,35 +73,53 @@ impl<R: Read + Seek> Parser<R> {
             Token::String(s) => Value::String(s.clone()),
             Token::Char(c) => Value::Char(c),
             Token::Boolean(b) => Value::Boolean(b),
-            _ => return None
+            _ => return None,
         })
     }
 
     fn parse_call(&mut self, id: String) -> ParseResult {
         let mut args = Vec::new();
         let nt = self.lexer.read_next_token_no_nl();
-        if nt.is_err() { return Err(ParseError { message: "Expected '('".to_string() }); }
+        if nt.is_err() {
+            return Err(ParseError {
+                message: "Expected '('".to_string(),
+            });
+        }
         assert!(nt.unwrap().token == Token::LeftParen);
         while let Ok(t) = self.lexer.peek_token(0) {
-            if t.token == Token::RightParen { break; }
+            if t.token == Token::RightParen {
+                break;
+            }
             let expr = self.parse_top_expr()?;
             args.push(expr);
             let nt = self.lexer.peek_token(0);
-            if nt.is_err() { return Err(ParseError { message: "Expected ')'".to_string() }); }
+            if nt.is_err() {
+                return Err(ParseError {
+                    message: "Expected ')'".to_string(),
+                });
+            }
             let nt = nt.unwrap().token;
             if nt == Token::RightParen {
                 if let Err(err) = self.lexer.read_next_token() {
-                    return Err(ParseError { message: format!("Expected ')' but failed with: {}", err.message) });
+                    return Err(ParseError {
+                        message: format!("Expected ')' but failed with: {}", err.message),
+                    });
                 }
                 break;
             }
             let nt = self.lexer.read_next_token();
-            if nt.is_err() { return Err(ParseError { message: "Expected ')'".to_string() }); }
+            if nt.is_err() {
+                return Err(ParseError {
+                    message: "Expected ')'".to_string(),
+                });
+            }
             let nt = nt.unwrap().token;
             if nt.is_terminator() {
                 continue;
             }
-            return Err(ParseError { message: "Expected ')'".to_string() });
+            return Err(ParseError {
+                message: "Expected ')'".to_string(),
+            });
         }
         // TODO: Extract read_until_terminator() helper method
         Ok(Ast::FunctionCall(id, args, CheckedType::Unchecked))
@@ -103,15 +143,28 @@ impl<R: Read + Seek> Parser<R> {
             } else if t.token.is_operator() {
                 let op = t.token.get_operator().unwrap();
                 if op.pos() != OperatorPosition::Prefix {
-                    return Err(ParseError { message: format!("Expected prefix operator, but found {:?} ({})", op.symbol(), op.name()) });
+                    return Err(ParseError {
+                        message: format!(
+                            "Expected prefix operator, but found {:?} ({})",
+                            op.symbol(),
+                            op.name()
+                        ),
+                    });
                 }
                 let rhs = self.parse_primary()?;
                 Ok(Ast::Unary(op, Box::new(rhs), CheckedType::Unchecked))
             } else {
-                Err(ParseError { message: format!("Expected primary expression, but found {:?}", t.token) })
+                Err(ParseError {
+                    message: format!("Expected primary expression, but found {:?}", t.token),
+                })
             }
         } else {
-            Err(ParseError { message: format!("Expected primary expression, but failed due to: {:?}", nt.unwrap_err().message) })
+            Err(ParseError {
+                message: format!(
+                    "Expected primary expression, but failed due to: {:?}",
+                    nt.unwrap_err().message
+                ),
+            })
         }
     }
 
@@ -134,14 +187,21 @@ impl<R: Read + Seek> Parser<R> {
         // println!("parse_expr: expr = {:?}", expr);
         let check_first = |op: &LexResult| -> Option<Operator> {
             /* return true if both:
-                * the result is ok
-                * 'op' is a binary operator whose precedence is greater than min_prec
-            */
-            if op.is_err() { return None; }
+             * the result is ok
+             * 'op' is a binary operator whose precedence is greater than min_prec
+             */
+            if op.is_err() {
+                return None;
+            }
             if let Some(op) = op.as_ref().unwrap().token.get_operator() {
-                if op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec { Some(op) }
-                else { None }
-            } else { None }
+                if op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec {
+                    Some(op)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         };
         while let Some(op) = check_first(&nt) {
             self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
@@ -149,18 +209,19 @@ impl<R: Read + Seek> Parser<R> {
             nt = self.lexer.peek_token(0);
             let check_next = |op: &LexResult| {
                 /* return true if either:
-                    * 'op' is a binary operator whose precedence is greater than op's
-                    * 'op' is a right-associative binary operator whose precedence is equal to op's
+                 * 'op' is a binary operator whose precedence is greater than op's
+                 * 'op' is a right-associative binary operator whose precedence is equal to op's
                  */
-                if op.is_err() { return false; }
-                else if let Some(op) = op.as_ref().unwrap().token.get_operator() {
-                    op.pos() == OperatorPosition::Infix && ((
-                        op.precedence() > min_prec
-                    ) || (
-                        op.associativity() == OperatorAssociativity::Right &&
-                        op.precedence() == min_prec
-                    ))
-                } else { false }
+                if op.is_err() {
+                    return false;
+                } else if let Some(op) = op.as_ref().unwrap().token.get_operator() {
+                    op.pos() == OperatorPosition::Infix
+                        && ((op.precedence() > min_prec)
+                            || (op.associativity() == OperatorAssociativity::Right
+                                && op.precedence() == min_prec))
+                } else {
+                    false
+                }
             };
             while check_next(&nt) {
                 let op_prec = nt.unwrap().token.get_operator().unwrap().precedence();
@@ -180,7 +241,6 @@ impl<R: Read + Seek> Parser<R> {
         let lhs = self.parse_primary()?;
         self.parse_expr(lhs, 0)
     }
-
 }
 
 //--------------------------------------------------------------------------------------//
@@ -220,23 +280,19 @@ pub fn from_stdin() -> Parser<StdinReader> {
 //--------------------------------------------------------------------------------------//
 
 pub fn parse_string(source: String) -> ParseResult {
-    from_string(&source)
-        .parse()
+    from_string(&source).parse()
 }
 
 pub fn parse_str(source: &str) -> ParseResult {
-    from_str(source)
-        .parse()
+    from_str(source).parse()
 }
 
 pub fn parse_file(file: File) -> ParseResult {
-    from_file(file)
-        .parse()
+    from_file(file).parse()
 }
 
 pub fn parse_from_path(path: &Path) -> Result<ParseResult, Error> {
-    Ok(from_path(path)?
-        .parse())
+    Ok(from_path(path)?.parse())
 }
 
 #[cfg(test)]

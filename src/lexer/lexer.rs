@@ -1,15 +1,24 @@
-use std::{io::{Seek, Read}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    io::{Read, Seek},
+};
 
 use lazy_regex::{self, regex_replace_all};
 
-use crate::{util::failable::Failable, interpreter::error::{RuntimeError, runtime_error}};
+use crate::{
+    interpreter::error::{runtime_error, RuntimeError},
+    util::failable::Failable,
+};
 
-use super::{token::{Token, LineInfoSpan, TokenInfo}, error::LexerError, op::Operator};
+use super::{
+    error::LexerError,
+    op::Operator,
+    token::{LineInfoSpan, Token, TokenInfo},
+};
 
 //--------------------------------------------------------------------------------------//
 //                                        Lexer                                         //
 //--------------------------------------------------------------------------------------//
-
 
 pub type LexResult = Result<TokenInfo, LexerError>;
 const BUFFER_SIZE: usize = 128;
@@ -19,7 +28,10 @@ const BUFFER_SIZE: usize = 128;
  * The lexer is a state machine that is used by the parser to generate an AST.
  */
 #[derive(Clone)]
-pub struct Lexer<R> where R: Read + Seek {
+pub struct Lexer<R>
+where
+    R: Read + Seek,
+{
     reader: R,
     is_stream: bool,
     should_read: bool,
@@ -79,7 +91,12 @@ impl<R: Read + Seek> Lexer<R> {
     }
 
     pub fn define_op(&mut self, op: Operator) -> Failable<RuntimeError> {
-        if self.operators.contains_key(&op.symbol()) { return Err(runtime_error(format!("Cannot override operator '{}'", op.symbol()))); }
+        if self.operators.contains_key(&op.symbol()) {
+            return Err(runtime_error(format!(
+                "Cannot override operator '{}'",
+                op.symbol()
+            )));
+        }
         self.operators.insert(op.symbol().clone(), op);
         Ok(())
     }
@@ -90,11 +107,10 @@ impl<R: Read + Seek> Lexer<R> {
         self.operators.get(op).cloned()
     }
 
-
     fn new_token_info(&self, token: Token) -> LexResult {
         Ok(TokenInfo {
             info: self.line_info.clone(),
-            token
+            token,
         })
     }
 
@@ -111,17 +127,31 @@ impl<R: Read + Seek> Lexer<R> {
         let idx = self.buffer_idx + offset as usize;
         if idx < BUFFER_SIZE {
             let c = self.buffer[idx as usize];
-            if c == 0 { None } else { Some(c as char) }
+            if c == 0 {
+                None
+            } else {
+                Some(c as char)
+            }
         } else {
             // Read from reader
             let prev_idx = self.reader.seek(std::io::SeekFrom::Current(0)).unwrap();
-            self.reader.seek(std::io::SeekFrom::Current(offset)).unwrap();
+            self.reader
+                .seek(std::io::SeekFrom::Current(offset))
+                .unwrap();
             let c = &mut [0; 1];
             if let Ok(n) = self.reader.read(c) {
-                self.reader.seek(std::io::SeekFrom::Start(prev_idx)).unwrap();
-                if n > 0 { Some(c[0] as char) } else { None }
+                self.reader
+                    .seek(std::io::SeekFrom::Start(prev_idx))
+                    .unwrap();
+                if n > 0 {
+                    Some(c[0] as char)
+                } else {
+                    None
+                }
             } else {
-                self.reader.seek(std::io::SeekFrom::Start(prev_idx)).unwrap();
+                self.reader
+                    .seek(std::io::SeekFrom::Start(prev_idx))
+                    .unwrap();
                 None
             }
         }
@@ -134,10 +164,12 @@ impl<R: Read + Seek> Lexer<R> {
         if self.should_read || self.buffer_idx >= BUFFER_SIZE {
             match self.reader.read(&mut self.buffer) {
                 Ok(n) => {
-                    if n == 0 { return None; }
+                    if n == 0 {
+                        return None;
+                    }
                     self.should_read = false;
                     self.buffer_idx = 0;
-                },
+                }
                 Err(_) => {
                     // Try to re-initialize the buffer the next time
                     return None;
@@ -145,22 +177,32 @@ impl<R: Read + Seek> Lexer<R> {
             }
         }
         let c = self.buffer[self.buffer_idx];
-        if c == 0 { return None; }
+        if c == 0 {
+            return None;
+        }
         self.buffer_idx += 1;
         self.line_info.end.column += 1;
         Some(c as char)
     }
 
     fn get_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
-        if self.peeked_tokens.is_empty() { None }
-        else if offset >= self.peeked_tokens.len() { None }
-        else { Some(self.peeked_tokens[offset].clone()) }
+        if self.peeked_tokens.is_empty() {
+            None
+        } else if offset >= self.peeked_tokens.len() {
+            None
+        } else {
+            Some(self.peeked_tokens[offset].clone())
+        }
     }
 
     fn consume_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
-        if self.peeked_tokens.is_empty() { None }
-        else if offset >= self.peeked_tokens.len() { None }
-        else { Some(self.peeked_tokens.remove(offset)) }
+        if self.peeked_tokens.is_empty() {
+            None
+        } else if offset >= self.peeked_tokens.len() {
+            None
+        } else {
+            Some(self.peeked_tokens.remove(offset))
+        }
     }
 
     /**
@@ -168,11 +210,18 @@ impl<R: Read + Seek> Lexer<R> {
      * ! Note: This function should not be called from read_next_token() because it will cause an infinite loop (stack overflow)
      */
     pub fn peek_token(&mut self, offset: usize) -> LexResult {
-        if let Some(t) = self.get_peeked_token(offset) { t }
-        else {
+        if let Some(t) = self.get_peeked_token(offset) {
+            t
+        } else {
             let token = self.next_token();
             // Do not push EOF to the peeked tokens list
-            if let Ok(TokenInfo { token: Token::EndOfFile, .. }) = token { return token; }
+            if let Ok(TokenInfo {
+                token: Token::EndOfFile,
+                ..
+            }) = token
+            {
+                return token;
+            }
             self.peeked_tokens.push(token.to_owned());
             self.peek_token(offset)
         }
@@ -181,7 +230,11 @@ impl<R: Read + Seek> Lexer<R> {
     pub fn peek_token_no_nl(&mut self) -> LexResult {
         let mut idx = 0usize;
         let mut token = self.peek_token(idx);
-        while let Ok(TokenInfo { token: Token::Newline, .. }) = token {
+        while let Ok(TokenInfo {
+            token: Token::Newline,
+            ..
+        }) = token
+        {
             token = self.peek_token(idx + 1);
             idx += 1;
         }
@@ -194,7 +247,11 @@ impl<R: Read + Seek> Lexer<R> {
      */
     pub fn read_next_token_no_nl(&mut self) -> LexResult {
         let mut token = self.read_next_token();
-        while let Ok(TokenInfo { token: Token::Newline, .. }) = token {
+        while let Ok(TokenInfo {
+            token: Token::Newline,
+            ..
+        }) = token
+        {
             token = self.read_next_token();
         }
         token
@@ -205,8 +262,11 @@ impl<R: Read + Seek> Lexer<R> {
      * Or return the next peeked token.
      */
     pub fn read_next_token(&mut self) -> LexResult {
-        if let Some(token) = self.consume_peeked_token(0) { token }
-        else { self.next_token() }
+        if let Some(token) = self.consume_peeked_token(0) {
+            token
+        } else {
+            self.next_token()
+        }
     }
 
     /**
@@ -230,7 +290,9 @@ impl<R: Read + Seek> Lexer<R> {
         if token.token == Token::EndOfFile {
             self.should_read = self.is_stream;
             self.read_next_token()
-        } else { Ok(token) }
+        } else {
+            Ok(token)
+        }
     }
 
     /**
@@ -244,7 +306,11 @@ impl<R: Read + Seek> Lexer<R> {
      */
     pub fn expect_next_token_no_nl(&mut self) -> LexResult {
         let mut token = self.expect_next_token();
-        while let Ok(TokenInfo { token: Token::Newline, .. }) = token {
+        while let Ok(TokenInfo {
+            token: Token::Newline,
+            ..
+        }) = token
+        {
             token = self.expect_next_token();
         }
         token
@@ -272,19 +338,29 @@ impl<R: Read + Seek> Lexer<R> {
                 self.read_number(c)
             } else if Self::is_identifier_head_char(c) {
                 self.read_identifier(c)
-            } else { self.new_token_info(match c {
-                '(' => Token::LeftParen,
-                ')' => Token::RightParen,
-                '{' => Token::LeftBrace,
-                '}' => Token::RightBrace,
-                '[' => Token::LeftBracket,
-                ']' => Token::RightBracket,
-                _ => {
-                    if let Some(op) = self.lookup_op(&c.to_string()) { Token::Op(op) }
-                    else { return Err(LexerError::unexpected_character(c, self.line_info.clone())); }
-                }
-            }) }
-        } else { self.new_token_info(Token::EndOfFile) }
+            } else {
+                self.new_token_info(match c {
+                    '(' => Token::LeftParen,
+                    ')' => Token::RightParen,
+                    '{' => Token::LeftBrace,
+                    '}' => Token::RightBrace,
+                    '[' => Token::LeftBracket,
+                    ']' => Token::RightBracket,
+                    _ => {
+                        if let Some(op) = self.lookup_op(&c.to_string()) {
+                            Token::Op(op)
+                        } else {
+                            return Err(LexerError::unexpected_character(
+                                c,
+                                self.line_info.clone(),
+                            ));
+                        }
+                    }
+                })
+            }
+        } else {
+            self.new_token_info(Token::EndOfFile)
+        }
     }
 
     pub fn resolve_escape_sequence(s: String) -> String {
@@ -304,7 +380,12 @@ impl<R: Read + Seek> Lexer<R> {
     /**
      * Helper function to read a token from the source code using a predicates and lambdas or function composition.
      */
-    fn read_while(&mut self, init: Option<String>, mut cond: impl FnMut(char) -> bool, mut build_token: impl FnMut(&mut Self, String) -> LexResult) -> LexResult {
+    fn read_while(
+        &mut self,
+        init: Option<String>,
+        mut cond: impl FnMut(char) -> bool,
+        mut build_token: impl FnMut(&mut Self, String) -> LexResult,
+    ) -> LexResult {
         let mut r = init.unwrap_or(String::new());
         while let Some(c) = self.peek_char(0) {
             if cond(c) {
@@ -322,25 +403,32 @@ impl<R: Read + Seek> Lexer<R> {
      * Read a string from the source code.
      */
     fn read_string(&mut self) -> LexResult {
-        self.read_while(None, |c| c != '"', |this, s| {
-            this.next_char(); // Eat the last "
-            this.new_token_info(Token::String(Lexer::<R>::resolve_escape_sequence(s)))
-        })
+        self.read_while(
+            None,
+            |c| c != '"',
+            |this, s| {
+                this.next_char(); // Eat the last "
+                this.new_token_info(Token::String(Lexer::<R>::resolve_escape_sequence(s)))
+            },
+        )
     }
-
 
     /**
      * Read a character from the source code.
      */
     fn read_char(&mut self) -> LexResult {
-        self.read_while(None, |c| c != '\'', |this, s| {
-            let s = Lexer::<R>::resolve_escape_sequence(s);
-            if s.len() != 1 {
-                Err(LexerError::invalid_char(s, this.line_info.clone()))
-            } else {
-                this.new_token_info(Token::Char(s.chars().next().unwrap()))
-            }
-        })
+        self.read_while(
+            None,
+            |c| c != '\'',
+            |this, s| {
+                let s = Lexer::<R>::resolve_escape_sequence(s);
+                if s.len() != 1 {
+                    Err(LexerError::invalid_char(s, this.line_info.clone()))
+                } else {
+                    this.new_token_info(Token::Char(s.chars().next().unwrap()))
+                }
+            },
+        )
     }
 
     /**
@@ -349,24 +437,41 @@ impl<R: Read + Seek> Lexer<R> {
      */
     fn read_number(&mut self, c: char) -> LexResult {
         let mut has_dot = false;
-        self.read_while(Some(c.to_string()), move |c| {
-            if c == '.' && !has_dot {
-                has_dot = true;
-                true
-            } else {
-                c.is_numeric()
-            }
-        }, |this, s| this.new_token_info(if has_dot { Token::Float(s) } else { Token::Integer(s) }))
+        self.read_while(
+            Some(c.to_string()),
+            move |c| {
+                if c == '.' && !has_dot {
+                    has_dot = true;
+                    true
+                } else {
+                    c.is_numeric()
+                }
+            },
+            |this, s| {
+                this.new_token_info(if has_dot {
+                    Token::Float(s)
+                } else {
+                    Token::Integer(s)
+                })
+            },
+        )
     }
 
-    fn is_identifier_head_char(c: char) -> bool { c.is_alphabetic() || c == '_' }
-    fn is_identifier_body_char(c: char) -> bool { c.is_alphanumeric() || c == '_' }
+    fn is_identifier_head_char(c: char) -> bool {
+        c.is_alphabetic() || c == '_'
+    }
+    fn is_identifier_body_char(c: char) -> bool {
+        c.is_alphanumeric() || c == '_'
+    }
 
     /**
      * Read an identifier from the source code.
      */
     fn read_identifier(&mut self, c: char) -> LexResult {
-        self.read_while(Some(c.to_string()), Self::is_identifier_body_char, |this, s| this.new_token_info(Token::Identifier(s)))
+        self.read_while(
+            Some(c.to_string()),
+            Self::is_identifier_body_char,
+            |this, s| this.new_token_info(Token::Identifier(s)),
+        )
     }
-
 }

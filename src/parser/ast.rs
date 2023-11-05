@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use crate::{lexer::op::Operator, type_checker::types::{Type, FunctionParameterType, GetType, CheckedType}, interpreter::value::Value};
+use crate::{
+    interpreter::value::Value,
+    lexer::op::Operator,
+    type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordKeyAst {

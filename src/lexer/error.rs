@@ -8,10 +8,7 @@ pub struct LexerError {
 
 impl LexerError {
     pub fn new(message: String, info: LineInfoSpan) -> Self {
-        Self {
-            message,
-            info
-        }
+        Self { message, info }
     }
 
     pub fn unexpected_end_of_file(info: LineInfoSpan) -> Self {

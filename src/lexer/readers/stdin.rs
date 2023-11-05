@@ -1,4 +1,4 @@
-use std::io::{Read, Seek, Stdin, BufRead};
+use std::io::{BufRead, Read, Seek, Stdin};
 
 pub struct StdinReader {
     stdin: std::io::Stdin,

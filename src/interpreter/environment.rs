@@ -1,8 +1,15 @@
 use std::collections::HashMap;
 
-use crate::{type_checker::types::{Type, std_primitive_types}, util::{str::Str, failable::Failable}, stdlib::init::init_environment};
+use crate::{
+    stdlib::init::init_environment,
+    type_checker::types::{std_primitive_types, Type},
+    util::{failable::Failable, str::Str},
+};
 
-use super::{value::{Value, Function}, error::RuntimeError};
+use super::{
+    error::RuntimeError,
+    value::{Function, Value},
+};
 
 /**
  * The environment is a map of variable names to values.
@@ -98,7 +105,6 @@ impl<'a> Environment<'a> {
             self.types.insert(name.to_string(), type_);
             Ok(())
         }
-
     }
 
     /**
@@ -109,19 +115,28 @@ impl<'a> Environment<'a> {
         let name = name.to_string();
         // Check if the variable already exists in the standard library
         if self.variables.get(&name).is_some() {
-            panic!("Variable {} already exists in the current environment", name);
+            panic!(
+                "Variable {} already exists in the current environment",
+                name
+            );
         } else {
             match value {
                 Value::Function(f) => {
                     if self.functions.get(&name).is_some() {
-                        panic!("Function {} already exists in the current environment", name);
+                        panic!(
+                            "Function {} already exists in the current environment",
+                            name
+                        );
                     } else {
                         self.functions.insert(name, f);
                     }
-                },
+                }
                 _ => {
                     if self.variables.get(&name).is_some() {
-                        panic!("Variable {} already exists in the current environment", name);
+                        panic!(
+                            "Variable {} already exists in the current environment",
+                            name
+                        );
                     } else {
                         self.variables.insert(name, value);
                     }
@@ -131,7 +146,6 @@ impl<'a> Environment<'a> {
         }
     }
 }
-
 
 pub fn global_env() -> Environment<'static> {
     let mut global_env = Environment::new(Str::from("global"));
