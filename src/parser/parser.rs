@@ -6,7 +6,6 @@ use std::{
 
 use crate::{
     interpreter::{
-        error::RuntimeError,
         value::{Number, Value},
     },
     lexer::{
@@ -61,9 +60,9 @@ impl<R: Read + Seek> Parser<R> {
                 return Ok(unit());
             }
         }
-        let expr = self.parse_top_expr();
+        
         // if let Ok(e) = expr.as_ref() { println!("Parsed expression: {:?}", e); }
-        expr
+        self.parse_top_expr()
     }
 
     fn parse_literal(&mut self, token: Token) -> Option<Value> {
@@ -193,15 +192,7 @@ impl<R: Read + Seek> Parser<R> {
             if op.is_err() {
                 return None;
             }
-            if let Some(op) = op.as_ref().unwrap().token.get_operator() {
-                if op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec {
-                    Some(op)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
+            op.as_ref().unwrap().token.get_operator().filter(|op| op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec)
         };
         while let Some(op) = check_first(&nt) {
             self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
@@ -213,7 +204,7 @@ impl<R: Read + Seek> Parser<R> {
                  * 'op' is a right-associative binary operator whose precedence is equal to op's
                  */
                 if op.is_err() {
-                    return false;
+                    false
                 } else if let Some(op) = op.as_ref().unwrap().token.get_operator() {
                     op.pos() == OperatorPosition::Infix
                         && ((op.precedence() > min_prec)
@@ -257,13 +248,13 @@ pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
     Ok(from_file(File::open(source_file)?))
 }
 
-pub fn from_string<'a>(source: &'a String) -> Parser<BytesReader<'a>> {
+pub fn from_string(source: &String) -> Parser<BytesReader<'_>> {
     let mut lexer = Lexer::new(BytesReader::from(source));
     init_lexer(&mut lexer);
     Parser::new(lexer)
 }
 
-pub fn from_str<'a>(source: &'a str) -> Parser<BytesReader<'a>> {
+pub fn from_str(source: &str) -> Parser<BytesReader<'_>> {
     let mut lexer = Lexer::new(BytesReader::from(source));
     init_lexer(&mut lexer);
     Parser::new(lexer)

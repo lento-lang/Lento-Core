@@ -114,7 +114,7 @@ impl Display for FunctionParameterType {
             FunctionParameterType::Singles(types) => FunctionParameterType::fmt_named(f, types),
             FunctionParameterType::Variadic(types, variadic) => {
                 FunctionParameterType::fmt_named(f, types)?;
-                if types.len() > 0 {
+                if !types.is_empty() {
                     write!(f, ", ")?;
                 }
                 write!(f, "{} ...{}", variadic.1, variadic.0)
@@ -235,8 +235,8 @@ impl Type {
                                 .all(|((_, p1), (_, p2))| p1.subtype(p2))
                             && ret1.subtype(ret2)
                     }
-                    (true, false) => return false, // Cannot convert a variadic function to a non-variadic function.
-                    (false, true) => return false, // Cannot convert a non-variadic function to a variadic function.
+                    (true, false) => false, // Cannot convert a variadic function to a non-variadic function.
+                    (false, true) => false, // Cannot convert a non-variadic function to a variadic function.
                 }
             }
             (Type::Tuple(types1), Type::Tuple(types2)) => {
@@ -337,7 +337,7 @@ impl Display for Type {
                     FunctionParameterType::Singles(s) => print_params(s)?,
                     FunctionParameterType::Variadic(s, v) => {
                         print_params(s)?;
-                        if s.len() > 0 {
+                        if !s.is_empty() {
                             write!(f, ", ")?;
                         }
                         write!(f, "...{}", v.1)?;

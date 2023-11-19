@@ -131,7 +131,7 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
     Ok(match ast.to_owned() {
         Ast::FunctionCall(name, args, _) => eval_function_call(name, args, env)?,
         Ast::Tuple(v, _) => {
-            if v.len() == 0 {
+            if v.is_empty() {
                 Value::Unit
             } else {
                 eval_tuple(v, env)?
@@ -161,7 +161,7 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
                     ))
                 }
             };
-            let rhs = interpret_ast(&*rhs, env)?;
+            let rhs = interpret_ast(&rhs, env)?;
             env.add_value(Str::String(lhs), rhs.clone())?;
             rhs
         }

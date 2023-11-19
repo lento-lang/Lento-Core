@@ -63,7 +63,7 @@ impl UnsignedInteger {
             UnsignedInteger::UInt32(v) => *v as u128,
             UnsignedInteger::UInt64(v) => *v as u128,
             UnsignedInteger::UInt128(v) => *v,
-            UnsignedInteger::UIntVar(v) => return None,
+            UnsignedInteger::UIntVar(_v) => return None,
         })
     }
 
@@ -90,7 +90,7 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
     fn up_cast_type(&self, to_reference_size: &UnsignedInteger) -> UnsignedInteger {
         match (self, to_reference_size) {
             (UnsignedInteger::UInt1(v), UnsignedInteger::UInt8(_)) => {
-                UnsignedInteger::UInt8(*v as u8)
+                UnsignedInteger::UInt8(*v)
             }
             (UnsignedInteger::UInt1(v), UnsignedInteger::UInt16(_)) => {
                 UnsignedInteger::UInt16(*v as u16)
@@ -168,7 +168,7 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
         match (self, to_reference_size) {
             (UnsignedInteger::UInt8(v), UnsignedInteger::UInt1(_)) => {
                 if *v <= 1 {
-                    Some(UnsignedInteger::UInt1(*v as u8))
+                    Some(UnsignedInteger::UInt1(*v))
                 } else {
                     None
                 }
@@ -294,7 +294,7 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
             (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt32(_)) => {
                 if v.le(&BigUint::from(u32::MAX)) {
                     Some(UnsignedInteger::UInt32(
-                        v.iter_u32_digits().nth(0).unwrap() as u32
+                        v.iter_u32_digits().nth(0).unwrap()
                     ))
                 } else {
                     None
@@ -425,7 +425,7 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
                 } else if v.le(&BigUint::from(u16::MAX)) {
                     UnsignedInteger::UInt16(v.iter_u32_digits().nth(0).unwrap() as u16)
                 } else if v.le(&BigUint::from(u32::MAX)) {
-                    UnsignedInteger::UInt32(v.iter_u32_digits().nth(0).unwrap() as u32)
+                    UnsignedInteger::UInt32(v.iter_u32_digits().nth(0).unwrap())
                 } else if v.le(&BigUint::from(u64::MAX)) {
                     UnsignedInteger::UInt64(v.iter_u32_digits().nth(0).unwrap() as u64)
                 } else if v.le(&BigUint::from(u128::MAX)) {
@@ -458,15 +458,15 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
         }
     }
 
-    fn sub(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> UnsignedInteger {
+    fn sub(_lhs: &UnsignedInteger, _rhs: &UnsignedInteger) -> UnsignedInteger {
         todo!()
     }
 
-    fn mul(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> UnsignedInteger {
+    fn mul(_lhs: &UnsignedInteger, _rhs: &UnsignedInteger) -> UnsignedInteger {
         todo!()
     }
 
-    fn div(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> UnsignedInteger {
+    fn div(_lhs: &UnsignedInteger, _rhs: &UnsignedInteger) -> UnsignedInteger {
         todo!()
     }
 }
@@ -482,19 +482,19 @@ pub enum SignedInteger {
 }
 
 impl ArithmeticOperations<SignedInteger> for SignedInteger {
-    fn add(lhs: &SignedInteger, rhs: &SignedInteger) -> SignedInteger {
+    fn add(_lhs: &SignedInteger, _rhs: &SignedInteger) -> SignedInteger {
         todo!()
     }
 
-    fn sub(lhs: &SignedInteger, rhs: &SignedInteger) -> SignedInteger {
+    fn sub(_lhs: &SignedInteger, _rhs: &SignedInteger) -> SignedInteger {
         todo!()
     }
 
-    fn mul(lhs: &SignedInteger, rhs: &SignedInteger) -> SignedInteger {
+    fn mul(_lhs: &SignedInteger, _rhs: &SignedInteger) -> SignedInteger {
         todo!()
     }
 
-    fn div(lhs: &SignedInteger, rhs: &SignedInteger) -> SignedInteger {
+    fn div(_lhs: &SignedInteger, _rhs: &SignedInteger) -> SignedInteger {
         todo!()
     }
 }
@@ -508,19 +508,19 @@ pub enum FloatingPoint {
 }
 
 impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
-    fn add(lhs: &FloatingPoint, rhs: &FloatingPoint) -> FloatingPoint {
+    fn add(_lhs: &FloatingPoint, _rhs: &FloatingPoint) -> FloatingPoint {
         todo!()
     }
 
-    fn sub(lhs: &FloatingPoint, rhs: &FloatingPoint) -> FloatingPoint {
+    fn sub(_lhs: &FloatingPoint, _rhs: &FloatingPoint) -> FloatingPoint {
         todo!()
     }
 
-    fn mul(lhs: &FloatingPoint, rhs: &FloatingPoint) -> FloatingPoint {
+    fn mul(_lhs: &FloatingPoint, _rhs: &FloatingPoint) -> FloatingPoint {
         todo!()
     }
 
-    fn div(lhs: &FloatingPoint, rhs: &FloatingPoint) -> FloatingPoint {
+    fn div(_lhs: &FloatingPoint, _rhs: &FloatingPoint) -> FloatingPoint {
         todo!()
     }
 }
@@ -590,41 +590,39 @@ impl Number {
             } else {
                 Number::FloatingPoint(FloatingPoint::Float64(f))
             }
-        } else {
-            if s.starts_with('-') {
-                let i = s[1..].parse::<i128>();
-                if i.is_err() {
-                    return Number::parse_big_int(s);
-                }
-                let i = i.unwrap();
-                if i >= std::i8::MIN as i128 && i <= std::i8::MAX as i128 {
-                    Number::SignedInteger(SignedInteger::Int8(i as i8))
-                } else if i >= std::i16::MIN as i128 && i <= std::i16::MAX as i128 {
-                    Number::SignedInteger(SignedInteger::Int16(i as i16))
-                } else if i >= std::i32::MIN as i128 && i <= std::i32::MAX as i128 {
-                    Number::SignedInteger(SignedInteger::Int32(i as i32))
-                } else if i >= std::i64::MIN as i128 && i <= std::i64::MAX as i128 {
-                    Number::SignedInteger(SignedInteger::Int64(i as i64))
-                } else {
-                    Number::SignedInteger(SignedInteger::Int128(i as i128))
-                }
+        } else if s.starts_with('-') {
+            let i = s[1..].parse::<i128>();
+            if i.is_err() {
+                return Number::parse_big_int(s);
+            }
+            let i = i.unwrap();
+            if i >= std::i8::MIN as i128 && i <= std::i8::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int8(i as i8))
+            } else if i >= std::i16::MIN as i128 && i <= std::i16::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int16(i as i16))
+            } else if i >= std::i32::MIN as i128 && i <= std::i32::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int32(i as i32))
+            } else if i >= std::i64::MIN as i128 && i <= std::i64::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int64(i as i64))
             } else {
-                let u = s.parse::<u128>();
-                if u.is_err() {
-                    return Number::parse_big_uint(s);
-                }
-                let u = u.unwrap();
-                if u >= std::u8::MIN as u128 && u <= std::u8::MAX as u128 {
-                    Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
-                } else if u >= std::u16::MIN as u128 && u <= std::u16::MAX as u128 {
-                    Number::UnsignedInteger(UnsignedInteger::UInt16(u as u16))
-                } else if u >= std::u32::MIN as u128 && u <= std::u32::MAX as u128 {
-                    Number::UnsignedInteger(UnsignedInteger::UInt32(u as u32))
-                } else if u >= std::u64::MIN as u128 && u <= std::u64::MAX as u128 {
-                    Number::UnsignedInteger(UnsignedInteger::UInt64(u as u64))
-                } else {
-                    Number::UnsignedInteger(UnsignedInteger::UInt128(u as u128))
-                }
+                Number::SignedInteger(SignedInteger::Int128(i))
+            }
+        } else {
+            let u = s.parse::<u128>();
+            if u.is_err() {
+                return Number::parse_big_uint(s);
+            }
+            let u = u.unwrap();
+            if u >= std::u8::MIN as u128 && u <= std::u8::MAX as u128 {
+                Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
+            } else if u >= std::u16::MIN as u128 && u <= std::u16::MAX as u128 {
+                Number::UnsignedInteger(UnsignedInteger::UInt16(u as u16))
+            } else if u >= std::u32::MIN as u128 && u <= std::u32::MAX as u128 {
+                Number::UnsignedInteger(UnsignedInteger::UInt32(u as u32))
+            } else if u >= std::u64::MIN as u128 && u <= std::u64::MAX as u128 {
+                Number::UnsignedInteger(UnsignedInteger::UInt64(u as u64))
+            } else {
+                Number::UnsignedInteger(UnsignedInteger::UInt128(u))
             }
         }
     }
@@ -636,21 +634,21 @@ impl ArithmeticOperations<Number> for Number {
             (Number::UnsignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
                 Number::UnsignedInteger(UnsignedInteger::add(lhs, rhs))
             }
-            (Number::SignedInteger(lhs), Number::SignedInteger(rhs)) => todo!(),
-            (Number::FloatingPoint(lhs), Number::FloatingPoint(rhs)) => todo!(),
+            (Number::SignedInteger(_lhs), Number::SignedInteger(_rhs)) => todo!(),
+            (Number::FloatingPoint(_lhs), Number::FloatingPoint(_rhs)) => todo!(),
             _ => todo!(),
         }
     }
 
-    fn sub(lhs: &Number, rhs: &Number) -> Number {
+    fn sub(_lhs: &Number, _rhs: &Number) -> Number {
         todo!()
     }
 
-    fn mul(lhs: &Number, rhs: &Number) -> Number {
+    fn mul(_lhs: &Number, _rhs: &Number) -> Number {
         todo!()
     }
 
-    fn div(lhs: &Number, rhs: &Number) -> Number {
+    fn div(_lhs: &Number, _rhs: &Number) -> Number {
         todo!()
     }
 }
@@ -887,7 +885,7 @@ impl Display for Value {
                 write!(f, " }}")
             }
             Value::Function(fun) => {
-                write!(f, "function[{}] {{\n", fun.name)?;
+                writeln!(f, "function[{}] {{", fun.name)?;
                 for (_, v) in fun.variations.iter().enumerate() {
                     writeln!(f, "\t{}", v)?;
                 }

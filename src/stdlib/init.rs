@@ -236,7 +236,7 @@ pub fn init_environment(env: &mut Environment) {
             std::f64::consts::E,
         ))),
     );
-    add_value(env, "phi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(1.6180339887498948482045868343656381177203091798057628621354486227052604628189024497072072041893911374))));
+    add_value(env, "phi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(1.618_033_988_749_895))));
     add_value(
         env,
         "sqrt2",

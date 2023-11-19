@@ -78,6 +78,12 @@ pub struct LineInfoSpan {
     pub end: LineInfo,
 }
 
+impl Default for LineInfoSpan {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LineInfoSpan {
     pub fn new() -> Self {
         let empty = LineInfo {
