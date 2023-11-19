@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 pub mod compiler;
 pub mod conf;
 pub mod doc;
