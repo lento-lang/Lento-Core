@@ -126,7 +126,7 @@ impl<R: Read + Seek> Lexer<R> {
         // Read from buffer
         let idx = self.buffer_idx + offset as usize;
         if idx < BUFFER_SIZE {
-            let c = self.buffer[idx as usize];
+            let c = self.buffer[idx];
             if c == 0 {
                 None
             } else {
@@ -134,7 +134,7 @@ impl<R: Read + Seek> Lexer<R> {
             }
         } else {
             // Read from reader
-            let prev_idx = self.reader.seek(std::io::SeekFrom::Current(0)).unwrap();
+            let prev_idx = self.reader.stream_position().unwrap();
             self.reader
                 .seek(std::io::SeekFrom::Current(offset))
                 .unwrap();
@@ -186,9 +186,7 @@ impl<R: Read + Seek> Lexer<R> {
     }
 
     fn get_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
-        if self.peeked_tokens.is_empty() {
-            None
-        } else if offset >= self.peeked_tokens.len() {
+        if self.peeked_tokens.is_empty() || offset >= self.peeked_tokens.len() {
             None
         } else {
             Some(self.peeked_tokens[offset].clone())
@@ -196,9 +194,7 @@ impl<R: Read + Seek> Lexer<R> {
     }
 
     fn consume_peeked_token(&mut self, offset: usize) -> Option<LexResult> {
-        if self.peeked_tokens.is_empty() {
-            None
-        } else if offset >= self.peeked_tokens.len() {
+        if self.peeked_tokens.is_empty() || offset >= self.peeked_tokens.len() {
             None
         } else {
             Some(self.peeked_tokens.remove(offset))
@@ -325,7 +321,7 @@ impl<R: Read + Seek> Lexer<R> {
         self.set_info_start_to_current();
         if let Some(c) = self.next_char() {
             if c == ' ' || c == '\t' || c == '\r' {
-                return self.next_token(); // Ignore whitespace
+                self.next_token() // Ignore whitespace
             } else if c == '\n' {
                 self.line_info.end.line += 1;
                 self.line_info.end.column = 1;
@@ -386,7 +382,7 @@ impl<R: Read + Seek> Lexer<R> {
         mut cond: impl FnMut(char) -> bool,
         mut build_token: impl FnMut(&mut Self, String) -> LexResult,
     ) -> LexResult {
-        let mut r = init.unwrap_or(String::new());
+        let mut r = init.unwrap_or_default();
         while let Some(c) = self.peek_char(0) {
             if cond(c) {
                 self.next_char();
