@@ -49,10 +49,7 @@ impl UnsignedInteger {
     }
 
     fn is_biguint(&self) -> bool {
-        match self {
-            UnsignedInteger::UIntVar(_) => true,
-            _ => false,
-        }
+        matches!(self, UnsignedInteger::UIntVar(_))
     }
 
     fn get_u128_value(&self) -> Option<u128> {
@@ -89,9 +86,7 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
     /// This is the responsibility of the caller
     fn up_cast_type(&self, to_reference_size: &UnsignedInteger) -> UnsignedInteger {
         match (self, to_reference_size) {
-            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt8(_)) => {
-                UnsignedInteger::UInt8(*v)
-            }
+            (UnsignedInteger::UInt1(v), UnsignedInteger::UInt8(_)) => UnsignedInteger::UInt8(*v),
             (UnsignedInteger::UInt1(v), UnsignedInteger::UInt16(_)) => {
                 UnsignedInteger::UInt16(*v as u16)
             }
@@ -293,9 +288,7 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
             }
             (UnsignedInteger::UIntVar(v), UnsignedInteger::UInt32(_)) => {
                 if v.le(&BigUint::from(u32::MAX)) {
-                    Some(UnsignedInteger::UInt32(
-                        v.iter_u32_digits().nth(0).unwrap()
-                    ))
+                    Some(UnsignedInteger::UInt32(v.iter_u32_digits().nth(0).unwrap()))
                 } else {
                     None
                 }
@@ -590,10 +583,10 @@ impl Number {
             } else {
                 Number::FloatingPoint(FloatingPoint::Float64(f))
             }
-        } else if s.starts_with('-') {
-            let i = s[1..].parse::<i128>();
+        } else if let Some(s) = s.strip_prefix('-') {
+            let i = s.parse::<i128>();
             if i.is_err() {
-                return Number::parse_big_int(s);
+                return Number::parse_big_int(s.to_string());
             }
             let i = i.unwrap();
             if i >= std::i8::MIN as i128 && i <= std::i8::MAX as i128 {
@@ -886,7 +879,7 @@ impl Display for Value {
             }
             Value::Function(fun) => {
                 writeln!(f, "function[{}] {{", fun.name)?;
-                for (_, v) in fun.variations.iter().enumerate() {
+                for v in fun.variations.iter() {
                     writeln!(f, "\t{}", v)?;
                 }
                 write!(f, "}}")

@@ -40,7 +40,7 @@ pub enum FunctionParameterType {
 }
 
 impl FunctionParameterType {
-    fn fmt_named(f: &mut std::fmt::Formatter<'_>, named: &Vec<NamedType>) -> std::fmt::Result {
+    fn fmt_named(f: &mut std::fmt::Formatter<'_>, named: &[NamedType]) -> std::fmt::Result {
         for (i, (name, t)) in named.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
@@ -76,8 +76,8 @@ impl FunctionParameterType {
                         return false;
                     }
                 }
-                for i in types.len()..args.len() {
-                    if !var_type.subtype(args[i].get_type().unwrap()) {
+                for arg in &args[types.len()..] {
+                    if !var_type.subtype(arg.get_type().unwrap()) {
                         return false;
                     }
                 }

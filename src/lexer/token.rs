@@ -32,10 +32,7 @@ pub enum Token {
 
 impl Token {
     pub fn is_operator(&self) -> bool {
-        match self {
-            Token::Op(_) => true,
-            _ => false,
-        }
+        matches!(self, Token::Op(_))
     }
 
     pub fn get_operator(&self) -> Option<Operator> {
@@ -46,22 +43,18 @@ impl Token {
     }
 
     pub fn is_literal(&self) -> bool {
-        match self {
-            Token::Integer(_) => true,
-            Token::Float(_) => true,
-            Token::String(_) => true,
-            Token::Char(_) => true,
-            Token::Boolean(_) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Token::Integer(_)
+                | Token::Float(_)
+                | Token::String(_)
+                | Token::Char(_)
+                | Token::Boolean(_)
+        )
     }
 
     pub fn is_terminator(&self) -> bool {
-        match self {
-            Token::Newline => true,
-            Token::SemiColon => true,
-            _ => false,
-        }
+        matches!(self, Token::Newline | Token::SemiColon)
     }
 }
 
