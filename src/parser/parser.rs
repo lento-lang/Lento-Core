@@ -5,9 +5,7 @@ use std::{
 };
 
 use crate::{
-    interpreter::{
-        value::{Number, Value},
-    },
+    interpreter::value::{Number, Value},
     lexer::{
         lexer::LexResult,
         op::{Operator, OperatorAssociativity, OperatorPosition, OperatorPrecedence},
@@ -60,7 +58,7 @@ impl<R: Read + Seek> Parser<R> {
                 return Ok(unit());
             }
         }
-        
+
         // if let Ok(e) = expr.as_ref() { println!("Parsed expression: {:?}", e); }
         self.parse_top_expr()
     }
@@ -192,7 +190,11 @@ impl<R: Read + Seek> Parser<R> {
             if op.is_err() {
                 return None;
             }
-            op.as_ref().unwrap().token.get_operator().filter(|op| op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec)
+            op.as_ref()
+                .unwrap()
+                .token
+                .get_operator()
+                .filter(|op| op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec)
         };
         while let Some(op) = check_first(&nt) {
             self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
