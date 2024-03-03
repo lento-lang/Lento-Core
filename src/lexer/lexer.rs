@@ -524,15 +524,102 @@ mod tests {
     fn test_lexer_assign() {
         let mut lexer = Lexer::new(Cursor::new("x = 1;"));
         init_lexer(&mut lexer);
-        let token = lexer.read_next_token().unwrap();
-        assert_eq!(token.token, Token::Identifier("x".to_string())); // x
-        let token = lexer.read_next_token().unwrap();
-        assert!(matches!(token.token, Token::Op(Operator::Static(_)))); // =
-        let token = lexer.read_next_token().unwrap();
-        assert_eq!(token.token, Token::Integer("1".to_string())); // 1
-        let token = lexer.read_next_token().unwrap();
-        assert_eq!(token.token, Token::SemiColon); // ;
-        let token = lexer.read_next_token().unwrap();
-        assert_eq!(token.token, Token::EndOfFile); // EOF
+        assert_eq!(
+            lexer.read_next_token().unwrap().token,
+            Token::Identifier("x".to_string())
+        ); // x
+        assert!(matches!(
+            lexer.read_next_token().unwrap().token,
+            Token::Op(Operator::Static(_))
+        )); // =
+        assert_eq!(
+            lexer.read_next_token().unwrap().token,
+            Token::Integer("1".to_string())
+        ); // 1
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::SemiColon); // ;
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile); // EOF
+    }
+
+    #[test]
+    fn test_lexer_string() {
+        let mut lexer = Lexer::new(Cursor::new(r#""Hello, World!""#));
+        init_lexer(&mut lexer);
+        assert_eq!(
+            lexer.read_next_token().unwrap().token,
+            Token::String("Hello, World!".to_string())
+        );
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+    }
+
+    #[test]
+    fn test_lexer_string_escape() {
+        let mut lexer = Lexer::new(Cursor::new(r#""Hello, \"World\"!""#));
+        init_lexer(&mut lexer);
+        assert_eq!(
+            lexer.read_next_token().unwrap().token,
+            Token::String("Hello, \"World\"!".to_string())
+        );
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+    }
+
+    #[test]
+    fn test_lexer_char() {
+        let mut lexer = Lexer::new(Cursor::new(r#"'a'"#));
+        init_lexer(&mut lexer);
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::Char('a'));
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+    }
+
+    #[test]
+    fn test_lexer_char_escape() {
+        let mut lexer = Lexer::new(Cursor::new(r#"'\\'"#));
+        init_lexer(&mut lexer);
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::Char('\\'));
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+    }
+
+    #[test]
+    fn test_lexer_number() {
+        let mut lexer = Lexer::new(Cursor::new("123.456"));
+        init_lexer(&mut lexer);
+        assert_eq!(
+            lexer.read_next_token().unwrap().token,
+            Token::Float("123.456".to_string())
+        );
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+    }
+
+    #[test]
+    fn test_lexer_identifier() {
+        let mut lexer = Lexer::new(Cursor::new("abc_123"));
+        init_lexer(&mut lexer);
+        assert_eq!(
+            lexer.read_next_token().unwrap().token,
+            Token::Identifier("abc_123".to_string())
+        );
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+    }
+
+    #[test]
+    fn test_lexer_operator() {
+        let mut lexer = Lexer::new(Cursor::new("+-*/"));
+        init_lexer(&mut lexer);
+        assert!(matches!(
+            lexer.read_next_token().unwrap().token,
+            Token::Op(Operator::Static(_))
+        ));
+        assert!(matches!(
+            lexer.read_next_token().unwrap().token,
+            Token::Op(Operator::Static(_))
+        ));
+        assert!(matches!(
+            lexer.read_next_token().unwrap().token,
+            Token::Op(Operator::Static(_))
+        ));
+        assert!(matches!(
+            lexer.read_next_token().unwrap().token,
+            Token::Op(Operator::Static(_))
+        ));
+        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
     }
 }
