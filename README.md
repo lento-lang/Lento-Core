@@ -10,6 +10,7 @@ Including:
 - Standard library
 - Interpreter
 - Compiler
+- Code generator
 - Documentation generator
 
 Used by the [Lento](https://github.com/lento-lang/Lento) user CLI.
