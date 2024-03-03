@@ -481,7 +481,7 @@ impl<R: Read + Seek> Lexer<R> {
                 }
             },
             true,
-            |this, s| {
+            move |this, s| {
                 this.new_token_info(if has_dot {
                     Token::Float(s)
                 } else {
