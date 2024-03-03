@@ -236,7 +236,13 @@ pub fn init_environment(env: &mut Environment) {
             std::f64::consts::E,
         ))),
     );
-    add_value(env, "phi", Value::Number(Number::FloatingPoint(FloatingPoint::Float64(1.618_033_988_749_895))));
+    add_value(
+        env,
+        "phi",
+        Value::Number(Number::FloatingPoint(FloatingPoint::Float64(
+            1.618_033_988_749_895,
+        ))),
+    );
     add_value(
         env,
         "sqrt2",
@@ -250,4 +256,34 @@ pub fn init_environment(env: &mut Environment) {
     //--------------------------------------------------------------------------------------//
 
     add_func(env, "print", vec![rt_print]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::interpreter::environment::Environment;
+    use crate::lexer::lexer::Lexer;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_init_lexer() {
+        let mut lexer = Lexer::new(Cursor::new(""));
+        init_lexer(&mut lexer);
+        assert!(lexer.lookup_op("=").is_some());
+        assert!(lexer.lookup_op("+").is_some());
+    }
+
+    #[test]
+    fn test_init_environment() {
+        let mut env = Environment::new(Str::from("test"));
+        init_environment(&mut env);
+        assert!(env.get_value("true").is_some());
+        assert!(env.get_value("false").is_some());
+        assert!(env.get_value("pi").is_some());
+        assert!(env.get_value("tau").is_some());
+        assert!(env.get_value("e").is_some());
+        assert!(env.get_value("phi").is_some());
+        assert!(env.get_value("sqrt2").is_some());
+        assert!(env.get_value("print").is_some());
+    }
 }
