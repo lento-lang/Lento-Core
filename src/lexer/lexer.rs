@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     collections::HashMap,
     io::{Read, Seek},
 };
@@ -419,16 +420,16 @@ impl<R: Read + Seek> Lexer<R> {
         quote: char,
         mut build_token: impl FnMut(&mut Self, String) -> LexResult,
     ) -> LexResult {
-        let mut escape = false;
+        let escape = Cell::new(false);
         self.read_while(
             None,
             move |c| {
-                if escape {
-                    escape = false;
+                if escape.get() {
+                    escape.set(false);
                     true
                 } else {
                     if c == '\\' {
-                        escape = true;
+                        escape.set(true);
                     }
                     c != quote
                 }
@@ -469,20 +470,20 @@ impl<R: Read + Seek> Lexer<R> {
      * Can be an integer or a float (casted at runtime).
      */
     fn read_number(&mut self, c: char) -> LexResult {
-        let mut has_dot = false;
+        let has_dot = Cell::new(false);
         self.read_while(
             Some(c.to_string()),
-            move |c| {
-                if c == '.' && !has_dot {
-                    has_dot = true;
+            |c| {
+                if c == '.' && !has_dot.get() {
+                    has_dot.set(true);
                     true
                 } else {
                     c.is_numeric()
                 }
             },
             true,
-            move |this, s| {
-                this.new_token_info(if has_dot {
+            |this, s| {
+                this.new_token_info(if has_dot.get() {
                     Token::Float(s)
                 } else {
                     Token::Integer(s)
