@@ -518,84 +518,90 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
+    fn assert_next_token_eq(lexer: &mut Lexer<Cursor<&str>>, token: Token) {
+        assert_eq!(lexer.read_next_token().unwrap().token, token);
+    }
+
+    #[test]
+    fn test_lexer_function() {
+        let mut lexer = Lexer::new(Cursor::new("add a b = a + b"));
+        init_lexer(&mut lexer);
+        assert_next_token_eq(&mut lexer, Token::Identifier("add".to_string()));
+        assert_next_token_eq(&mut lexer, Token::Identifier("a".to_string()));
+        assert_next_token_eq(&mut lexer, Token::Identifier("b".to_string()));
+        assert!(matches!(
+            lexer.read_next_token().unwrap().token,
+            Token::Op(Operator::Static(_))
+        ));
+        assert_next_token_eq(&mut lexer, Token::Identifier("a".to_string()));
+        assert!(matches!(
+            lexer.read_next_token().unwrap().token,
+            Token::Op(Operator::Runtime(_))
+        ));
+        assert_next_token_eq(&mut lexer, Token::Identifier("b".to_string()));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
+    }
+
     #[test]
     fn test_lexer_assign() {
         let mut lexer = Lexer::new(Cursor::new("x = 1;"));
         init_lexer(&mut lexer);
-        assert_eq!(
-            lexer.read_next_token().unwrap().token,
-            Token::Identifier("x".to_string())
-        ); // x
+        assert_next_token_eq(&mut lexer, Token::Identifier("x".to_string()));
         assert!(matches!(
             lexer.read_next_token().unwrap().token,
             Token::Op(Operator::Static(_))
-        )); // =
-        assert_eq!(
-            lexer.read_next_token().unwrap().token,
-            Token::Integer("1".to_string())
-        ); // 1
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::SemiColon); // ;
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile); // EOF
+        ));
+        assert_next_token_eq(&mut lexer, Token::Integer("1".to_string()));
+        assert_next_token_eq(&mut lexer, Token::SemiColon);
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
 
     #[test]
     fn test_lexer_string() {
         let mut lexer = Lexer::new(Cursor::new(r#""Hello, World!""#));
         init_lexer(&mut lexer);
-        assert_eq!(
-            lexer.read_next_token().unwrap().token,
-            Token::String("Hello, World!".to_string())
-        );
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+        assert_next_token_eq(&mut lexer, Token::String("Hello, World!".to_string()));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
 
     #[test]
     fn test_lexer_string_escape() {
         let mut lexer = Lexer::new(Cursor::new(r#""Hello, \"World\"!""#));
         init_lexer(&mut lexer);
-        assert_eq!(
-            lexer.read_next_token().unwrap().token,
-            Token::String("Hello, \"World\"!".to_string())
-        );
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+        assert_next_token_eq(&mut lexer, Token::String("Hello, \"World\"!".to_string()));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
 
     #[test]
     fn test_lexer_char() {
         let mut lexer = Lexer::new(Cursor::new(r#"'a'"#));
         init_lexer(&mut lexer);
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::Char('a'));
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+        assert_next_token_eq(&mut lexer, Token::Char('a'));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
 
     #[test]
     fn test_lexer_char_escape() {
         let mut lexer = Lexer::new(Cursor::new(r#"'\\'"#));
         init_lexer(&mut lexer);
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::Char('\\'));
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+        assert_next_token_eq(&mut lexer, Token::Char('\\'));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
 
     #[test]
     fn test_lexer_number() {
         let mut lexer = Lexer::new(Cursor::new("123.456"));
         init_lexer(&mut lexer);
-        assert_eq!(
-            lexer.read_next_token().unwrap().token,
-            Token::Float("123.456".to_string())
-        );
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+        assert_next_token_eq(&mut lexer, Token::Float("123.456".to_string()));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
 
     #[test]
     fn test_lexer_identifier() {
         let mut lexer = Lexer::new(Cursor::new("abc_123"));
         init_lexer(&mut lexer);
-        assert_eq!(
-            lexer.read_next_token().unwrap().token,
-            Token::Identifier("abc_123".to_string())
-        );
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+        assert_next_token_eq(&mut lexer, Token::Identifier("abc_123".to_string()));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
 
     #[test]
@@ -606,6 +612,6 @@ mod tests {
             lexer.read_next_token().unwrap().token,
             Token::Op(Operator::Runtime(_))
         ));
-        assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
 }
