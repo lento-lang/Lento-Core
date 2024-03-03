@@ -372,6 +372,13 @@ impl<R: Read + Seek> Lexer<R> {
             let c: char = std::char::from_u32(num).unwrap();
             c.to_string()
         });
+        let s = regex_replace_all!(r#"\\n"#, &s, |_| "\n".to_string());
+        let s = regex_replace_all!(r#"\\r"#, &s, |_| "\r".to_string());
+        let s = regex_replace_all!(r#"\\t"#, &s, |_| "\t".to_string());
+        let s = regex_replace_all!(r#"\\0"#, &s, |_| "\0".to_string());
+        let s = regex_replace_all!(r#"\\\""#, &s, |_| "\"".to_string());
+        let s = regex_replace_all!(r#"\\'"#, &s, |_| "'".to_string());
+        let s = regex_replace_all!(r#"\\\\"#, &s, |_| "\\".to_string());
         s.to_string()
     }
 
