@@ -415,7 +415,7 @@ impl<R: Read + Seek> Lexer<R> {
      * Read a character from the source code.
      */
     fn read_char(&mut self) -> LexResult {
-        self.read_while(
+        let c = self.read_while(
             None,
             |c| c != '\'',
             |this, s| {
@@ -426,7 +426,9 @@ impl<R: Read + Seek> Lexer<R> {
                     this.new_token_info(Token::Char(s.chars().next().unwrap()))
                 }
             },
-        )
+        );
+        self.next_char(); // Eat the last '
+        c
     }
 
     /**
