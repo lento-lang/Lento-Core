@@ -414,44 +414,54 @@ impl<R: Read + Seek> Lexer<R> {
         }
     }
 
+    fn read_quoted(
+        &mut self,
+        quote: char,
+        mut build_token: impl FnMut(&mut Self, String) -> LexResult,
+    ) -> LexResult {
+        let mut escape = false;
+        self.read_while(
+            None,
+            move |c| {
+                if escape {
+                    escape = false;
+                    true
+                } else {
+                    if c == '\\' {
+                        escape = true;
+                    }
+                    c != quote
+                }
+            },
+            false,
+            |this, s| {
+                this.next_char(); // Eat the last quote
+                build_token(this, Lexer::<R>::resolve_escape_sequence(s))
+            },
+            |this, _| {
+                this.next_char();
+            }, // Eat the last quote
+        )
+    }
+
     /**
      * Read a string from the source code.
      */
     fn read_string(&mut self) -> LexResult {
-        self.read_while(
-            None,
-            |c| c != '"',
-            false,
-            |this, s| {
-                this.next_char(); // Eat the last "
-                this.new_token_info(Token::String(Lexer::<R>::resolve_escape_sequence(s)))
-            },
-            |this, _| {
-                this.next_char();
-            }, // Eat the last "
-        )
+        self.read_quoted('"', |this, s| this.new_token_info(Token::String(s)))
     }
 
     /**
      * Read a character from the source code.
      */
     fn read_char(&mut self) -> LexResult {
-        self.read_while(
-            None,
-            |c| c != '\'',
-            false,
-            |this, s| {
-                let s = Lexer::<R>::resolve_escape_sequence(s);
-                if s.len() != 1 {
-                    Err(LexerError::invalid_char(s, this.line_info.clone()))
-                } else {
-                    this.new_token_info(Token::Char(s.chars().next().unwrap()))
-                }
-            },
-            |this, _| {
-                this.next_char();
-            }, // Eat the last '
-        )
+        self.read_quoted('\'', |this, s| {
+            if s.len() != 1 {
+                Err(LexerError::invalid_char(s, this.line_info.clone()))
+            } else {
+                this.new_token_info(Token::Char(s.chars().next().unwrap()))
+            }
+        })
     }
 
     /**
