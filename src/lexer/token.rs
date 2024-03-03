@@ -6,6 +6,7 @@ pub enum Token {
     EndOfFile,
     // Expression terminators
     Newline,
+    Comma,
     SemiColon,
     // Literals
     Identifier(String),

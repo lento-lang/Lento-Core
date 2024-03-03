@@ -342,6 +342,7 @@ impl<R: Read + Seek> Lexer<R> {
                     '}' => Token::RightBrace,
                     '[' => Token::LeftBracket,
                     ']' => Token::RightBracket,
+                    ',' => Token::Comma,
                     ';' => Token::SemiColon,
                     _ => {
                         if let Some(op) = self.lookup_op(&c.to_string()) {
