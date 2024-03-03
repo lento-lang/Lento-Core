@@ -435,10 +435,7 @@ impl<R: Read + Seek> Lexer<R> {
                 }
             },
             false,
-            |this, s| {
-                this.next_char(); // Eat the last quote
-                build_token(this, Lexer::<R>::resolve_escape_sequence(s))
-            },
+            |this, s| build_token(this, Lexer::<R>::resolve_escape_sequence(s)),
             |this, _| {
                 this.next_char();
             }, // Eat the last quote
