@@ -389,19 +389,29 @@ impl<R: Read + Seek> Lexer<R> {
         &mut self,
         init: Option<String>,
         mut cond: impl FnMut(char) -> bool,
+        allow_eof_before_cond_false: bool,
         mut build_token: impl FnMut(&mut Self, String) -> LexResult,
+        mut post: impl FnMut(&mut Self, &LexResult) -> (),
     ) -> LexResult {
-        let mut r = init.unwrap_or_default();
+        let mut result = init.unwrap_or_default();
+        let mut done = |this: &mut Self, result: String| {
+            let token = build_token(this, result);
+            post(this, &token);
+            token
+        };
         while let Some(c) = self.peek_char(0) {
             if cond(c) {
                 self.next_char();
-                r.push(c);
+                result.push(c);
             } else {
-                // We have reached the end of the identifier
-                return build_token(self, r);
+                return done(self, result);
             }
         }
-        Err(LexerError::unexpected_end_of_file(self.line_info.clone()))
+        if allow_eof_before_cond_false {
+            done(self, result)
+        } else {
+            Err(LexerError::unexpected_end_of_file(self.line_info.clone()))
+        }
     }
 
     /**
@@ -411,10 +421,14 @@ impl<R: Read + Seek> Lexer<R> {
         self.read_while(
             None,
             |c| c != '"',
+            false,
             |this, s| {
                 this.next_char(); // Eat the last "
                 this.new_token_info(Token::String(Lexer::<R>::resolve_escape_sequence(s)))
             },
+            |this, _| {
+                this.next_char();
+            }, // Eat the last "
         )
     }
 
@@ -422,9 +436,10 @@ impl<R: Read + Seek> Lexer<R> {
      * Read a character from the source code.
      */
     fn read_char(&mut self) -> LexResult {
-        let c = self.read_while(
+        self.read_while(
             None,
             |c| c != '\'',
+            false,
             |this, s| {
                 let s = Lexer::<R>::resolve_escape_sequence(s);
                 if s.len() != 1 {
@@ -433,9 +448,10 @@ impl<R: Read + Seek> Lexer<R> {
                     this.new_token_info(Token::Char(s.chars().next().unwrap()))
                 }
             },
-        );
-        self.next_char(); // Eat the last '
-        c
+            |this, _| {
+                this.next_char();
+            }, // Eat the last '
+        )
     }
 
     /**
@@ -454,6 +470,7 @@ impl<R: Read + Seek> Lexer<R> {
                     c.is_numeric()
                 }
             },
+            true,
             |this, s| {
                 this.new_token_info(if has_dot {
                     Token::Float(s)
@@ -461,6 +478,7 @@ impl<R: Read + Seek> Lexer<R> {
                     Token::Integer(s)
                 })
             },
+            |_, _| (),
         )
     }
 
@@ -478,7 +496,9 @@ impl<R: Read + Seek> Lexer<R> {
         self.read_while(
             Some(c.to_string()),
             Self::is_identifier_body_char,
+            true,
             |this, s| this.new_token_info(Token::Identifier(s)),
+            |_, _| (),
         )
     }
 }
