@@ -45,7 +45,7 @@ impl<'a> Environment<'a> {
         }
     }
 
-    fn get_variable(&self, name: &str) -> Option<Value> {
+    pub fn get_variable(&self, name: &str) -> Option<Value> {
         if let Some(v) = self.variables.get(name) {
             Some(v.clone())
         } else if let Some(p) = &self.parent {
@@ -55,7 +55,7 @@ impl<'a> Environment<'a> {
         }
     }
 
-    fn get_function(&self, name: &str) -> Option<Value> {
+    pub fn get_function(&self, name: &str) -> Option<Value> {
         if let Some(f) = self.functions.get(name) {
             Some(Value::Function(f.clone()))
         } else if let Some(p) = &self.parent {
