@@ -101,7 +101,7 @@ impl<R: Read + Seek> Lexer<R> {
         Ok(())
     }
 
-    fn lookup_op(&self, op: &str) -> Option<Operator> {
+    pub fn lookup_op(&self, op: &str) -> Option<Operator> {
         // TODO: Incremental search using peek_char and break when there is no match,
         //      otherwise, return the longest match while peeking all the way to the end and "eating" the characters if there is a match.
         self.operators.get(op).cloned()
