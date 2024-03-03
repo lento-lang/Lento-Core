@@ -472,3 +472,27 @@ impl<R: Read + Seek> Lexer<R> {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::stdlib::init::init_lexer;
+
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_lexer_assign() {
+        let mut lexer = Lexer::new(Cursor::new("x = 1;"));
+        init_lexer(&mut lexer);
+        let token = lexer.read_next_token().unwrap();
+        assert_eq!(token.token, Token::Identifier("x".to_string())); // x
+        let token = lexer.read_next_token().unwrap();
+        assert!(matches!(token.token, Token::Op(Operator::Static(_)))); // =
+        let token = lexer.read_next_token().unwrap();
+        assert_eq!(token.token, Token::Integer("1".to_string())); // 1
+        let token = lexer.read_next_token().unwrap();
+        assert_eq!(token.token, Token::SemiColon); // ;
+        let token = lexer.read_next_token().unwrap();
+        assert_eq!(token.token, Token::EndOfFile); // EOF
+    }
+}
