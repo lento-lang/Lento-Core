@@ -602,24 +602,12 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_operator() {
-        let mut lexer = Lexer::new(Cursor::new("+-*/"));
+    fn test_lexer_operator_add() {
+        let mut lexer = Lexer::new(Cursor::new("+"));
         init_lexer(&mut lexer);
         assert!(matches!(
             lexer.read_next_token().unwrap().token,
-            Token::Op(Operator::Static(_))
-        ));
-        assert!(matches!(
-            lexer.read_next_token().unwrap().token,
-            Token::Op(Operator::Static(_))
-        ));
-        assert!(matches!(
-            lexer.read_next_token().unwrap().token,
-            Token::Op(Operator::Static(_))
-        ));
-        assert!(matches!(
-            lexer.read_next_token().unwrap().token,
-            Token::Op(Operator::Static(_))
+            Token::Op(Operator::Runtime(_))
         ));
         assert_eq!(lexer.read_next_token().unwrap().token, Token::EndOfFile);
     }
