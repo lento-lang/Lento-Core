@@ -1,4 +1,5 @@
 #![allow(clippy::module_inception)]
+#![feature(box_patterns)]
 
 pub mod compiler;
 pub mod conf;

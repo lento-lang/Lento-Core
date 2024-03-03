@@ -317,4 +317,19 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap() == expected);
     }
+
+    #[test]
+    fn test_parser_arithmetic() {
+        let result = parse_str("1 + 2");
+        assert!(result.is_ok());
+        assert!(matches!(
+            result.unwrap(),
+            Ast::Binary(
+                box Ast::Literal(Value::Number(_)),
+                Operator::Runtime(_),
+                box Ast::Literal(Value::Number(_)),
+                CheckedType::Unchecked,
+            )
+        ));
+    }
 }
