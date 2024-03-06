@@ -27,6 +27,13 @@ use super::{
 //                                        Parser                                        //
 //--------------------------------------------------------------------------------------//
 
+/// A global AST is a list of top-level expressions.
+pub type GlobalAST = Vec<Ast>;
+
+/// A parse result is either a global AST or a parse error.
+pub type GlobalParseResult = Result<GlobalAST, ParseError>;
+
+/// A parse result is either an AST or a parse error.
 pub type ParseResult = Result<Ast, ParseError>;
 
 // A stream-lined parser for Lento with support for user-defined operators from function attributes and macros
@@ -47,12 +54,52 @@ impl<R: Read + Seek> Parser<R> {
         &mut self.lexer
     }
 
-    /**
-     * Parse an expression from the stream of tokens.
-     * Returns an AST node or an error.
-     * If the first token is an EOF, then the parser will return an empty unit expression.
-     */
+    /// Parse a given number of expressions from the stream of tokens.
+    /// Returns a global AST or a parse error.
+    ///
+    /// # Note
+    /// If the parser encounters `EOF`, it will **ONLY add empty unit expressions** in the resulting AST.
+    pub fn parse_exact(&mut self, count: usize) -> GlobalParseResult {
+        let mut ast = Vec::new();
+        for _ in 0..count {
+            match self.parse() {
+                //? Ignore empty unit expressions,
+                //? add top-level expressions to the global AST anyway
+                Ok(expr) => ast.push(expr),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(ast)
+    }
+
+    /// Parse a global AST from the stream of tokens.
+    /// A global AST is a list of **all** top-level AST nodes (expressions).
+    pub fn parse_global(&mut self) -> GlobalParseResult {
+        let mut asts = Vec::new();
+        loop {
+            if let Ok(t) = self.lexer.peek_token_no_nl() {
+                if t.token == Token::EndOfFile {
+                    break;
+                }
+            }
+            match self.parse_top_expr() {
+                Ok(expr) => asts.push(expr),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(asts)
+    }
+
+    /// Parse **a single** expression from the stream of tokens.
+    /// Returns an AST node or an error.
+    /// If the first token is an EOF, then the parser will return an empty unit expression.
+    ///
+    /// # Note
+    /// The parser will not necessarily consume all tokens from the stream.
+    /// It will **ONLY** consume a whole complete expression.
+    /// There may be remaining tokens in the stream after the expression is parsed.
     pub fn parse(&mut self) -> ParseResult {
+        // Check if the next token is an EOF, then return an empty unit top-level expression
         if let Ok(t) = self.lexer.peek_token_no_nl() {
             if t.token == Token::EndOfFile {
                 return Ok(unit());
@@ -240,10 +287,13 @@ impl<R: Read + Seek> Parser<R> {
 //                               Parser Factory Functions                               //
 //--------------------------------------------------------------------------------------//
 
-pub fn from_file(file: File) -> Parser<BufReader<File>> {
-    let mut lexer = Lexer::new(BufReader::new(file));
+fn setup_new_parser<R: Read + Seek>(mut lexer: Lexer<R>) -> Parser<R> {
     init_lexer(&mut lexer);
     Parser::new(lexer)
+}
+
+pub fn from_file(file: File) -> Parser<BufReader<File>> {
+    setup_new_parser(Lexer::new(BufReader::new(file)))
 }
 
 pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
@@ -251,40 +301,34 @@ pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
 }
 
 pub fn from_string(source: &String) -> Parser<BytesReader<'_>> {
-    let mut lexer = Lexer::new(BytesReader::from(source));
-    init_lexer(&mut lexer);
-    Parser::new(lexer)
+    setup_new_parser(Lexer::new(BytesReader::from(source)))
 }
 
 pub fn from_str(source: &str) -> Parser<BytesReader<'_>> {
-    let mut lexer = Lexer::new(BytesReader::from(source));
-    init_lexer(&mut lexer);
-    Parser::new(lexer)
+    setup_new_parser(Lexer::new(BytesReader::from(source)))
 }
 
 pub fn from_stdin() -> Parser<StdinReader> {
-    let mut lexer = Lexer::new_stream(StdinReader::new(std::io::stdin()));
-    init_lexer(&mut lexer);
-    Parser::new(lexer)
+    setup_new_parser(Lexer::new(StdinReader::new(std::io::stdin())))
 }
 
 //--------------------------------------------------------------------------------------//
 //                           Direct Parsing Helper Functions                            //
 //--------------------------------------------------------------------------------------//
 
-pub fn parse_string(source: String) -> ParseResult {
+pub fn parse_string(source: String) -> GlobalParseResult {
     from_string(&source).parse()
 }
 
-pub fn parse_str(source: &str) -> ParseResult {
+pub fn parse_str(source: &str) -> GlobalParseResult {
     from_str(source).parse()
 }
 
-pub fn parse_file(file: File) -> ParseResult {
+pub fn parse_file(file: File) -> GlobalParseResult {
     from_file(file).parse()
 }
 
-pub fn parse_from_path(path: &Path) -> Result<ParseResult, Error> {
+pub fn parse_from_path(path: &Path) -> Result<GlobalParseResult, Error> {
     Ok(from_path(path)?.parse())
 }
 
@@ -293,8 +337,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parser_hello_world() {
+    fn test_parser_call_paren_apply() {
         let result = parse_str("println(\"Hello, World!\")");
+        let expected = Ast::FunctionCall(
+            "println".to_string(),
+            vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+            CheckedType::Unchecked,
+        );
+        assert!(result.is_ok());
+        assert!(result.unwrap() == expected);
+    }
+
+    // #[test]
+    // fn test_parser_call_no_paren_apply() {
+    //     let result = parse_str("println \"Hello, World!\"");
+    //     let expected = Ast::FunctionCall(
+    //         "println".to_string(),
+    //         vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+    //         CheckedType::Unchecked,
+    //     );
+    //     assert!(result.is_ok());
+    //     assert!(result.unwrap() == expected);
+    // }
+
+    #[test]
+    fn test_parser_call_tuple_apply() {
+        let result = parse_str("println (\"Hello, World!\")");
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
