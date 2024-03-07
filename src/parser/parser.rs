@@ -317,19 +317,19 @@ pub fn from_stdin() -> Parser<StdinReader> {
 //--------------------------------------------------------------------------------------//
 
 pub fn parse_string(source: String) -> GlobalParseResult {
-    from_string(&source).parse()
+    from_string(&source).parse_global()
 }
 
 pub fn parse_str(source: &str) -> GlobalParseResult {
-    from_str(source).parse()
+    from_str(source).parse_global()
 }
 
 pub fn parse_file(file: File) -> GlobalParseResult {
-    from_file(file).parse()
+    from_file(file).parse_global()
 }
 
 pub fn parse_from_path(path: &Path) -> Result<GlobalParseResult, Error> {
-    Ok(from_path(path)?.parse())
+    Ok(from_path(path)?.parse_global())
 }
 
 #[cfg(test)]
