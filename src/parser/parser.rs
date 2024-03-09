@@ -316,19 +316,43 @@ pub fn from_stdin() -> Parser<StdinReader> {
 //                           Direct Parsing Helper Functions                            //
 //--------------------------------------------------------------------------------------//
 
-pub fn parse_string(source: String) -> GlobalParseResult {
+pub fn parse_expr_string(source: String) -> ParseResult {
+    from_string(&source).parse()
+}
+
+pub fn parse_exprs_string(source: String) -> GlobalParseResult {
     from_string(&source).parse_global()
 }
 
-pub fn parse_str(source: &str) -> GlobalParseResult {
+pub fn parse_expr_str(source: &str) -> ParseResult {
+    from_str(source).parse()
+}
+
+pub fn parse_exprs_str(source: &str) -> GlobalParseResult {
     from_str(source).parse_global()
 }
 
-pub fn parse_file(file: File) -> GlobalParseResult {
+pub fn parse_expr_stdin() -> ParseResult {
+    from_stdin().parse()
+}
+
+pub fn parse_exprs_stdin() -> GlobalParseResult {
+    from_stdin().parse_global()
+}
+
+pub fn parse_expr_file(file: File) -> ParseResult {
+    from_file(file).parse()
+}
+
+pub fn parse_exprs_file(file: File) -> GlobalParseResult {
     from_file(file).parse_global()
 }
 
-pub fn parse_from_path(path: &Path) -> Result<GlobalParseResult, Error> {
+pub fn parse_expr_path(path: &Path) -> Result<ParseResult, Error> {
+    Ok(from_path(path)?.parse())
+}
+
+pub fn parse_exprs_path(path: &Path) -> Result<GlobalParseResult, Error> {
     Ok(from_path(path)?.parse_global())
 }
 
@@ -338,7 +362,7 @@ mod tests {
 
     #[test]
     fn test_parser_call_paren_apply() {
-        let result = parse_str("println(\"Hello, World!\")");
+        let result = parse_expr_str("println(\"Hello, World!\")");
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -362,7 +386,7 @@ mod tests {
 
     #[test]
     fn test_parser_call_tuple_apply() {
-        let result = parse_str("println (\"Hello, World!\")");
+        let result = parse_expr_str("println (\"Hello, World!\")");
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -374,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_parser_hello_world_file() {
-        let result = parse_from_path(Path::new("./examples/basic/hello_world.lt"));
+        let result = parse_expr_path(Path::new("./examples/basic/hello_world.lt"));
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -388,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_parser_arithmetic() {
-        let result = parse_str("1 + 2");
+        let result = parse_expr_str("1 + 2");
         assert!(result.is_ok());
         assert!(matches!(
             result.unwrap(),
