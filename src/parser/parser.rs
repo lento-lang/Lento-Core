@@ -316,63 +316,63 @@ pub fn from_stdin() -> Parser<StdinReader> {
 /// Returns a parsed module from a given source file or a parse error.
 pub type ModuleResult = Result<Module, ParseError>;
 
-pub fn parse_expr_string(source: String) -> ModuleResult {
+pub fn parse_string_one(source: String) -> ModuleResult {
     Ok(Module::new(
         vec![from_string(&source).parse_one()?],
         InputSource::String,
     ))
 }
 
-pub fn parse_exprs_string(source: String) -> ModuleResult {
+pub fn parse_string_all(source: String) -> ModuleResult {
     Ok(Module::new(
         from_string(&source).parse_all()?,
         InputSource::String,
     ))
 }
 
-pub fn parse_expr_str(source: &str) -> ModuleResult {
+pub fn parse_str_one(source: &str) -> ModuleResult {
     Ok(Module::new(
         vec![from_str(source).parse_one()?],
         InputSource::String,
     ))
 }
 
-pub fn parse_exprs_str(source: &str) -> ModuleResult {
+pub fn parse_str_all(source: &str) -> ModuleResult {
     Ok(Module::new(
         from_str(source).parse_all()?,
         InputSource::String,
     ))
 }
 
-pub fn parse_expr_stdin() -> ModuleResult {
+pub fn parse_stdin_one() -> ModuleResult {
     Ok(Module::new(
         vec![from_stdin().parse_one()?],
         InputSource::Stream("stdin".to_string()),
     ))
 }
 
-pub fn parse_exprs_stdin() -> ModuleResult {
+pub fn parse_stdin_all() -> ModuleResult {
     Ok(Module::new(
         from_stdin().parse_all()?,
         InputSource::Stream("stdin".to_string()),
     ))
 }
 
-pub fn parse_expr_file(file: File, path: &Path) -> ModuleResult {
+pub fn parse_file_one(file: File, path: &Path) -> ModuleResult {
     Ok(Module::new(
         vec![from_file(file).parse_one()?],
         InputSource::File(path.to_path_buf()),
     ))
 }
 
-pub fn parse_exprs_file(file: File, path: &Path) -> ModuleResult {
+pub fn parse_file_all(file: File, path: &Path) -> ModuleResult {
     Ok(Module::new(
         from_file(file).parse_all()?,
         InputSource::File(path.to_path_buf()),
     ))
 }
 
-pub fn parse_expr_path(path: &Path) -> ModuleResult {
+pub fn parse_path_one(path: &Path) -> ModuleResult {
     let mut parser = from_path(path).map_err(|e| ParseError {
         message: format!("Failed to open file: {}", e),
     })?;
@@ -382,7 +382,7 @@ pub fn parse_expr_path(path: &Path) -> ModuleResult {
     ))
 }
 
-pub fn parse_exprs_path(path: &Path) -> ModuleResult {
+pub fn parse_path_all(path: &Path) -> ModuleResult {
     let mut parser = from_path(path).map_err(|e| ParseError {
         message: format!("Failed to open file: {}", e),
     })?;
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_parser_call_paren_apply() {
-        let result = parse_expr_str("println(\"Hello, World!\")");
+        let result = parse_str_one("println(\"Hello, World!\")");
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -424,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_parser_call_tuple_apply() {
-        let result = parse_expr_str("println (\"Hello, World!\")");
+        let result = parse_str_one("println (\"Hello, World!\")");
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -438,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_parser_hello_world_file() {
-        let result = parse_expr_path(Path::new("./examples/basic/hello_world.lt"));
+        let result = parse_path_one(Path::new("./examples/basic/hello_world.lt"));
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_parser_arithmetic() {
-        let result = parse_expr_str("1 + 2");
+        let result = parse_str_one("1 + 2");
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
