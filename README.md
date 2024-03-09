@@ -16,25 +16,11 @@ Including:
 - AST pretty printer
 - Type checker and inferencer
 - Linter (static analysis)
-- Runtime
+- Standard library (See [Lento `Std`](src/stdlib))
+	<!-- - Runtime
 	- Garbage collector
 	- Memory manager
-	- Error handling
-- Standard library (Lento `Std`)
-	- Error handling
-	- I/O
-	- File system
-	- Networking
-	- Concurrency
-	- Threading
-	- Synchronization
-	- Time
-	- Date
-	- Math
-	- Random
-	- Cryptography
-	- Compression
-	- Encoding
+	- Error handling -->
 - Interpreter
 	<!-- - Debugger support (planned)
 	- JIT compiler (planned) -->
@@ -58,81 +44,81 @@ Including:
 				- macOS
 				- Linux
 			- WebAssembly <!-- : `wasm32`, `wasm64`, `wasm`, `wasi`, `wasi32`, `wasi64`, `wasiwasm`, `wasiwasm32`, `wasiwasm64` -->
-<!--
-		- ~~LLVM~~ (planned)
-		- ~~QBE~~ (planned)
-		- ~~.NET~~ (planned)
-		- ~~JVM~~ (planned)
-		- ~~BEAM~~ (planned)
-		- ~~MIR~~ (planned)
-		- ~~MIPS~~ (planned)
-	- Transpiler
-		- ~~TinyCC~~ (planned)
-		- ~~JavaScript~~ (planned)
-			- ~~Browser~~ (planned)
-			- ~~Node.js~~ (planned)
-			- ~~Deno~~ (planned)
-			- ~~Bun~~ (planned)
--->
-<!-- - Static analysis
-	- Data flow analysis
-	- Control flow analysis
-	- Abstract syntax tree analysis
-	- Type analysis
-	- Semantic analysis
-	- Syntactic analysis
-	- Lexical analysis
-	- Side effect analysis (pure functions, immutability, etc.)
-		- inference
-		- checking
-- Code analysis
-	- quality
-	- smell
-	- security
-	- performance
-	- duplication
-	- complexity
-- Documentation generator
-- Test suite
-- Benchmark suite
-- Profiler
-	- Memory profiler
-	- CPU profiler
-	- I/O profiler
-	- Network profiler
-	- Concurrency profiler
-	- Threading profiler
-	- Synchronization profiler -->
-<!-- - Code coverage -->
-<!-- - IDE support
-	- Language server
-	- Syntax highlighting
-	- Code completion
-	- Code navigation
-	- Code refactoring
-	- Code folding
-	- Code lens
-	- Code actions
-	- Diagnostics
-	- Hover
-	- Signature help
-	- Document symbols
-	- Workspace symbols
-	- References -->
-<!-- - Build system
+	<!--
+			- ~~LLVM~~ (planned)
+			- ~~QBE~~ (planned)
+			- ~~.NET~~ (planned)
+			- ~~JVM~~ (planned)
+			- ~~BEAM~~ (planned)
+			- ~~MIR~~ (planned)
+			- ~~MIPS~~ (planned)
+		- Transpiler
+			- ~~TinyCC~~ (planned)
+			- ~~JavaScript~~ (planned)
+				- ~~Browser~~ (planned)
+				- ~~Node.js~~ (planned)
+				- ~~Deno~~ (planned)
+				- ~~Bun~~ (planned)
+	-->
+	<!-- - Static analysis
+		- Data flow analysis
+		- Control flow analysis
+		- Abstract syntax tree analysis
+		- Type analysis
+		- Semantic analysis
+		- Syntactic analysis
+		- Lexical analysis
+		- Side effect analysis (pure functions, immutability, etc.)
+			- inference
+			- checking
+	- Code analysis
+		- quality
+		- smell
+		- security
+		- performance
+		- duplication
+		- complexity
+	- Documentation generator
+	- Test suite
+	- Benchmark suite
+	- Profiler
+		- Memory profiler
+		- CPU profiler
+		- I/O profiler
+		- Network profiler
+		- Concurrency profiler
+		- Threading profiler
+		- Synchronization profiler -->
+	<!-- - Code coverage -->
+	<!-- - IDE support
+		- Language server
+		- Syntax highlighting
+		- Code completion
+		- Code navigation
+		- Code refactoring
+		- Code folding
+		- Code lens
+		- Code actions
+		- Diagnostics
+		- Hover
+		- Signature help
+		- Document symbols
+		- Workspace symbols
+		- References -->
+	<!-- - Build system
+		- Package manager
+		- Dependency manager
+		- Build tool
+		- Task runner
 	- Package manager
-	- Dependency manager
-	- Build tool
-	- Task runner
-- Package manager
-	- Registry
-	- Repository
-	- Index
-	- Cache
-	- Lock file
-	- Manifest
-	- Package
-	- Version -->
+		- Registry
+		- Repository
+		- Index
+		- Cache
+		- Lock file
+		- Manifest
+		- Package
+		- Version -->
 
 ## Requirements
 - `rustc 1.78.0-nightly (46b180ec2 2024-03-08)` or later
