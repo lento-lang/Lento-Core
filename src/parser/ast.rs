@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     interpreter::value::Value,
-    lexer::op::Operator,
+    lexer::{lexer::InputSource, op::Operator},
     type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
 };
 
@@ -14,6 +14,22 @@ pub enum RecordKeyAst {
     Char(char),
 }
 
+/// Module is the root program node of the AST
+/// It contains a list of all the expressions in the program
+pub struct Module {
+    pub expressions: Vec<Ast>,
+    pub source: InputSource,
+}
+
+impl Module {
+    pub fn new(expressions: Vec<Ast>, source: InputSource) -> Module {
+        Module {
+            expressions,
+            source,
+        }
+    }
+}
+
 /**
  * The AST is a tree of nodes that represent the program.
  * All nodes are expressions, and the root node is the program itself.
@@ -21,8 +37,11 @@ pub enum RecordKeyAst {
  */
 #[derive(Debug, Clone, PartialEq)]
 pub enum Ast {
-    Literal(Value), // Primitive values such as Integer, Float, String, Char and Boolean (NOT compound data structures)
+    /// Primitive values such as Integer, Float, String, Char and Boolean (NOT compound data structures)
+    Literal(Value),
+    /// A tuple is a fixed-size collection of elements of possibly different types.
     Tuple(Vec<Ast>, CheckedType),
+    /// A dynamic list of elements of the same type.
     List(Vec<Ast>, CheckedType),
     Record(HashMap<RecordKeyAst, Ast>, CheckedType),
     Identifier(String, CheckedType),
@@ -32,9 +51,7 @@ pub enum Ast {
     Binary(Box<Ast>, Operator, Box<Ast>, CheckedType),
     Unary(Operator, Box<Ast>, CheckedType),
     Assignment(Box<Ast>, Box<Ast>, CheckedType),
-    /**
-     * Block expression evaluates all expressions in the block and returns the value of the last expression.
-     */
+    /// Block expression evaluates all expressions in the block and returns the value of the last expression.
     Block(Vec<Ast>, CheckedType),
 }
 

@@ -7,7 +7,7 @@ use std::{
 use crate::{
     interpreter::value::{Number, Value},
     lexer::{
-        lexer::LexResult,
+        lexer::{InputSource, LexResult},
         op::{Operator, OperatorAssociativity, OperatorPosition, OperatorPrecedence},
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
         token::Token,
@@ -19,7 +19,7 @@ use crate::{
 use crate::lexer::lexer::Lexer;
 
 use super::{
-    ast::{unit, Ast},
+    ast::{unit, Ast, Module},
     error::ParseError,
 };
 
@@ -27,11 +27,8 @@ use super::{
 //                                        Parser                                        //
 //--------------------------------------------------------------------------------------//
 
-/// A global AST is a list of top-level expressions.
-pub type GlobalAST = Vec<Ast>;
-
-/// A parse result is either a global AST or a parse error.
-pub type GlobalParseResult = Result<GlobalAST, ParseError>;
+/// A parse results is a list of AST nodes or a parse error.
+pub type ParseResults = Result<Vec<Ast>, ParseError>;
 
 /// A parse result is either an AST or a parse error.
 pub type ParseResult = Result<Ast, ParseError>;
@@ -59,10 +56,10 @@ impl<R: Read + Seek> Parser<R> {
     ///
     /// # Note
     /// If the parser encounters `EOF`, it will **ONLY add empty unit expressions** in the resulting AST.
-    pub fn parse_exact(&mut self, count: usize) -> GlobalParseResult {
+    pub fn parse_exact(&mut self, count: usize) -> ParseResults {
         let mut ast = Vec::new();
         for _ in 0..count {
-            match self.parse() {
+            match self.parse_one() {
                 //? Ignore empty unit expressions,
                 //? add top-level expressions to the global AST anyway
                 Ok(expr) => ast.push(expr),
@@ -74,7 +71,7 @@ impl<R: Read + Seek> Parser<R> {
 
     /// Parse a global AST from the stream of tokens.
     /// A global AST is a list of **all** top-level AST nodes (expressions).
-    pub fn parse_global(&mut self) -> GlobalParseResult {
+    pub fn parse_all(&mut self) -> ParseResults {
         let mut asts = Vec::new();
         loop {
             if let Ok(t) = self.lexer.peek_token_no_nl() {
@@ -98,7 +95,7 @@ impl<R: Read + Seek> Parser<R> {
     /// The parser will not necessarily consume all tokens from the stream.
     /// It will **ONLY** consume a whole complete expression.
     /// There may be remaining tokens in the stream after the expression is parsed.
-    pub fn parse(&mut self) -> ParseResult {
+    pub fn parse_one(&mut self) -> ParseResult {
         // Check if the next token is an EOF, then return an empty unit top-level expression
         if let Ok(t) = self.lexer.peek_token_no_nl() {
             if t.token == Token::EndOfFile {
@@ -316,44 +313,83 @@ pub fn from_stdin() -> Parser<StdinReader> {
 //                           Direct Parsing Helper Functions                            //
 //--------------------------------------------------------------------------------------//
 
-pub fn parse_expr_string(source: String) -> ParseResult {
-    from_string(&source).parse()
+/// Returns a parsed module from a given source file or a parse error.
+pub type ModuleResult = Result<Module, ParseError>;
+
+pub fn parse_expr_string(source: String) -> ModuleResult {
+    Ok(Module::new(
+        vec![from_string(&source).parse_one()?],
+        InputSource::String,
+    ))
 }
 
-pub fn parse_exprs_string(source: String) -> GlobalParseResult {
-    from_string(&source).parse_global()
+pub fn parse_exprs_string(source: String) -> ModuleResult {
+    Ok(Module::new(
+        from_string(&source).parse_all()?,
+        InputSource::String,
+    ))
 }
 
-pub fn parse_expr_str(source: &str) -> ParseResult {
-    from_str(source).parse()
+pub fn parse_expr_str(source: &str) -> ModuleResult {
+    Ok(Module::new(
+        vec![from_str(source).parse_one()?],
+        InputSource::String,
+    ))
 }
 
-pub fn parse_exprs_str(source: &str) -> GlobalParseResult {
-    from_str(source).parse_global()
+pub fn parse_exprs_str(source: &str) -> ModuleResult {
+    Ok(Module::new(
+        from_str(source).parse_all()?,
+        InputSource::String,
+    ))
 }
 
-pub fn parse_expr_stdin() -> ParseResult {
-    from_stdin().parse()
+pub fn parse_expr_stdin() -> ModuleResult {
+    Ok(Module::new(
+        vec![from_stdin().parse_one()?],
+        InputSource::Stream("stdin".to_string()),
+    ))
 }
 
-pub fn parse_exprs_stdin() -> GlobalParseResult {
-    from_stdin().parse_global()
+pub fn parse_exprs_stdin() -> ModuleResult {
+    Ok(Module::new(
+        from_stdin().parse_all()?,
+        InputSource::Stream("stdin".to_string()),
+    ))
 }
 
-pub fn parse_expr_file(file: File) -> ParseResult {
-    from_file(file).parse()
+pub fn parse_expr_file(file: File, path: &Path) -> ModuleResult {
+    Ok(Module::new(
+        vec![from_file(file).parse_one()?],
+        InputSource::File(path.to_path_buf()),
+    ))
 }
 
-pub fn parse_exprs_file(file: File) -> GlobalParseResult {
-    from_file(file).parse_global()
+pub fn parse_exprs_file(file: File, path: &Path) -> ModuleResult {
+    Ok(Module::new(
+        from_file(file).parse_all()?,
+        InputSource::File(path.to_path_buf()),
+    ))
 }
 
-pub fn parse_expr_path(path: &Path) -> Result<ParseResult, Error> {
-    Ok(from_path(path)?.parse())
+pub fn parse_expr_path(path: &Path) -> ModuleResult {
+    let mut parser = from_path(path).map_err(|e| ParseError {
+        message: format!("Failed to open file: {}", e),
+    })?;
+    Ok(Module::new(
+        vec![parser.parse_one()?],
+        InputSource::File(path.to_path_buf()),
+    ))
 }
 
-pub fn parse_exprs_path(path: &Path) -> Result<GlobalParseResult, Error> {
-    Ok(from_path(path)?.parse_global())
+pub fn parse_exprs_path(path: &Path) -> ModuleResult {
+    let mut parser = from_path(path).map_err(|e| ParseError {
+        message: format!("Failed to open file: {}", e),
+    })?;
+    Ok(Module::new(
+        parser.parse_all()?,
+        InputSource::File(path.to_path_buf()),
+    ))
 }
 
 #[cfg(test)]
@@ -369,7 +405,9 @@ mod tests {
             CheckedType::Unchecked,
         );
         assert!(result.is_ok());
-        assert!(result.unwrap() == expected);
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == expected);
     }
 
     // #[test]
@@ -393,7 +431,9 @@ mod tests {
             CheckedType::Unchecked,
         );
         assert!(result.is_ok());
-        assert!(result.unwrap() == expected);
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == expected);
     }
 
     #[test]
@@ -406,16 +446,18 @@ mod tests {
         );
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.is_ok());
-        assert!(result.unwrap() == expected);
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == expected);
     }
 
     #[test]
     fn test_parser_arithmetic() {
         let result = parse_expr_str("1 + 2");
         assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
         assert!(matches!(
-            result.unwrap(),
+            result.expressions[0],
             Ast::Binary(
                 box Ast::Literal(Value::Number(_)),
                 Operator::Runtime(_),

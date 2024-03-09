@@ -2,6 +2,7 @@ use std::{
     cell::Cell,
     collections::HashMap,
     io::{Read, Seek},
+    path::PathBuf,
 };
 
 use lazy_regex::regex_replace_all;
@@ -21,13 +22,26 @@ use super::{
 //                                        Lexer                                         //
 //--------------------------------------------------------------------------------------//
 
+/// The source type of the program input. \
+/// This is used to determine how to read the
+/// input for the program.
+/// And improve error messages.
+pub enum InputSource {
+    /// A file path to the program source. \
+    /// 1. The string is the path to the file.
+    File(PathBuf),
+    /// A static string containing the program source. \
+    String,
+    /// A stream of characters. \
+    /// 1. The string is the name of the stream.
+    Stream(String),
+}
+
 pub type LexResult = Result<TokenInfo, LexerError>;
 const BUFFER_SIZE: usize = 128;
 
-/**
- * The lexer tokenize and output a stream of tokens that are generated from the source code.
- * The lexer is a state machine that is used by the parser to generate an AST.
- */
+/// The lexer tokenize a program input source and **output a stream of tokens**. \
+/// The lexer is a state machine that is used by the parser to generate an AST.
 #[derive(Clone)]
 pub struct Lexer<R>
 where
@@ -44,10 +58,8 @@ where
 }
 
 impl<R: Read + Seek> Lexer<R> {
-    /**
-     * Create a new lexer from a reader.
-     * The lexer will read from the reader until it reaches the end of the file.
-     */
+    /// Create a new lexer from a reader.
+    /// The lexer will read from the reader until it reaches the end of the file.
     pub fn new(reader: R) -> Self {
         Self {
             reader,
@@ -61,11 +73,9 @@ impl<R: Read + Seek> Lexer<R> {
         }
     }
 
-    /**
-     * Create a new lexer from a reader.
-     * The lexer will read from the reader until it reaches the end of the stream, then the parser must call `refill_on_read` to refill the buffer.
-     * If the reader is a stream, the lexer will be able to refill the buffer with new data from the reader on the next read (at any time)
-     */
+    /// Create a new lexer from a reader.
+    /// The lexer will read from the reader until it reaches the end of the stream, then the parser must call `refill_on_read` to refill the buffer.
+    /// If the reader is a stream, the lexer will be able to refill the buffer with new data from the reader on the next read (at any time)
     pub fn new_stream(reader: R) -> Self {
         Self {
             reader,
@@ -115,10 +125,8 @@ impl<R: Read + Seek> Lexer<R> {
         })
     }
 
-    /**
-     * Set the start of the token to the current position of the lexer.
-     * This function is called when the lexer is about to start reading a new token.
-     */
+    /// Set the start of the token to the current position of the lexer.
+    /// This function is called when the lexer is about to start reading a new token.
     fn set_info_start_to_current(&mut self) {
         self.line_info.start = self.line_info.end.clone();
     }
@@ -158,9 +166,7 @@ impl<R: Read + Seek> Lexer<R> {
         }
     }
 
-    /**
-     * Read a string from the source code using a buffered reader.
-     */
+    /// Read a string from the source code using a buffered reader.
     fn next_char(&mut self) -> Option<char> {
         if self.should_read || self.buffer_idx >= BUFFER_SIZE {
             match self.reader.read(&mut self.buffer) {
@@ -202,10 +208,8 @@ impl<R: Read + Seek> Lexer<R> {
         }
     }
 
-    /**
-     * Peek the next token from the source code.
-     * ! Note: This function should not be called from read_next_token() because it will cause an infinite loop (stack overflow)
-     */
+    /// Peek the next token from the source code.
+    /// ! Note: This function should not be called from read_next_token() because it will cause an infinite loop (stack overflow)
     pub fn peek_token(&mut self, offset: usize) -> LexResult {
         if let Some(t) = self.get_peeked_token(offset) {
             t
@@ -238,10 +242,8 @@ impl<R: Read + Seek> Lexer<R> {
         token
     }
 
-    /**
-     * Get the next token from the source code, ignoring newlines.
-     * Or return the next peeked token (again, ignoring newlines)
-     */
+    /// Get the next token from the source code, ignoring newlines.
+    /// Or return the next peeked token (again, ignoring newlines)
     pub fn read_next_token_no_nl(&mut self) -> LexResult {
         let mut token = self.read_next_token();
         while let Ok(TokenInfo {
@@ -254,10 +256,8 @@ impl<R: Read + Seek> Lexer<R> {
         token
     }
 
-    /**
-     * Get the next token from the source code,
-     * Or return the next peeked token.
-     */
+    /// Get the next token from the source code,
+    /// Or return the next peeked token.
     pub fn read_next_token(&mut self) -> LexResult {
         if let Some(token) = self.consume_peeked_token(0) {
             token
@@ -266,22 +266,18 @@ impl<R: Read + Seek> Lexer<R> {
         }
     }
 
-    /**
-     * Refill the buffer with new data from the reader on the next read.
-     * This should only be called from the parser when the lexer has reached an unexpected end of file.
-     * Usually only used in REPL mode.
-     */
+    /// Refill the buffer with new data from the reader on the next read.
+    /// This should only be called from the parser when the lexer has reached an unexpected end of file.
+    /// Usually only used in REPL mode.
     pub fn refill_on_read(&mut self) {
         // If the reader is a stream, we can refill the buffer on the next read
         self.should_read = self.is_stream;
     }
 
-    /**
-     * Expect there to be a token (not EOF).
-     * If there is a token, return it.
-     * Else, try to read from the source if the reader is a stream.
-     * Then return the first read token (can be EOF but will throw error later)
-     */
+    /// Expect there to be a token (not EOF).
+    /// If there is a token, return it.
+    /// Else, try to read from the source if the reader is a stream.
+    /// Then return the first read token (can be EOF but will throw error later)
     fn expect_next_token(&mut self) -> LexResult {
         let token = self.read_next_token()?;
         if token.token == Token::EndOfFile {
@@ -292,15 +288,12 @@ impl<R: Read + Seek> Lexer<R> {
         }
     }
 
-    /**
-     * Expect there to be a token (not EOF) while ignoring newlines.
-     * If there is a token, return it.
-     * Else, try to read from the source if the reader is a stream.
-     * Then return the first read token (can be EOF but will throw error later)
-     * Or return the next peeked token (again, ignoring newlines)
-     *
-     * Direct copy of `read_next_token_no_nl` but expecting tokens from the stream.
-     */
+    /// Expect there to be a token (not EOF) while ignoring newlines.
+    /// If there is a token, return it.
+    /// Else, try to read from the source if the reader is a stream.
+    /// Then return the first read token (can be EOF but will throw error later)
+    /// Or return the next peeked token (again, ignoring newlines)
+    /// Direct copy of `read_next_token_no_nl` but expecting tokens from the stream.
     pub fn expect_next_token_no_nl(&mut self) -> LexResult {
         let mut token = self.expect_next_token();
         while let Ok(TokenInfo {
@@ -313,11 +306,9 @@ impl<R: Read + Seek> Lexer<R> {
         token
     }
 
-    /**
-     * Get the next token from the source code.
-     * This function is the main function of the lexer.
-     * This function can only move forward, it cannot go back.
-     */
+    /// Get the next token from the source code.
+    /// This function is the main function of the lexer.
+    /// This function can only move forward, it cannot go back.
     fn next_token(&mut self) -> LexResult {
         self.set_info_start_to_current();
         if let Some(c) = self.next_char() {
@@ -383,9 +374,7 @@ impl<R: Read + Seek> Lexer<R> {
         s.to_string()
     }
 
-    /**
-     * Helper function to read a token from the source code using a predicates and lambdas or function composition.
-     */
+    /// Helper function to read a token from the source code using a predicates and lambdas or function composition.
     fn read_while(
         &mut self,
         init: Option<String>,
@@ -442,16 +431,12 @@ impl<R: Read + Seek> Lexer<R> {
         )
     }
 
-    /**
-     * Read a string from the source code.
-     */
+    /// Read a string from the source code.
     fn read_string(&mut self) -> LexResult {
         self.read_quoted('"', |this, s| this.new_token_info(Token::String(s)))
     }
 
-    /**
-     * Read a character from the source code.
-     */
+    /// Read a character from the source code.
     fn read_char(&mut self) -> LexResult {
         self.read_quoted('\'', |this, s| {
             if s.len() != 1 {
@@ -462,10 +447,8 @@ impl<R: Read + Seek> Lexer<R> {
         })
     }
 
-    /**
-     * Read a number from the source code.
-     * Can be an integer or a float (casted at runtime).
-     */
+    /// Read a number from the source code.
+    /// Can be an integer or a float (casted at runtime).
     fn read_number(&mut self, c: char) -> LexResult {
         let has_dot = Cell::new(false);
         self.read_while(
@@ -497,9 +480,7 @@ impl<R: Read + Seek> Lexer<R> {
         c.is_alphanumeric() || c == '_'
     }
 
-    /**
-     * Read an identifier from the source code.
-     */
+    /// Read an identifier from the source code.
     fn read_identifier(&mut self, c: char) -> LexResult {
         self.read_while(
             Some(c.to_string()),
