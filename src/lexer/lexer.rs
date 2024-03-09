@@ -392,7 +392,7 @@ impl<R: Read + Seek> Lexer<R> {
         mut cond: impl FnMut(char) -> bool,
         allow_eof_before_cond_false: bool,
         mut build_token: impl FnMut(&mut Self, String) -> LexResult,
-        mut post: impl FnMut(&mut Self, &LexResult) -> (),
+        mut post: impl FnMut(&mut Self, &LexResult),
     ) -> LexResult {
         let mut result = init.unwrap_or_default();
         let mut done = |this: &mut Self, result: String| {
