@@ -13,18 +13,17 @@
 ## Contents
 This is the standard base library of the Lento programming language written in Rust. \
 Including:
-- Standard library (Lento `Std`)
-	- Error handling
-	- I/O
-	- File system
-	- Networking
-	- Concurrency
-	- Threading
-	- Synchronization
-	- Time
-	- Date
-	- Math
-	- Random
-	- Cryptography
-	- Compression
-	- Encoding
+- Error handling
+- I/O
+- File system
+- Networking
+- Concurrency
+- Threading
+- Synchronization
+- Time
+- Date
+- Math
+- Random
+- Cryptography
+- Compression
+- Encoding
