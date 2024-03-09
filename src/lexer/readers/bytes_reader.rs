@@ -81,7 +81,7 @@ impl<'a> From<&'a str> for BytesReader<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::io::{BufRead, BufReader};
+    use std::io::BufReader;
 
     #[test]
     fn test() {

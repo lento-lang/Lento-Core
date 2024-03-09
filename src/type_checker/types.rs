@@ -54,7 +54,7 @@ impl FunctionParameterType {
      * Match the given arguments to the function parameters.
      * Return true if the arguments suffice the parameter types.
      */
-    pub fn match_args(&self, args: &Vec<Ast>) -> bool {
+    pub fn match_args(&self, args: &[Ast]) -> bool {
         match self {
             FunctionParameterType::Singles(types) => {
                 if types.len() != args.len() {

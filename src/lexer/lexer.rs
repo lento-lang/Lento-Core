@@ -4,7 +4,7 @@ use std::{
     io::{Read, Seek},
 };
 
-use lazy_regex::{self, regex_replace_all};
+use lazy_regex::regex_replace_all;
 
 use crate::{
     interpreter::error::{runtime_error, RuntimeError},

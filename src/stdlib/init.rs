@@ -262,8 +262,6 @@ pub fn init_environment(env: &mut Environment) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::interpreter::environment::Environment;
-    use crate::lexer::lexer::Lexer;
     use std::io::Cursor;
 
     #[test]

@@ -99,12 +99,12 @@ impl<'a> Environment<'a> {
         // Check if the type already exists in the standard library
         if std_primitive_types::find_type(name.to_string()).is_some() {
             panic!("Type {} already exists in the standard library", name);
-        } else if self.types.get(&name.to_string()).is_some() {
-            panic!("Type {} already exists in the current environment", name);
-        } else {
-            self.types.insert(name.to_string(), type_);
-            Ok(())
         }
+        if self.types.contains_key(&name.to_string()) {
+            panic!("Type {} already exists in the current environment", name);
+        }
+        self.types.insert(name.to_string(), type_);
+        Ok(())
     }
 
     /**
@@ -114,7 +114,7 @@ impl<'a> Environment<'a> {
     pub fn add_value(&mut self, name: Str, value: Value) -> Failable<RuntimeError> {
         let name = name.to_string();
         // Check if the variable already exists in the standard library
-        if self.variables.get(&name).is_some() {
+        if self.variables.contains_key(&name) {
             panic!(
                 "Variable {} already exists in the current environment",
                 name
@@ -122,24 +122,22 @@ impl<'a> Environment<'a> {
         } else {
             match value {
                 Value::Function(f) => {
-                    if self.functions.get(&name).is_some() {
+                    if self.functions.contains_key(&name) {
                         panic!(
                             "Function {} already exists in the current environment",
                             name
                         );
-                    } else {
-                        self.functions.insert(name, f);
                     }
+                    self.functions.insert(name, f);
                 }
                 _ => {
-                    if self.variables.get(&name).is_some() {
+                    if self.variables.contains_key(&name) {
                         panic!(
                             "Variable {} already exists in the current environment",
                             name
                         );
-                    } else {
-                        self.variables.insert(name, value);
                     }
+                    self.variables.insert(name, value);
                 }
             };
             Ok(())
