@@ -15,11 +15,12 @@ Including:
 - Lexer and Parser
 - AST pretty printer
 - Type checker and inferencer
+- Linter (static analysis)
 - Runtime
 	- Garbage collector
 	- Memory manager
 	- Error handling
-- Standard library
+- Standard library (Lento `Std`)
 	- Error handling
 	- I/O
 	- File system
@@ -73,7 +74,7 @@ Including:
 			- ~~Deno~~ (planned)
 			- ~~Bun~~ (planned)
 -->
-- Static analysis
+<!-- - Static analysis
 	- Data flow analysis
 	- Control flow analysis
 	- Abstract syntax tree analysis
@@ -101,9 +102,7 @@ Including:
 	- Network profiler
 	- Concurrency profiler
 	- Threading profiler
-	- Synchronization profiler
-- Linter (static analysis)
-- Formatter (pretty printer and minifier)
+	- Synchronization profiler -->
 <!-- - Code coverage -->
 <!-- - IDE support
 	- Language server
