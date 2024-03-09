@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, Error, Read, Seek},
+    io::{BufRead, BufReader, Error, Read, Seek},
     path::Path,
 };
 
@@ -287,7 +287,7 @@ impl<R: Read + Seek> Parser<R> {
 //                               Parser Factory Functions                               //
 //--------------------------------------------------------------------------------------//
 
-fn setup_new_parser<R: Read + Seek>(mut lexer: Lexer<R>) -> Parser<R> {
+fn setup_new_parser<R: BufRead + Seek>(mut lexer: Lexer<R>) -> Parser<R> {
     init_lexer(&mut lexer);
     Parser::new(lexer)
 }
