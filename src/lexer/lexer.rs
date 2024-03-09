@@ -30,7 +30,7 @@ pub enum InputSource {
     /// A file path to the program source. \
     /// 1. The string is the path to the file.
     File(PathBuf),
-    /// A static string containing the program source. \
+    /// A static string containing the program source.
     String,
     /// A stream of characters. \
     /// 1. The string is the name of the stream.
