@@ -112,15 +112,18 @@ fn eval_function_call(name: String, arg_asts: Vec<Ast>, env: &mut Environment) -
  * Assume `elems` are a non-empty vector
  */
 fn eval_tuple(elems: Vec<Ast>, env: &mut Environment) -> InterpretResult {
-    let values = elems
+    let (values, types): (Vec<Value>, Vec<Type>) = elems
         .iter()
-        .map(|e| interpret_ast(e, env))
-        .collect::<Result<Vec<Value>, _>>()?;
-    let mut type_ = vec![Type::Any; values.len()];
-    for (i, v) in values.iter().enumerate() {
-        type_[i] = v.get_type().unwrap().to_owned();
-    }
-    Ok(Value::Tuple(values, Type::Tuple(type_)))
+        .map(|e| {
+            let value = interpret_ast(e, env)?;
+            let value_type = value.get_type().unwrap_checked().clone();
+            Ok((value, value_type))
+        })
+        .collect::<Result<Vec<(Value, Type)>, _>>()?
+        .into_iter()
+        .unzip();
+
+    Ok(Value::Tuple(values, Type::Tuple(types)))
 }
 
 /**
