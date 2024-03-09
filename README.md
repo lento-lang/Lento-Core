@@ -135,4 +135,5 @@ Including:
 	- Package
 	- Version -->
 
-
+## Requirements
+- `rustc 1.78.0-nightly (46b180ec2 2024-03-08)` or later
