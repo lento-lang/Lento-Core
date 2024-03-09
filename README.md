@@ -3,9 +3,9 @@
     <img src="assets/logo_white.png" height=100px/>
     <h1>Lento <code>Core</code></h1>
     <p>
-		Core implementation used by the <a href="https://github.com/lento-lang/Lento" target="_blank">Lento <code>CLI</code></a>. <br/>
-		This library provides core functionality portable to different platforms and interoperable languages. <br/>
-		The core library can be used to embed Lento in other applications, create custom <br/>tools, integrations, extensions, and more.
+		<!-- portable to different platforms, interoperable languages, environments, etc. -->
+		This shared library provides core functionality useful for; embedding Lento in other applications, creating custom tools, integrations, extensions, etc.
+		Currently it's used in the <a href="https://github.com/lento-lang/Lento" target="_blank">Lento <code>CLI</code></a>.
 	</p>
 </div>
 
