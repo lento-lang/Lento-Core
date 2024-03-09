@@ -1,6 +1,6 @@
 use crate::{
     lexer::op::{Operator, StaticOperatorAst},
-    parser::ast::Ast,
+    parser::ast::{Ast, Module},
     type_checker::types::{FunctionParameterType, GetType, Type},
     util::str::Str,
 };
@@ -170,4 +170,51 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
         }
         _ => todo!("Implement AST node"),
     })
+}
+
+pub fn interpret_module(module: &Module, env: &mut Environment) -> InterpretResult {
+    let mut result = Value::Unit;
+    for expr in &module.expressions {
+        result = interpret_ast(expr, env)?;
+    }
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        interpreter::value::{Number, UnsignedInteger},
+        stdlib::arithmetic,
+        type_checker::types::{std_primitive_types, CheckedType},
+    };
+
+    use super::*;
+
+    fn make_u8(n: u8) -> Value {
+        Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(n)))
+    }
+    fn make_u16(n: u16) -> Value {
+        Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt16(n)))
+    }
+    fn make_u32(n: u32) -> Value {
+        Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt32(n)))
+    }
+
+    #[test]
+    fn test_interpret_ast() {
+        let mut env = Environment::new(Str::Str("test"));
+        let ast = Ast::Binary(
+            Box::new(Ast::Literal(make_u8(1))),
+            Operator::Runtime(arithmetic::op_add()),
+            Box::new(Ast::Literal(make_u8(2))),
+            CheckedType::Unchecked, // Not required for this test
+        );
+        // TODO: let checked_ast = type_check(&ast).unwrap();
+        let result = interpret_ast(&ast, &mut env).unwrap();
+        assert_eq!(
+            result.get_type().unwrap_checked().clone(),
+            std_primitive_types::UINT8
+        );
+        assert_eq!(result, make_u8(3));
+    }
 }
