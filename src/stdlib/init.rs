@@ -6,10 +6,8 @@ use std::{
 use crate::{
     interpreter::{
         environment::Environment,
-        error::runtime_error,
         value::{
-            ArithmeticOperations, FloatingPoint, Function, FunctionVariation,
-            NativeFunctionParameters, Number, Value,
+            FloatingPoint, Function, FunctionVariation, NativeFunctionParameters, Number, Value,
         },
     },
     lexer::op::{
@@ -17,9 +15,8 @@ use crate::{
         StaticOperator, StaticOperatorAst, StaticOperatorHandler,
     },
     parser::ast::Ast,
-    type_checker::types::{
-        std_compount_types, std_primitive_types, CheckedType, FunctionParameterType, GetType, Type,
-    },
+    stdlib::arithmetic,
+    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, Type},
     util::str::Str,
 };
 
@@ -35,8 +32,6 @@ const TY_UNIT: Type = std_primitive_types::UNIT;
 //--------------------------------------------------------------------------------------//
 
 pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
-    let ty_num = std_compount_types::any_number();
-
     //--------------------------------------------------------------------------------------//
     //                                       Helpers                                        //
     //--------------------------------------------------------------------------------------//
@@ -64,26 +59,13 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
             );
         }
     };
-    let add_runtime = |lexer: &mut Lexer<R>,
-                       name: &str,
-                       sym: &str,
-                       pos: OperatorPosition,
-                       prec: u16,
-                       assoc: OperatorAssociativity,
-                       overloadable: bool,
-                       handler: RuntimeOperatorHandler| {
-        if let Err(e) = lexer.define_op(Operator::Runtime(RuntimeOperator::new_str(
-            name,
-            sym,
-            pos,
-            prec,
-            assoc,
-            overloadable,
-            handler,
-        ))) {
+    let add_runtime = |lexer: &mut Lexer<R>, operator: RuntimeOperator| {
+        let name = operator.name.clone();
+        if let Err(e) = lexer.define_op(Operator::Runtime(operator)) {
             panic!(
                 "Failed to initialize lexer when adding runtime operator '{}': {:?}",
-                name, e
+                name.clone(),
+                e
             );
         }
     };
@@ -101,46 +83,6 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
     }
 
     //--------------------------------------------------------------------------------------//
-    //                               Native Runtime Operators                               //
-    //--------------------------------------------------------------------------------------//
-
-    let rt_add: FunctionVariation = FunctionVariation::Native(
-        |vals| {
-            let ty_num = std_compount_types::any_number();
-            let vals = if let NativeFunctionParameters::Singles(v) = vals {
-                v
-            } else {
-                panic!("A native function with Singles function parameter type should not be able to receive a Variadic function parameter type")
-            };
-            if vals.len() != 2 {
-                return Err(runtime_error("add() expects 2 arguments".to_string()));
-            }
-            let lhs = vals[0].clone();
-            let rhs = vals[1].clone();
-            if lhs.get_type().unwrap_checked().subtype(&ty_num)
-                && rhs.get_type().unwrap_checked().subtype(&ty_num)
-            {
-                match (lhs, rhs) {
-                    (Value::Number(l), Value::Number(r)) => Ok(Value::Number(Number::add(&l, &r))),
-                    _ => panic!("add() expects 2 arguments of type '{}'", ty_num),
-                }
-            } else {
-                Err(runtime_error(format!(
-                    "add() expects 2 arguments of type '{}', got '{}' and '{}'",
-                    ty_num,
-                    lhs.get_type(),
-                    rhs.get_type()
-                )))
-            }
-        },
-        FunctionParameterType::Singles(vec![
-            ("lhs".to_string(), ty_num.clone()),
-            ("rhs".to_string(), ty_num.clone()),
-        ]),
-        ty_num.clone(),
-    );
-
-    //--------------------------------------------------------------------------------------//
     //                                   Implementations                                    //
     //--------------------------------------------------------------------------------------//
 
@@ -155,16 +97,7 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
         false,
         assign_handler,
     );
-    add_runtime(
-        lexer,
-        "add",
-        "+",
-        OperatorPosition::Infix,
-        100,
-        OperatorAssociativity::Left,
-        false,
-        Box::new(rt_add),
-    );
+    add_runtime(lexer, arithmetic::op_add());
 }
 
 //--------------------------------------------------------------------------------------//
