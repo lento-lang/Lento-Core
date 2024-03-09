@@ -16,10 +16,10 @@ pub enum CheckedType {
 
 impl CheckedType {
     /// Should always be ok after type checking
-    pub fn unwrap(&self) -> &Type {
+    pub fn unwrap_checked(&self) -> &Type {
         match self {
             CheckedType::Checked(t) => t,
-            CheckedType::Unchecked => panic!("Type has not been checked by the type checker!"),
+            CheckedType::Unchecked => panic!("Unwrap of unchecked type"),
         }
     }
 }
@@ -61,7 +61,7 @@ impl FunctionParameterType {
                     return false;
                 }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !t.subtype(args[i].get_type().unwrap()) {
+                    if !t.subtype(args[i].get_type().unwrap_checked()) {
                         return false;
                     }
                 }
@@ -72,12 +72,12 @@ impl FunctionParameterType {
                     return false;
                 }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !t.subtype(args[i].get_type().unwrap()) {
+                    if !t.subtype(args[i].get_type().unwrap_checked()) {
                         return false;
                     }
                 }
                 for arg in &args[types.len()..] {
-                    if !var_type.subtype(arg.get_type().unwrap()) {
+                    if !var_type.subtype(arg.get_type().unwrap_checked()) {
                         return false;
                     }
                 }

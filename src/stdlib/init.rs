@@ -117,7 +117,8 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
             }
             let lhs = vals[0].clone();
             let rhs = vals[1].clone();
-            if lhs.get_type().unwrap().subtype(&ty_num) && rhs.get_type().unwrap().subtype(&ty_num)
+            if lhs.get_type().unwrap_checked().subtype(&ty_num)
+                && rhs.get_type().unwrap_checked().subtype(&ty_num)
             {
                 match (lhs, rhs) {
                     (Value::Number(l), Value::Number(r)) => Ok(Value::Number(Number::add(&l, &r))),
