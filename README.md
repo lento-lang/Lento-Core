@@ -1,5 +1,5 @@
 <div align=center>
-    <br><br>
+    <br>
     <img src="assets/logo_white.png" height=100px/>
     <h1>Lento <code>Core</code></h1>
     <p>
