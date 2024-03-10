@@ -1,56 +1,14 @@
-use std::{
-    fmt::{self, Display},
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 use crate::{lexer::lexer::InputSource, parser::ast::Module};
 
 use super::error::CompileError;
 
+use target_lexicon::Triple;
+
 //--------------------------------------------------------------------------------------//
 //                                      Compiler                                        //
 //--------------------------------------------------------------------------------------//
-
-/// The target architecture to compile for. \
-/// The target architecture is a string that specifies the target platform. \
-/// For example: `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, etc.
-pub struct TargetTriple {
-    pub architecture: String,
-    pub vendor: String,
-    pub system: String,
-    pub environment: String,
-}
-
-impl TargetTriple {
-    pub fn new(architecture: String, vendor: String, system: String, environment: String) -> Self {
-        Self {
-            architecture,
-            vendor,
-            system,
-            environment,
-        }
-    }
-
-    pub fn from_string(triple: String) -> Self {
-        let parts: Vec<&str> = triple.split('-').collect();
-        Self {
-            architecture: parts[0].to_string(),
-            vendor: parts[1].to_string(),
-            system: parts[2].to_string(),
-            environment: parts[3].to_string(),
-        }
-    }
-}
-
-impl Display for TargetTriple {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}-{}-{}-{}",
-            self.architecture, self.vendor, self.system, self.environment
-        )
-    }
-}
 
 /// Generic *(backend-agnostic)* options for the compiler. \
 /// The options are used to configure the compiler's behavior
@@ -58,7 +16,7 @@ impl Display for TargetTriple {
 pub struct CompileOptions {
     pub optimization_level: u8,
     pub debug_info: bool,
-    pub target: TargetTriple,
+    pub target: Triple,
     pub output_file: PathBuf,
     pub input_source: InputSource,
 }
