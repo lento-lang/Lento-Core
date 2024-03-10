@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    fmt::{self, Display},
+    path::PathBuf,
+};
 
 use crate::{lexer::lexer::InputSource, parser::ast::Module};
 
@@ -28,13 +31,6 @@ impl TargetTriple {
         }
     }
 
-    pub fn to_string(&self) -> String {
-        format!(
-            "{}-{}-{}-{}",
-            self.architecture, self.vendor, self.system, self.environment
-        )
-    }
-
     pub fn from_string(triple: String) -> Self {
         let parts: Vec<&str> = triple.split('-').collect();
         Self {
@@ -43,6 +39,16 @@ impl TargetTriple {
             system: parts[2].to_string(),
             environment: parts[3].to_string(),
         }
+    }
+}
+
+impl Display for TargetTriple {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}-{}-{}-{}",
+            self.architecture, self.vendor, self.system, self.environment
+        )
     }
 }
 
