@@ -1,6 +1,7 @@
 use std::{
     cell::Cell,
     collections::HashMap,
+    fmt::Display,
     fs::File,
     io::{BufReader, Cursor, Error, Read, Seek},
     path::PathBuf,
@@ -24,7 +25,7 @@ use super::{
 /// This is used to determine how to read the
 /// input for the program.
 /// And improve error messages.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum InputSource {
     /// A file path to the program source. \
     /// 1. The string is the path to the file.
@@ -36,12 +37,12 @@ pub enum InputSource {
     Stream(String),
 }
 
-impl InputSource {
-    pub fn to_string(&self) -> String {
+impl Display for InputSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InputSource::File(path) => format!("file '{}'", path.to_string_lossy()),
-            InputSource::String => "string".to_string(),
-            InputSource::Stream(name) => format!("stream '{}'", name),
+            InputSource::File(path) => write!(f, "file '{}'", path.to_string_lossy()),
+            InputSource::String => write!(f, "string"),
+            InputSource::Stream(name) => write!(f, "stream '{}'", name),
         }
     }
 }
@@ -359,6 +360,7 @@ impl<R: Read + Seek> Lexer<R> {
                             return Err(LexerError::unexpected_character(
                                 c,
                                 self.line_info.clone(),
+                                self.input_source.clone(),
                             ));
                         }
                     }
@@ -416,7 +418,10 @@ impl<R: Read + Seek> Lexer<R> {
         if allow_eof_before_cond_false {
             done(self, result)
         } else {
-            Err(LexerError::unexpected_end_of_file(self.line_info.clone()))
+            Err(LexerError::unexpected_end_of_file(
+                self.line_info.clone(),
+                self.input_source.clone(),
+            ))
         }
     }
 
@@ -456,7 +461,11 @@ impl<R: Read + Seek> Lexer<R> {
     fn read_char(&mut self) -> LexResult {
         self.read_quoted('\'', |this, s| {
             if s.len() != 1 {
-                Err(LexerError::invalid_char(s, this.line_info.clone()))
+                Err(LexerError::invalid_char(
+                    s,
+                    this.line_info.clone(),
+                    this.input_source.clone(),
+                ))
             } else {
                 this.new_token_info(Token::Char(s.chars().next().unwrap()))
             }
@@ -508,7 +517,7 @@ impl<R: Read + Seek> Lexer<R> {
     }
 }
 
-pub fn from_str<'a>(input: &'a str) -> Lexer<BytesReader<'a>> {
+pub fn from_str(input: &str) -> Lexer<BytesReader<'_>> {
     Lexer::new(BytesReader::from(input), InputSource::String)
 }
 
