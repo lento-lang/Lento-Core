@@ -194,9 +194,8 @@ mod tests {
         Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(n)))
     }
 
-
     #[test]
-    fn test_interpret_ast() {
+    fn test_interpret_binary_add() {
         let mut env = Environment::new(Str::Str("test"));
         let ast = Ast::Binary(
             Box::new(Ast::Literal(make_u8(1))),
