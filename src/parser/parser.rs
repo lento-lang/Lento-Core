@@ -458,12 +458,12 @@ mod tests {
         assert!(result.expressions.len() == 1);
         assert!(matches!(
             result.expressions[0],
-            Ast::Binary(
-                box Ast::Literal(Value::Number(_)),
-                Operator::Runtime(_),
-                box Ast::Literal(Value::Number(_)),
-                CheckedType::Unchecked,
-            )
+            Ast::Binary(_, Operator::Runtime(_), _, CheckedType::Unchecked)
         ));
+        if let Ast::Binary(lhs, _, rhs, _) = &result.expressions[0] {
+            // Always true
+            assert!(matches!(*lhs.to_owned(), Ast::Literal(Value::Number(_))));
+            assert!(matches!(*rhs.to_owned(), Ast::Literal(Value::Number(_))));
+        }
     }
 }
