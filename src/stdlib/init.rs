@@ -11,8 +11,8 @@ use crate::{
         },
     },
     lexer::op::{
-        Operator, OperatorAssociativity, OperatorPosition, RuntimeOperator, RuntimeOperatorHandler,
-        StaticOperator, StaticOperatorAst, StaticOperatorHandler,
+        Operator, OperatorAssociativity, OperatorPosition, RuntimeOperator, StaticOperator,
+        StaticOperatorAst, StaticOperatorHandler,
     },
     parser::ast::Ast,
     stdlib::arithmetic,

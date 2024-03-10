@@ -193,12 +193,7 @@ mod tests {
     fn make_u8(n: u8) -> Value {
         Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(n)))
     }
-    fn make_u16(n: u16) -> Value {
-        Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt16(n)))
-    }
-    fn make_u32(n: u32) -> Value {
-        Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt32(n)))
-    }
+
 
     #[test]
     fn test_interpret_ast() {
