@@ -1,13 +1,13 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Error, Read, Seek},
+    io::{BufRead, BufReader, Cursor, Error, Read, Seek},
     path::Path,
 };
 
 use crate::{
     interpreter::value::{Number, Value},
     lexer::{
-        lexer::{InputSource, LexResult},
+        lexer::{self, InputSource, LexResult},
         op::{Operator, OperatorAssociativity, OperatorPosition, OperatorPrecedence},
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
         token::Token,
@@ -289,24 +289,29 @@ fn setup_new_parser<R: BufRead + Seek>(mut lexer: Lexer<R>) -> Parser<R> {
     Parser::new(lexer)
 }
 
-pub fn from_file(file: File) -> Parser<BufReader<File>> {
-    setup_new_parser(Lexer::new(BufReader::new(file)))
+pub fn from_file(file: File, path: &Path) -> Parser<BufReader<File>> {
+    setup_new_parser(lexer::from_file(file, path.to_path_buf()))
 }
 
 pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
-    Ok(from_file(File::open(source_file)?))
+    Ok(setup_new_parser(lexer::from_path(
+        source_file.to_path_buf(),
+    )?))
 }
 
-pub fn from_string(source: &String) -> Parser<BytesReader<'_>> {
-    setup_new_parser(Lexer::new(BytesReader::from(source)))
+pub fn from_string(source: String) -> Parser<Cursor<String>> {
+    setup_new_parser(lexer::from_string(source))
 }
 
 pub fn from_str(source: &str) -> Parser<BytesReader<'_>> {
-    setup_new_parser(Lexer::new(BytesReader::from(source)))
+    setup_new_parser(lexer::from_str(source))
 }
 
 pub fn from_stdin() -> Parser<StdinReader> {
-    setup_new_parser(Lexer::new(StdinReader::new(std::io::stdin())))
+    setup_new_parser(lexer::from_stream(
+        StdinReader::new(std::io::stdin()),
+        "stdin".to_string(),
+    ))
 }
 
 //--------------------------------------------------------------------------------------//
@@ -318,14 +323,14 @@ pub type ModuleResult = Result<Module, ParseError>;
 
 pub fn parse_string_one(source: String) -> ModuleResult {
     Ok(Module::new(
-        vec![from_string(&source).parse_one()?],
+        vec![from_string(source).parse_one()?],
         InputSource::String,
     ))
 }
 
 pub fn parse_string_all(source: String) -> ModuleResult {
     Ok(Module::new(
-        from_string(&source).parse_all()?,
+        from_string(source).parse_all()?,
         InputSource::String,
     ))
 }
@@ -360,14 +365,14 @@ pub fn parse_stdin_all() -> ModuleResult {
 
 pub fn parse_file_one(file: File, path: &Path) -> ModuleResult {
     Ok(Module::new(
-        vec![from_file(file).parse_one()?],
+        vec![from_file(file, path).parse_one()?],
         InputSource::File(path.to_path_buf()),
     ))
 }
 
 pub fn parse_file_all(file: File, path: &Path) -> ModuleResult {
     Ok(Module::new(
-        from_file(file).parse_all()?,
+        from_file(file, path).parse_all()?,
         InputSource::File(path.to_path_buf()),
     ))
 }

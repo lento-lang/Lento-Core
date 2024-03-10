@@ -1,7 +1,8 @@
 use std::{
     cell::Cell,
     collections::HashMap,
-    io::{Read, Seek},
+    fs::File,
+    io::{BufReader, Cursor, Error, Read, Seek},
     path::PathBuf,
 };
 
@@ -15,17 +16,15 @@ use crate::{
 use super::{
     error::LexerError,
     op::Operator,
+    readers::bytes_reader::BytesReader,
     token::{LineInfoSpan, Token, TokenInfo},
 };
-
-//--------------------------------------------------------------------------------------//
-//                                        Lexer                                         //
-//--------------------------------------------------------------------------------------//
 
 /// The source type of the program input. \
 /// This is used to determine how to read the
 /// input for the program.
 /// And improve error messages.
+#[derive(Clone)]
 pub enum InputSource {
     /// A file path to the program source. \
     /// 1. The string is the path to the file.
@@ -37,6 +36,20 @@ pub enum InputSource {
     Stream(String),
 }
 
+impl InputSource {
+    pub fn to_string(&self) -> String {
+        match self {
+            InputSource::File(path) => format!("file '{}'", path.to_string_lossy()),
+            InputSource::String => "string".to_string(),
+            InputSource::Stream(name) => format!("stream '{}'", name),
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------//
+//                                        Lexer                                         //
+//--------------------------------------------------------------------------------------//
+
 pub type LexResult = Result<TokenInfo, LexerError>;
 const BUFFER_SIZE: usize = 128;
 
@@ -47,6 +60,7 @@ pub struct Lexer<R>
 where
     R: Read + Seek,
 {
+    input_source: InputSource,
     reader: R,
     is_stream: bool,
     should_read: bool,
@@ -60,8 +74,9 @@ where
 impl<R: Read + Seek> Lexer<R> {
     /// Create a new lexer from a reader.
     /// The lexer will read from the reader until it reaches the end of the file.
-    pub fn new(reader: R) -> Self {
+    pub fn new(reader: R, input_source: InputSource) -> Self {
         Self {
+            input_source,
             reader,
             is_stream: false,
             should_read: true,
@@ -76,8 +91,9 @@ impl<R: Read + Seek> Lexer<R> {
     /// Create a new lexer from a reader.
     /// The lexer will read from the reader until it reaches the end of the stream, then the parser must call `refill_on_read` to refill the buffer.
     /// If the reader is a stream, the lexer will be able to refill the buffer with new data from the reader on the next read (at any time)
-    pub fn new_stream(reader: R) -> Self {
+    pub fn new_stream(reader: R, stream_name: String) -> Self {
         Self {
+            input_source: InputSource::Stream(stream_name),
             reader,
             is_stream: true,
             should_read: true,
@@ -492,20 +508,42 @@ impl<R: Read + Seek> Lexer<R> {
     }
 }
 
+pub fn from_str<'a>(input: &'a str) -> Lexer<BytesReader<'a>> {
+    Lexer::new(BytesReader::from(input), InputSource::String)
+}
+
+pub fn from_string(input: String) -> Lexer<Cursor<String>> {
+    Lexer::new(Cursor::new(input), InputSource::String)
+}
+
+pub fn from_file(file: File, path: PathBuf) -> Lexer<BufReader<File>> {
+    Lexer::new(BufReader::new(file), InputSource::File(path))
+}
+
+pub fn from_path(path: PathBuf) -> Result<Lexer<BufReader<File>>, Error> {
+    Ok(Lexer::new(
+        BufReader::new(File::open(path.clone())?),
+        InputSource::File(path),
+    ))
+}
+
+pub fn from_stream<R: Read + Seek>(reader: R, name: String) -> Lexer<R> {
+    Lexer::new_stream(reader, name)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::stdlib::init::init_lexer;
 
     use super::*;
-    use std::io::Cursor;
 
-    fn assert_next_token_eq(lexer: &mut Lexer<Cursor<&str>>, token: Token) {
+    fn assert_next_token_eq<R: Read + Seek>(lexer: &mut Lexer<R>, token: Token) {
         assert_eq!(lexer.read_next_token().unwrap().token, token);
     }
 
     #[test]
     fn test_lexer_function() {
-        let mut lexer = Lexer::new(Cursor::new("add a b = a + b"));
+        let mut lexer = from_str("add a b = a + b");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, Token::Identifier("add".to_string()));
         assert_next_token_eq(&mut lexer, Token::Identifier("a".to_string()));
@@ -525,7 +563,7 @@ mod tests {
 
     #[test]
     fn test_lexer_assign() {
-        let mut lexer = Lexer::new(Cursor::new("x = 1;"));
+        let mut lexer = from_str("x = 1;");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, Token::Identifier("x".to_string()));
         assert!(matches!(
@@ -539,7 +577,7 @@ mod tests {
 
     #[test]
     fn test_lexer_string() {
-        let mut lexer = Lexer::new(Cursor::new(r#""Hello, World!""#));
+        let mut lexer = from_str(r#""Hello, World!""#);
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, Token::String("Hello, World!".to_string()));
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
@@ -547,7 +585,7 @@ mod tests {
 
     #[test]
     fn test_lexer_string_escape() {
-        let mut lexer = Lexer::new(Cursor::new(r#""Hello, \"World\"!""#));
+        let mut lexer = from_str(r#""Hello, \"World\"!""#);
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, Token::String("Hello, \"World\"!".to_string()));
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
@@ -555,7 +593,7 @@ mod tests {
 
     #[test]
     fn test_lexer_char() {
-        let mut lexer = Lexer::new(Cursor::new(r#"'a'"#));
+        let mut lexer = from_str(r#"'a'"#);
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, Token::Char('a'));
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
@@ -563,7 +601,7 @@ mod tests {
 
     #[test]
     fn test_lexer_char_escape() {
-        let mut lexer = Lexer::new(Cursor::new(r#"'\\'"#));
+        let mut lexer = from_str(r#"'\\'"#);
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, Token::Char('\\'));
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
@@ -571,7 +609,7 @@ mod tests {
 
     #[test]
     fn test_lexer_number() {
-        let mut lexer = Lexer::new(Cursor::new("123.456"));
+        let mut lexer = from_str("123.456");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, Token::Float("123.456".to_string()));
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
@@ -579,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_lexer_identifier() {
-        let mut lexer = Lexer::new(Cursor::new("abc_123"));
+        let mut lexer = from_str("abc_123");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, Token::Identifier("abc_123".to_string()));
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
@@ -587,7 +625,7 @@ mod tests {
 
     #[test]
     fn test_lexer_operator_add() {
-        let mut lexer = Lexer::new(Cursor::new("+"));
+        let mut lexer = from_str("+");
         init_lexer(&mut lexer);
         assert!(matches!(
             lexer.read_next_token().unwrap().token,
