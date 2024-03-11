@@ -55,7 +55,25 @@ impl Token {
     }
 
     pub fn is_terminator(&self) -> bool {
-        matches!(self, Token::Newline | Token::SemiColon)
+        matches!(
+            self,
+            Token::EndOfFile
+                | Token::Newline
+                | Token::SemiColon
+                | Token::Comma
+                | Token::RightParen
+                | Token::RightBrace
+                | Token::RightBracket
+                | Token::TypeRightAngleBracket
+        )
+    }
+
+    pub fn is_top_level_terminal(&self, allow_eof: bool) -> bool {
+        if allow_eof {
+            matches!(self, Token::EndOfFile | Token::Newline | Token::SemiColon)
+        } else {
+            matches!(self, Token::Newline | Token::SemiColon)
+        }
     }
 }
 
