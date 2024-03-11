@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::io::{BufWriter, Write};
 
 use crate::{lexer::lexer::InputSource, parser::ast::Module};
 
@@ -23,27 +23,27 @@ pub enum OptimizationLevel {
 /// Generic *(backend-agnostic)* options for the compiler. \
 /// The options are used to configure the compiler's behavior
 /// when compiling a module.
-pub struct CompileOptions {
+pub struct CompileOptions<Out: Write> {
     pub optimization_level: OptimizationLevel,
     pub debug_info: bool,
     pub target: Triple,
-    pub output_file: PathBuf,
+    pub output_stream: BufWriter<Out>,
     pub input_source: InputSource,
 }
 
-impl CompileOptions {
+impl<Out: Write> CompileOptions<Out> {
     pub fn new(
         optimization_level: OptimizationLevel,
         debug_info: bool,
         target: Triple,
-        output_file: PathBuf,
+        output_file: Out,
         input_source: InputSource,
     ) -> Self {
         Self {
             optimization_level,
             debug_info,
             target,
-            output_file,
+            output_stream: BufWriter::new(output_file),
             input_source,
         }
     }
@@ -64,17 +64,24 @@ pub type CompileResult = Result<(), CompileError>;
 ///     - C
 ///     - JavaScript
 ///     - etc.
-pub trait Backend {
-    fn compile_module(&mut self, module: &Module, options: CompileOptions) -> CompileResult
+pub trait Backend<Out: Write> {
+    /// The output type for the backend. \
+    /// The output type is used to specify the output stream for the compiled module.
+    /// For example, the output type could be a file, a buffer, or a stream.
+
+    /// Compiles a module using the specified backend and options. \
+    /// The method returns a `CompileResult` indicating whether the module compiled successfully.
+    fn compile_module(&mut self, module: &Module, options: CompileOptions<Out>) -> CompileResult
     where
         Self: Sized;
 }
 
 /// Compiles a module using the specified backend and options. \
-pub fn compile<B: Backend>(
+/// The function returns a `CompileResult` indicating whether the module compiled successfully.
+pub fn compile<Out: Write, B: Backend<Out>>(
     backend: &mut B,
     module: &Module,
-    options: CompileOptions,
+    options: CompileOptions<Out>,
 ) -> CompileResult {
     backend.compile_module(module, options)
 }
