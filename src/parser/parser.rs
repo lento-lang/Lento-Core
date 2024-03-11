@@ -234,9 +234,11 @@ impl<R: Read + Seek> Parser<R> {
             if op.is_err() {
                 return None;
             }
-            op.as_ref()
-                .unwrap()
-                .token
+            let op = op.as_ref().unwrap();
+            if op.token.is_terminator() {
+                return None;
+            }
+            op.token
                 .get_operator()
                 .filter(|op| op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec)
         };
@@ -276,7 +278,14 @@ impl<R: Read + Seek> Parser<R> {
      */
     fn parse_top_expr(&mut self) -> ParseResult {
         let lhs = self.parse_primary()?;
-        self.parse_expr(lhs, 0)
+        let expr = self.parse_expr(lhs, 0);
+        let nt = self.lexer.peek_token(0);
+        if let Ok(t) = nt {
+            if t.token.is_top_level_terminal(false) {
+                self.lexer.read_next_token().unwrap();
+            }
+        }
+        expr
     }
 }
 
@@ -479,8 +488,19 @@ mod tests {
     }
 
     #[test]
+    fn test_parser_sequence() {
+        let result = parse_str_all("1 2 3");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 3);
+        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
+        assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
+    }
+
+    #[test]
     fn test_parser_sequence_semicolon() {
-        let result = parse_str_all("1; 2; 3");
+        let result = parse_str_all("1; 2; 3;");
         dbg!(&result);
         assert!(result.is_ok());
         let result = result.unwrap();
