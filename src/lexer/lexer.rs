@@ -25,7 +25,7 @@ use super::{
 /// This is used to determine how to read the
 /// input for the program.
 /// And improve error messages.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InputSource {
     /// A file path to the program source. \
     /// 1. The string is the path to the file.

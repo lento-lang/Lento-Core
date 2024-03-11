@@ -16,6 +16,7 @@ pub enum RecordKeyAst {
 
 /// Module is the root program node of the AST
 /// It contains a list of all the expressions in the program
+#[derive(Debug, Clone, PartialEq)]
 pub struct Module {
     pub expressions: Vec<Ast>,
     pub source: InputSource,
