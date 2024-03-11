@@ -194,12 +194,13 @@ pub fn init_environment(env: &mut Environment) {
 
 #[cfg(test)]
 mod tests {
+    use crate::lexer::lexer;
+
     use super::*;
-    use std::io::Cursor;
 
     #[test]
     fn test_init_lexer() {
-        let mut lexer = Lexer::new(Cursor::new(""));
+        let mut lexer = lexer::from_str("");
         init_lexer(&mut lexer);
         assert!(lexer.lookup_op("=").is_some());
         assert!(lexer.lookup_op("+").is_some());
