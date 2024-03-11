@@ -399,7 +399,13 @@ pub fn parse_path_all(path: &Path) -> ModuleResult {
 
 #[cfg(test)]
 mod tests {
+    use crate::interpreter::value::UnsignedInteger;
+
     use super::*;
+
+    fn make_u8(n: u8) -> Value {
+        Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(n)))
+    }
 
     #[test]
     fn test_parser_call_paren_apply() {
@@ -470,5 +476,17 @@ mod tests {
             assert!(matches!(*lhs.to_owned(), Ast::Literal(Value::Number(_))));
             assert!(matches!(*rhs.to_owned(), Ast::Literal(Value::Number(_))));
         }
+    }
+
+    #[test]
+    fn test_parser_sequence_semicolon() {
+        let result = parse_str_all("1; 2; 3");
+        dbg!(&result);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 3);
+        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
+        assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
     }
 }
