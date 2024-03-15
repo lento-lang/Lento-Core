@@ -68,7 +68,7 @@ impl FunctionParameterType {
                     return false;
                 }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !t.subtype(args[i].get_type().unwrap_checked()) {
+                    if !args[i].get_type().unwrap_checked().subtype(t) {
                         return false;
                     }
                 }
