@@ -88,6 +88,18 @@ mod tests {
     }
 
     #[test]
+    fn test_parser_assignment() {
+        let result = parse_str_one("x = 1");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(
+            result.expressions[0],
+            Ast::Assignment(_, _, CheckedType::Unchecked)
+        ));
+    }
+
+    #[test]
     fn test_parser_sequence() {
         let result = parse_str_all("1 2 3");
         assert!(result.is_ok());
