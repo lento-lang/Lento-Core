@@ -108,6 +108,7 @@ mod tests {
                 Ast::Binary(_, _, _, CheckedType::Unchecked)
             ));
         }
+        // dbg!(&result.expressions[0].print_sexpr());
     }
 
     #[test]

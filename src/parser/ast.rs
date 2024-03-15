@@ -96,6 +96,68 @@ pub enum Ast {
     Block(Vec<Ast>, CheckedType),
 }
 
+impl Ast {
+    pub fn print_sexpr(&self) -> String {
+        match self {
+            Ast::Literal(value) => value.to_string(),
+            Ast::Tuple(elements, _) => format!(
+                "({})",
+                elements
+                    .iter()
+                    .map(|e| e.print_sexpr())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+            Ast::List(elements, _) => format!(
+                "[{}]",
+                elements
+                    .iter()
+                    .map(|e| e.print_sexpr())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+            Ast::Record(_elements, _) => todo!(),
+            Ast::Identifier(name, _) => name.clone(),
+            Ast::TypeIdentifier(name, _) => name.clone(),
+            Ast::FunctionCall(name, args, _) => format!(
+                "({} {})",
+                name,
+                args.iter()
+                    .map(|e| e.print_sexpr())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+            Ast::Function(name, params, body, _) => {
+                format!("(fn {} {} {})", name, params, body.print_sexpr())
+            }
+            Ast::Binary(lhs, op, rhs, _) => format!(
+                "({}/{} {} {})",
+                op.name.clone(),
+                op.symbol.clone(),
+                lhs.print_sexpr(),
+                rhs.print_sexpr()
+            ),
+            Ast::Unary(op, operand, _) => format!(
+                "({}/{} {})",
+                op.name.clone(),
+                op.symbol.clone(),
+                operand.print_sexpr()
+            ),
+            Ast::Assignment(lhs, rhs, _) => {
+                format!("(= {} {})", lhs.print_sexpr(), rhs.print_sexpr())
+            }
+            Ast::Block(expressions, _) => format!(
+                "({})",
+                expressions
+                    .iter()
+                    .map(|e| e.print_sexpr())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+        }
+    }
+}
+
 impl GetType for Ast {
     fn get_type(&self) -> CheckedType {
         CheckedType::Checked(match self {
