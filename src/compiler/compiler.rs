@@ -24,11 +24,17 @@ pub enum OptimizationLevel {
 /// The options are used to configure the compiler's behavior
 /// when compiling a module.
 pub struct CompileOptions<Out: Write> {
+    /// The optimization level.
     pub optimization_level: OptimizationLevel,
+    /// Whether to include debug information in the compiled module.
     pub debug_info: bool,
+    /// The target triple.
     pub target: Triple,
+    /// The output stream to write the compiled module to.
     pub output_stream: BufWriter<Out>,
+    /// Input source info of the module.
     pub input_source: InputSource,
+    /// Whether to emit functions into their own sections.
     pub function_sections: bool,
 }
 
