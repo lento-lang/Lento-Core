@@ -1,1 +1,3 @@
-pub mod cranelift;
+mod cranelift;
+pub use cranelift::Cranelift;
+mod tests;
