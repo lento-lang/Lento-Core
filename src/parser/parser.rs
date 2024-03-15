@@ -8,7 +8,10 @@ use crate::{
     interpreter::value::{Number, Value},
     lexer::{
         lexer::{self, InputSource, LexResult},
-        op::{Operator, OperatorAssociativity, OperatorPosition, OperatorPrecedence},
+        op::{
+            Operator, OperatorAssociativity, OperatorPosition, OperatorPrecedence,
+            StaticOperatorAst,
+        },
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
         token::Token,
     },
@@ -193,7 +196,11 @@ impl<R: Read + Seek> Parser<R> {
                     });
                 }
                 let rhs = self.parse_primary()?;
-                Ok(Ast::Unary(op, Box::new(rhs), CheckedType::Unchecked))
+                // Ok(Ast::Unary(op, Box::new(rhs), CheckedType::Unchecked))
+                Ok(match op {
+                    Operator::Runtime(rt) => Ast::Unary(rt, Box::new(rhs), CheckedType::Unchecked),
+                    Operator::Static(st) => (st.handler)(StaticOperatorAst::Prefix(rhs)),
+                })
             } else {
                 Err(ParseError {
                     message: format!("Expected primary expression, but found {:?}", t.token),
@@ -268,7 +275,13 @@ impl<R: Read + Seek> Parser<R> {
                 rhs = self.parse_expr(rhs, next_prec)?;
                 nt = self.lexer.peek_token(0);
             }
-            expr = Ast::Binary(Box::new(expr), op, Box::new(rhs), CheckedType::Unchecked);
+            // expr = Ast::Binary(Box::new(expr), op, Box::new(rhs), CheckedType::Unchecked);
+            expr = match op {
+                Operator::Runtime(rt) => {
+                    Ast::Binary(Box::new(expr), rt, Box::new(rhs), CheckedType::Unchecked)
+                }
+                Operator::Static(st) => (st.handler)(StaticOperatorAst::Infix(expr, rhs)),
+            }
         }
         Ok(expr)
     }

@@ -4,11 +4,12 @@ mod tests {
 
     use crate::{
         interpreter::value::{Number, UnsignedInteger, Value},
-        lexer::op::Operator,
+        lexer::op::RuntimeOperator,
         parser::{
             ast::Ast,
             parser::{parse_path_one, parse_str_all, parse_str_one},
         },
+        stdlib::arithmetic::op_add,
         type_checker::types::CheckedType,
     };
 
@@ -78,8 +79,12 @@ mod tests {
         assert!(result.expressions.len() == 1);
         assert!(matches!(
             result.expressions[0],
-            Ast::Binary(_, Operator::Runtime(_), _, CheckedType::Unchecked)
+            Ast::Binary(_, _, _, CheckedType::Unchecked)
         ));
+        // Assert "add"
+        if let Ast::Binary(_, op, _, _) = &result.expressions[0] {
+            assert_eq!(op, &op_add());
+        }
         if let Ast::Binary(lhs, _, rhs, _) = &result.expressions[0] {
             // Always true
             assert!(matches!(*lhs.to_owned(), Ast::Literal(Value::Number(_))));

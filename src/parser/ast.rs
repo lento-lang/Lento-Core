@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use crate::{
     interpreter::value::Value,
-    lexer::{lexer::InputSource, op::Operator},
+    lexer::{
+        lexer::InputSource,
+        op::{Operator, RuntimeOperator},
+    },
     type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
 };
 
@@ -79,12 +82,12 @@ pub enum Ast {
     /// 2. Operator
     /// 3. Right operand
     /// 4. Type of the result of the operation
-    Binary(Box<Ast>, Operator, Box<Ast>, CheckedType),
+    Binary(Box<Ast>, RuntimeOperator, Box<Ast>, CheckedType),
     /// A unary expression is an operation with one operand
     /// 1. Operator
     /// 2. Operand
     /// 3. Type of the result of the operation
-    Unary(Operator, Box<Ast>, CheckedType),
+    Unary(RuntimeOperator, Box<Ast>, CheckedType),
     /// An assignment expression assigns a value to a variable
     /// 1. Matching pattern (identifier, destructuring of a tuple, record, etc.)
     /// 2. Value

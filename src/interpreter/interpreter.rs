@@ -145,16 +145,9 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
             Some(v) => v,
             None => return Err(runtime_error(format!("Unknown identifier: '{}'", id))),
         },
-        Ast::Binary(lhs, op, rhs, _) => match op {
-            Operator::Runtime(rt) => {
-                eval_function_variation_invocation(rt.name, *rt.handler, vec![*lhs, *rhs], env)?
-            }
-            Operator::Static(st) => {
-                let sop = StaticOperatorAst::Infix(*lhs, *rhs);
-                let transformed = (st.handler)(sop);
-                interpret_ast(&transformed, env)?
-            }
-        },
+        Ast::Binary(lhs, op, rhs, _) => {
+            eval_function_variation_invocation(op.name, *op.handler, vec![*lhs, *rhs], env)?
+        }
         Ast::Assignment(lhs, rhs, _) => {
             let lhs = match *lhs {
                 Ast::Identifier(id, _) => id,
