@@ -183,7 +183,10 @@ pub fn interpret_module(module: &Module, env: &mut Environment) -> InterpretResu
 #[cfg(test)]
 mod tests {
     use crate::{
-        interpreter::value::{Number, UnsignedInteger},
+        interpreter::{
+            environment::global_env,
+            value::{Number, UnsignedInteger},
+        },
         stdlib::arithmetic,
         type_checker::types::{std_primitive_types, CheckedType},
     };
@@ -194,17 +197,59 @@ mod tests {
         Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(n)))
     }
 
+    fn add(lhs: Ast, rhs: Ast) -> Ast {
+        Ast::Binary(
+            Box::new(lhs),
+            Operator::Runtime(arithmetic::op_add()),
+            Box::new(rhs),
+            CheckedType::Unchecked, // Not required for this test
+        )
+    }
+
     #[test]
     fn test_interpret_binary_add() {
-        let mut env = Environment::new(Str::Str("test"));
-        let ast = Ast::Binary(
-            Box::new(Ast::Literal(make_u8(1))),
-            Operator::Runtime(arithmetic::op_add()),
-            Box::new(Ast::Literal(make_u8(2))),
-            CheckedType::Unchecked, // Not required for this test
-        );
+        let ast = add(Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2)));
         // TODO: let checked_ast = type_check(&ast).unwrap();
-        let result = interpret_ast(&ast, &mut env).unwrap();
+        let result = interpret_ast(&ast, &mut global_env()).unwrap();
+        assert_eq!(
+            result.get_type().unwrap_checked().clone(),
+            std_primitive_types::UINT8
+        );
+        assert_eq!(result, make_u8(3));
+    }
+
+    #[test]
+    fn test_interpret_tuple() {
+        let ast = Ast::Tuple(
+            vec![
+                Ast::Literal(make_u8(1)),
+                Ast::Literal(make_u8(2)),
+                Ast::Literal(make_u8(3)),
+            ],
+            CheckedType::Unchecked,
+        );
+        let result = interpret_ast(&ast, &mut global_env()).unwrap();
+        assert_eq!(
+            result.get_type().unwrap_checked().clone(),
+            Type::Tuple(vec![std_primitive_types::UINT8; 3])
+        );
+        assert_eq!(
+            result,
+            Value::Tuple(
+                vec![make_u8(1), make_u8(2), make_u8(3)],
+                Type::Tuple(vec![std_primitive_types::UINT8; 3])
+            )
+        );
+    }
+
+    #[test]
+    fn test_interpret_function_call() {
+        let ast = Ast::FunctionCall(
+            "add".to_string(),
+            vec![Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2))],
+            CheckedType::Unchecked,
+        );
+        let result = interpret_ast(&ast, &mut global_env()).unwrap();
         assert_eq!(
             result.get_type().unwrap_checked().clone(),
             std_primitive_types::UINT8
