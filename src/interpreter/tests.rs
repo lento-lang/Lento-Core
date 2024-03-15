@@ -29,7 +29,9 @@ mod tests {
     fn test_interpret_binary_add() {
         let ast = add(Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2)));
         // TODO: let checked_ast = type_check(&ast).unwrap();
-        let result = interpret_ast(&ast, &mut global_env()).unwrap();
+        let result = interpret_ast(&ast, &mut global_env());
+        assert!(result.is_ok());
+        let result = result.unwrap();
         assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
@@ -44,7 +46,9 @@ mod tests {
             ],
             CheckedType::Unchecked,
         );
-        let result = interpret_ast(&ast, &mut global_env()).unwrap();
+        let result = interpret_ast(&ast, &mut global_env());
+        assert!(result.is_ok());
+        let result = result.unwrap();
         assert!(result
             .get_type()
             .is_exact_type(&Type::Tuple(vec![std_primitive_types::UINT8; 3])));
@@ -64,7 +68,9 @@ mod tests {
             vec![Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2))],
             CheckedType::Unchecked,
         );
-        let result = interpret_ast(&ast, &mut global_env()).unwrap();
+        let result = interpret_ast(&ast, &mut global_env());
+        assert!(result.is_ok());
+        let result = result.unwrap();
         assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
