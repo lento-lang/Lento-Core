@@ -22,6 +22,13 @@ impl CheckedType {
             CheckedType::Unchecked => panic!("Unwrap of unchecked type"),
         }
     }
+
+    pub fn is_exact_type(&self, t: &Type) -> bool {
+        match self {
+            CheckedType::Checked(t1) => t1 == t,
+            CheckedType::Unchecked => false,
+        }
+    }
 }
 
 impl Display for CheckedType {

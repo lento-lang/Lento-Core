@@ -211,10 +211,7 @@ mod tests {
         let ast = add(Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2)));
         // TODO: let checked_ast = type_check(&ast).unwrap();
         let result = interpret_ast(&ast, &mut global_env()).unwrap();
-        assert_eq!(
-            result.get_type().unwrap_checked().clone(),
-            std_primitive_types::UINT8
-        );
+        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
 
@@ -229,10 +226,9 @@ mod tests {
             CheckedType::Unchecked,
         );
         let result = interpret_ast(&ast, &mut global_env()).unwrap();
-        assert_eq!(
-            result.get_type().unwrap_checked().clone(),
-            Type::Tuple(vec![std_primitive_types::UINT8; 3])
-        );
+        assert!(result
+            .get_type()
+            .is_exact_type(&Type::Tuple(vec![std_primitive_types::UINT8; 3])));
         assert_eq!(
             result,
             Value::Tuple(
@@ -250,10 +246,7 @@ mod tests {
             CheckedType::Unchecked,
         );
         let result = interpret_ast(&ast, &mut global_env()).unwrap();
-        assert_eq!(
-            result.get_type().unwrap_checked().clone(),
-            std_primitive_types::UINT8
-        );
+        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
 }
