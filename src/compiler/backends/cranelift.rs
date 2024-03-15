@@ -57,6 +57,16 @@ mod tests {
         isa.unwrap()
     }
 
+    fn default_options(target: target_lexicon::Triple) -> CompileOptions<std::io::Sink> {
+        CompileOptions::new(
+            OptimizationLevel::None,
+            false,
+            target,
+            std::io::sink(),
+            InputSource::String,
+        )
+    }
+
     /// Test that the Cranelift backend can compile a simple "Hello, World!" program on Windows.
     /// The test uses the x86_64-unknown-windows-msvc target.
     ///
@@ -65,21 +75,22 @@ mod tests {
     #[test]
     fn test_cranelift_print_hello_world_windows() {
         let target = triple!("x86_64-unknown-windows-msvc");
-        let mut cranelift = super::Cranelift::new(
-            build_isa(target.clone()),
-            settings::Flags::new(settings::builder()),
-        );
-        let module = parse_str_all(r#"print("Hello, World!")"#).expect("Failed to parse");
-        let result = cranelift.compile_module(
-            &module,
-            CompileOptions::new(
-                OptimizationLevel::None,
-                false,
-                target,
-                std::io::sink(),
-                InputSource::String,
-            ),
-        );
+        let isa = build_isa(target.clone());
+        let mut cranelift = super::Cranelift::new(isa, settings::Flags::new(settings::builder()));
+        let module = parse_str_all(r#"print("Hello, World!");"#).expect("Failed to parse");
+        let result = cranelift.compile_module(&module, default_options(target));
+        assert!(result.is_ok());
+    }
+
+    /// Test that the Cranelift backend can compile a simple "Hello, World!" program on Linux.
+    /// The test uses the x86_64-unknown-linux-gnu target.
+    #[test]
+    fn test_cranelift_print_hello_world_linux() {
+        let target = triple!("x86_64-unknown-linux-gnu");
+        let isa = build_isa(target.clone());
+        let mut cranelift = super::Cranelift::new(isa, settings::Flags::new(settings::builder()));
+        let module = parse_str_all(r#"print("Hello, World!");"#).expect("Failed to parse");
+        let result = cranelift.compile_module(&module, default_options(target));
         assert!(result.is_ok());
     }
 }
