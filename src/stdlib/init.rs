@@ -219,5 +219,6 @@ mod tests {
         assert!(env.get_value("phi").is_some());
         assert!(env.get_value("sqrt2").is_some());
         assert!(env.get_value("print").is_some());
+        assert!(env.get_value("add").is_some());
     }
 }
