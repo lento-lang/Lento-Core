@@ -29,15 +29,17 @@ pub struct CompileOptions<Out: Write> {
     pub target: Triple,
     pub output_stream: BufWriter<Out>,
     pub input_source: InputSource,
+    pub function_sections: bool,
 }
 
 impl<Out: Write> CompileOptions<Out> {
     pub fn new(
-        optimization_level: OptimizationLevel,
-        debug_info: bool,
         target: Triple,
         output_file: Out,
         input_source: InputSource,
+        optimization_level: OptimizationLevel,
+        debug_info: bool,
+        function_sections: bool,
     ) -> Self {
         Self {
             optimization_level,
@@ -45,6 +47,7 @@ impl<Out: Write> CompileOptions<Out> {
             target,
             output_stream: BufWriter::new(output_file),
             input_source,
+            function_sections,
         }
     }
 }
