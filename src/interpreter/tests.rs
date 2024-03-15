@@ -74,4 +74,15 @@ mod tests {
         assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
+
+    #[test]
+    fn test_interpret_invalid_function() {
+        let ast = Ast::FunctionCall(
+            "invalid_function_7194389034783682712840186".to_string(),
+            vec![],
+            CheckedType::Unchecked,
+        );
+        let result = interpret_ast(&ast, &mut global_env());
+        assert!(result.is_err());
+    }
 }
