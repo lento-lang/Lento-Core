@@ -18,13 +18,15 @@ pub enum RecordKeyAst {
 /// It contains a list of all the expressions in the program
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module {
+    pub name: String,
     pub expressions: Vec<Ast>,
     pub source: InputSource,
 }
 
 impl Module {
-    pub fn new(expressions: Vec<Ast>, source: InputSource) -> Module {
+    pub fn new(name: String, expressions: Vec<Ast>, source: InputSource) -> Module {
         Module {
+            name,
             expressions,
             source,
         }
