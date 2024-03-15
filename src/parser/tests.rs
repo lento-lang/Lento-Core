@@ -124,6 +124,28 @@ mod tests {
     }
 
     #[test]
+    fn test_parser_assign_add() {
+        let result = parse_str_one("x = 1 + 2");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(
+            result.expressions[0],
+            Ast::Assignment(_, _, CheckedType::Unchecked)
+        ));
+        if let Ast::Assignment(lhs, rhs, _) = &result.expressions[0] {
+            assert!(matches!(
+                *lhs.to_owned(),
+                Ast::Identifier(_, CheckedType::Unchecked)
+            ));
+            assert!(matches!(
+                *rhs.to_owned(),
+                Ast::Binary(_, _, _, CheckedType::Unchecked)
+            ));
+        }
+    }
+
+    #[test]
     fn test_parser_sequence() {
         let result = parse_str_all("1 2 3");
         assert!(result.is_ok());
