@@ -1,5 +1,4 @@
 use crate::{
-    lexer::op::{Operator, StaticOperatorAst},
     parser::ast::{Ast, Module},
     type_checker::types::{FunctionParameterType, GetType, Type},
     util::str::Str,

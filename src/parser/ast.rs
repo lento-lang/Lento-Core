@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     interpreter::value::Value,
-    lexer::{
-        lexer::InputSource,
-        op::{Operator, RuntimeOperator},
-    },
+    lexer::{lexer::InputSource, op::RuntimeOperator},
     type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
 };
 
