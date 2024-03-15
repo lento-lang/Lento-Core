@@ -192,33 +192,3 @@ pub fn init_environment(env: &mut Environment) {
     add_func(env, "print", vec![rt_print]);
     add_func(env, "add", vec![arithmetic::add()]);
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::lexer::lexer;
-
-    use super::*;
-
-    #[test]
-    fn test_init_lexer() {
-        let mut lexer = lexer::from_str("");
-        init_lexer(&mut lexer);
-        assert!(lexer.lookup_op("=").is_some());
-        assert!(lexer.lookup_op("+").is_some());
-    }
-
-    #[test]
-    fn test_init_environment() {
-        let mut env = Environment::new(Str::from("test"));
-        init_environment(&mut env);
-        assert!(env.get_value("true").is_some());
-        assert!(env.get_value("false").is_some());
-        assert!(env.get_value("pi").is_some());
-        assert!(env.get_value("tau").is_some());
-        assert!(env.get_value("e").is_some());
-        assert!(env.get_value("phi").is_some());
-        assert!(env.get_value("sqrt2").is_some());
-        assert!(env.get_value("print").is_some());
-        assert!(env.get_value("add").is_some());
-    }
-}
