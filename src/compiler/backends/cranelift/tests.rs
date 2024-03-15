@@ -34,11 +34,12 @@ mod tests {
 
     fn default_options(target: target_lexicon::Triple) -> CompileOptions<std::io::Sink> {
         CompileOptions::new(
-            OptimizationLevel::None,
-            false,
             target,
             std::io::sink(),
             InputSource::String,
+            OptimizationLevel::None,
+            false,
+            false,
         )
     }
 
