@@ -190,6 +190,7 @@ pub fn init_environment(env: &mut Environment) {
     //--------------------------------------------------------------------------------------//
 
     add_func(env, "print", vec![rt_print]);
+    add_func(env, "add", vec![arithmetic::add()]);
 }
 
 #[cfg(test)]
