@@ -85,4 +85,18 @@ mod tests {
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_interpret_assignment() {
+        let ast = Ast::Assignment(
+            Box::new(Ast::Identifier("x".to_string(), CheckedType::Unchecked)),
+            Box::new(Ast::Literal(make_u8(1))),
+            CheckedType::Unchecked,
+        );
+        let result = interpret_ast(&ast, &mut global_env());
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
+        assert_eq!(result, make_u8(1));
+    }
 }
