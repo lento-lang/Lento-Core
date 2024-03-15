@@ -92,6 +92,25 @@ mod tests {
     }
 
     #[test]
+    fn test_parser_arithmetic_tree() {
+        let result = parse_str_one("1 + 2 + 3");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(
+            result.expressions[0],
+            Ast::Binary(_, _, _, CheckedType::Unchecked)
+        ));
+        // Assert left side
+        if let Ast::Binary(lhs, _, _, _) = &result.expressions[0] {
+            assert!(matches!(
+                **lhs,
+                Ast::Binary(_, _, _, CheckedType::Unchecked)
+            ));
+        }
+    }
+
+    #[test]
     fn test_parser_assignment() {
         let result = parse_str_one("x = 1");
         assert!(result.is_ok());
