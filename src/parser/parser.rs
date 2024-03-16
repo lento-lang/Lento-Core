@@ -274,23 +274,18 @@ impl<R: Read + Seek> Parser<R> {
     /// - https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut nt = self.lexer.peek_token(0);
-        // println!("parse_expr: nt = {:?}", nt);
         let mut expr = lhs;
-        // println!("parse_expr: expr = {:?}", expr);
-
         while let Some(op) = Self::parse_expr_check_first(&nt, min_prec) {
-            self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
+            self.lexer.read_next_token().unwrap();
             let mut rhs = self.parse_primary()?;
             nt = self.lexer.peek_token(0);
             while let Some(nt_op) = Self::parse_expr_check_next(&op, &nt) {
-                // self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
                 let curr_prec = op.precedence();
                 let nt_prec = nt_op.precedence();
                 let next_prec = curr_prec + (nt_prec > curr_prec) as OperatorPrecedence;
                 rhs = self.parse_expr(rhs, next_prec)?;
                 nt = self.lexer.peek_token(0);
             }
-            // expr = Ast::Binary(Box::new(expr), op, Box::new(rhs), CheckedType::Unchecked);
             expr = match op {
                 Operator::Runtime(rt) => {
                     Ast::Binary(Box::new(expr), rt, Box::new(rhs), CheckedType::Unchecked)
