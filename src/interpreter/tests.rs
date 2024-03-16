@@ -3,11 +3,10 @@ mod tests {
     use crate::{
         interpreter::{
             environment::global_env,
-            interpreter::interpret_ast,
+            interpreter::{interpret_ast, interpret_module},
             value::{Number, UnsignedInteger, Value},
         },
-        lexer::op::Operator,
-        parser::ast::Ast,
+        parser::{ast::Ast, parser},
         stdlib::arithmetic,
         type_checker::types::{std_primitive_types, CheckedType, GetType, Type},
     };
@@ -19,7 +18,7 @@ mod tests {
     fn add(lhs: Ast, rhs: Ast) -> Ast {
         Ast::Binary(
             Box::new(lhs),
-            Operator::Runtime(arithmetic::op_add()),
+            arithmetic::op_add(),
             Box::new(rhs),
             CheckedType::Unchecked, // Not required for this test
         )
