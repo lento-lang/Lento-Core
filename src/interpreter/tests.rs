@@ -116,4 +116,34 @@ mod tests {
         assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
+
+    #[test]
+    fn test_interpret_function_decl_call() {
+        let module = parser::parse_str_all(
+            r#"
+			let add1(x: u8, y: u8) -> u8 {
+				x + y
+			}
+			let add2 x: u8 y: u8 -> u8 {
+				x + y
+			}
+			let add3(x: u8, y: u8) -> u8 = x + y;
+			let add4 x: u8 y: u8 -> u8 = x + y;
+			add1(1, 2);
+			add2(1, 2);
+			add3(1, 2);
+			add4(1, 2);
+			add1 1 2;
+			add2 1 2;
+			add3 1 2;
+			add4 1 2;
+		"#,
+        )
+        .expect("Failed to parse module");
+        let result = interpret_module(&module, &mut global_env());
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
+        assert_eq!(result, make_u8(3));
+    }
 }
