@@ -270,8 +270,10 @@ impl<R: Read + Seek> Parser<R> {
     /// ## Algorithm
     /// See:
     /// - https://en.wikipedia.org/wiki/Operator-precedence_parser
+    /// - https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
     /// - https://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
     /// - https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
+    /// - https://crockford.com/javascript/tdop/tdop.html
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut nt = self.lexer.peek_token(0);
         let mut expr = lhs;
