@@ -2,13 +2,14 @@
 mod tests {
     use crate::{
         interpreter::{
-            environment::global_env,
+            environment::{global_env, Environment},
             interpreter::{interpret_ast, interpret_module},
             value::{Number, UnsignedInteger, Value},
         },
         parser::{ast::Ast, parser},
         stdlib::arithmetic,
         type_checker::types::{std_primitive_types, CheckedType, GetType, Type},
+        util::str::Str,
     };
 
     fn make_u8(n: u8) -> Value {
@@ -81,7 +82,7 @@ mod tests {
             vec![],
             CheckedType::Unchecked,
         );
-        let result = interpret_ast(&ast, &mut global_env());
+        let result = interpret_ast(&ast, &mut Environment::new(Str::Str("empty")));
         assert!(result.is_err());
     }
 
