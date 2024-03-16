@@ -284,8 +284,9 @@ impl<R: Read + Seek> Parser<R> {
             nt = self.lexer.peek_token(0);
             while let Some(nt_op) = Self::parse_expr_check_next(&op, &nt) {
                 // self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
-                let op_prec = nt_op.precedence();
-                let next_prec = op_prec + (op_prec > min_prec) as OperatorPrecedence;
+                let curr_prec = op.precedence();
+                let nt_prec = nt_op.precedence();
+                let next_prec = curr_prec + (nt_prec > curr_prec) as OperatorPrecedence;
                 rhs = self.parse_expr(rhs, next_prec)?;
                 nt = self.lexer.peek_token(0);
             }
