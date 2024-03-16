@@ -505,13 +505,22 @@ impl<R: Read + Seek> Lexer<R> {
         c.is_alphanumeric() || c == '_'
     }
 
+    fn create_identifier_or_keyword(&self, s: String) -> Token {
+        match s.as_str() {
+            "true" => Token::Boolean(true),
+            "false" => Token::Boolean(false),
+            "let" => Token::Let,
+            _ => Token::Identifier(s),
+        }
+    }
+
     /// Read an identifier from the source code.
     fn read_identifier(&mut self, c: char) -> LexResult {
         self.read_while(
             Some(c.to_string()),
             Self::is_identifier_body_char,
             true,
-            |this, s| this.new_token_info(Token::Identifier(s)),
+            |this, s| this.new_token_info(this.create_identifier_or_keyword(s)),
             |_, _| (),
         )
     }

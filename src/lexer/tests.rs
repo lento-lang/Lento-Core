@@ -107,4 +107,14 @@ mod tests {
         ));
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
+
+    #[test]
+    fn test_lexer_keywords() {
+        let mut lexer = from_str("true false let");
+        init_lexer(&mut lexer);
+        assert_next_token_eq(&mut lexer, Token::Boolean(true));
+        assert_next_token_eq(&mut lexer, Token::Boolean(false));
+        assert_next_token_eq(&mut lexer, Token::Let);
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
+    }
 }

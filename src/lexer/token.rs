@@ -29,6 +29,8 @@ pub enum Token {
     // All other operators will be implemented in a standard library at runtime in the future
     // leaving support for user-defined operators
     Op(Operator),
+    // Keywords
+    Let,
 }
 
 impl Token {
