@@ -216,61 +216,75 @@ impl<R: Read + Seek> Parser<R> {
         }
     }
 
-    /**
-     * Parse an expression with a given left-hand side and minimum precedence level
-     * using the operator precedence parsing algorithm
-     * @param lhs The left-hand side of the expression
-     * @param min_prec The minimum precedence of the expression
-     * @return The parsed expression
-     * @throws ParseFail if the expression could not be parsed
-     *
-     * @see https://en.wikipedia.org/wiki/Operator-precedence_parser
-     * @see https://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
-     * @see https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
-     */
+    /// Check if the next token is an infix binary operator with a precedence greater than or equal to `min_prec`.
+    ///
+    /// ## Note
+    /// If it is, then return the operator, otherwise return None.
+    /// If the next token is a terminator, then return None.
+    fn parse_expr_check_first(op: &LexResult, min_prec: OperatorPrecedence) -> Option<Operator> {
+        if let Ok(t) = op {
+            if t.token.is_terminator() {
+                return None;
+            }
+            return t
+                .token
+                .get_operator()
+                .filter(|op| op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec);
+        }
+        None
+    }
+
+    /// Check if the next token `nt` is an infix binary operator whose precedence
+    /// is greater than op's, or a right-associative operator whose precedence is equal to `op`'s.
+    /// If it is, then return the operator, otherwise return None.
+    ///
+    /// ## Note
+    /// Return true if either:
+    /// - `op` is a binary operator whose precedence is greater than op's
+    /// - `op` is a right-associative binary operator whose precedence is equal to op's
+    fn parse_expr_check_next(op: &Operator, nt: &LexResult) -> Option<Operator> {
+        if let Ok(t) = nt {
+            if let Some(nt_op) = t.token.get_operator() {
+                let is_infix = nt_op.pos() == OperatorPosition::Infix;
+                let is_greater = nt_op.precedence() > op.precedence();
+                let is_right_assoc = nt_op.associativity() == OperatorAssociativity::Right;
+                let is_equal = nt_op.precedence() == op.precedence();
+                if is_infix && (is_greater || (is_right_assoc && is_equal)) {
+                    return Some(nt_op);
+                }
+            }
+        }
+        None
+    }
+
+    /// Parse an expression with a given left-hand side and minimum precedence level
+    /// using the operator precedence parsing (pratt parsing) algorithm.
+    ///
+    /// ## Arguments
+    /// - `lhs` The left-hand side of the expression
+    /// - `min_prec` The minimum precedence of the expression
+    ///
+    /// ## Returns
+    /// The parsed expression or a parse error if the expression could not be parsed
+    ///
+    /// ## Algorithm
+    /// See:
+    /// - https://en.wikipedia.org/wiki/Operator-precedence_parser
+    /// - https://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
+    /// - https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut nt = self.lexer.peek_token(0);
         // println!("parse_expr: nt = {:?}", nt);
         let mut expr = lhs;
         // println!("parse_expr: expr = {:?}", expr);
-        let check_first = |op: &LexResult| -> Option<Operator> {
-            /* return true if both:
-             * the result is ok
-             * 'op' is a binary operator whose precedence is greater than min_prec
-             */
-            if op.is_err() {
-                return None;
-            }
-            let op = op.as_ref().unwrap();
-            if op.token.is_terminator() {
-                return None;
-            }
-            op.token
-                .get_operator()
-                .filter(|op| op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec)
-        };
-        while let Some(op) = check_first(&nt) {
+
+        while let Some(op) = Self::parse_expr_check_first(&nt, min_prec) {
             self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
             let mut rhs = self.parse_primary()?;
             nt = self.lexer.peek_token(0);
-            let check_next = |op: &LexResult| {
-                /* return true if either:
-                 * 'op' is a binary operator whose precedence is greater than op's
-                 * 'op' is a right-associative binary operator whose precedence is equal to op's
-                 */
-                if op.is_err() {
-                    false
-                } else if let Some(op) = op.as_ref().unwrap().token.get_operator() {
-                    op.pos() == OperatorPosition::Infix
-                        && ((op.precedence() > min_prec)
-                            || (op.associativity() == OperatorAssociativity::Right
-                                && op.precedence() == min_prec))
-                } else {
-                    false
-                }
-            };
-            while check_next(&nt) {
-                let op_prec = nt.unwrap().token.get_operator().unwrap().precedence();
+            while let Some(nt_op) = Self::parse_expr_check_next(&op, &nt) {
+                // self.lexer.read_next_token().unwrap(); // consume the peeked binary operator token
+                let op_prec = nt_op.precedence();
                 let next_prec = op_prec + (op_prec > min_prec) as OperatorPrecedence;
                 rhs = self.parse_expr(rhs, next_prec)?;
                 nt = self.lexer.peek_token(0);
