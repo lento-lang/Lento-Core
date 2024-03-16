@@ -3,9 +3,7 @@ use std::io::Read;
 use std::io::Result;
 use std::io::Seek;
 
-/**
-    Provides a wrapper for strings so that they can be consumed via the std::io::Read and std::io::Seek traits.
-*/
+/// Provides a wrapper for strings so that they can be consumed via the `std::io::Read` and `std::io::Seek` traits.
 pub struct BytesReader<'a> {
     data: &'a [u8],
     pos: usize,

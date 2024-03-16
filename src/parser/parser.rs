@@ -298,9 +298,7 @@ impl<R: Read + Seek> Parser<R> {
         Ok(expr)
     }
 
-    /**
-     * Parse a top-level expression
-     */
+    /// Parse a top-level expression.
     fn parse_top_expr(&mut self) -> ParseResult {
         let lhs = self.parse_primary()?;
         let expr = self.parse_expr(lhs, 0);

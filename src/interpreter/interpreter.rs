@@ -107,9 +107,7 @@ fn eval_function_call(name: String, arg_asts: Vec<Ast>, env: &mut Environment) -
     }
 }
 
-/**
- * Assume `elems` are a non-empty vector
- */
+/// Assume `elems` are a non-empty vector
 fn eval_tuple(elems: Vec<Ast>, env: &mut Environment) -> InterpretResult {
     let (values, types): (Vec<Value>, Vec<Type>) = elems
         .iter()
@@ -125,10 +123,10 @@ fn eval_tuple(elems: Vec<Ast>, env: &mut Environment) -> InterpretResult {
     Ok(Value::Tuple(values, Type::Tuple(types)))
 }
 
-/**
- * Interpret an AST node
- * ! All nodes in the AST are assumed to be type-checked before being interpreted !
- */
+/// Interpret an AST node
+///
+/// ## Note
+/// ! All nodes in the AST are assumed to be type-checked before being interpreted!
 pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
     Ok(match ast.to_owned() {
         Ast::FunctionCall(name, args, _) => eval_function_call(name, args, env)?,

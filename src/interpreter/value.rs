@@ -663,9 +663,7 @@ impl Display for RecordKey {
     }
 }
 
-/**
- * Is the value representation of `FunctionParameterType`.
- */
+/// Is the value representation of `FunctionParameterType`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum NativeFunctionParameters {
     Singles(Vec<Value>),
@@ -682,11 +680,9 @@ pub enum FunctionVariation {
     ), // Built-in functions
 }
 
-/**
- * Compares two `FunctionVariation`s by their FunctionParameterType.
- * Used as compare function in the sort_by function.
- * This function will sort single functions before variadic functions.
- */
+/// Compares two `FunctionVariation`s by their FunctionParameterType.
+/// Used as compare function in the sort_by function.
+/// This function will sort single functions before variadic functions.
 pub fn compare_function_variations(a: &FunctionVariation, b: &FunctionVariation) -> Ordering {
     match (a.get_params(), b.get_params()) {
         (FunctionParameterType::Singles(_), FunctionParameterType::Variadic(_, _)) => {
@@ -758,12 +754,10 @@ impl Function {
     }
 }
 
-/**
- * A Lento value is a value that can be stored in a variable, returned from a function, or passed as an argument.
- * These values are stored in the interpreter's memory during runtime and are garbage collected when they are no longer in use.
- * The interpreter takes AST nodes and evaluates them to produce a value.
- * Values can be referenced and used in other expressions.
- */
+/// A Lento value is a value that can be stored in a variable, returned from a function, or passed as an argument.
+/// These values are stored in the interpreter's memory during runtime and are garbage collected when they are no longer in use.
+/// The interpreter takes AST nodes and evaluates them to produce a value.
+/// Values can be referenced and used in other expressions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Unit,

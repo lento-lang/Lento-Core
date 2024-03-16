@@ -11,10 +11,8 @@ use super::{
     value::{Function, Value},
 };
 
-/**
- * The environment is a map of variable names to values.
- * The environment is used to store variables and functions.
- */
+/// The environment is a map of variable names to values.
+/// The environment is used to store variables and functions.
 #[derive(Debug, Clone)]
 pub struct Environment<'a> {
     pub name: Str,
@@ -65,10 +63,8 @@ impl<'a> Environment<'a> {
         }
     }
 
-    /**
-     * Get a value from the environment.
-     * If the value is not found in the current environment, the parent environment is searched recursively.
-     */
+    /// Get a value from the environment.
+    /// If the value is not found in the current environment, the parent environment is searched recursively.
     pub fn get_value(&self, name: &str) -> Option<Value> {
         if let Some(v) = self.get_variable(name) {
             Some(v)
@@ -91,10 +87,8 @@ impl<'a> Environment<'a> {
         }
     }
 
-    /**
-     * Add a type to the environment.
-     * If the type already exists in a parent environment, it is shadowed.
-     */
+    /// Add a type to the environment.
+    /// If the type already exists in a parent environment, it is shadowed.
     pub fn add_type(&mut self, name: Str, type_: Type) -> Failable<RuntimeError> {
         // Check if the type already exists in the standard library
         if std_primitive_types::find_type(name.to_string()).is_some() {
@@ -107,10 +101,8 @@ impl<'a> Environment<'a> {
         Ok(())
     }
 
-    /**
-     * Add a variable (any value or function) to the environment.
-     * If the variable already exists in a parent environment, it is shadowed.
-     */
+    /// Add a variable (any value or function) to the environment.
+    /// If the variable already exists in a parent environment, it is shadowed.
     pub fn add_value(&mut self, name: Str, value: Value) -> Failable<RuntimeError> {
         let name = name.to_string();
         // Check if the variable already exists in the standard library
