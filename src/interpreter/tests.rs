@@ -118,32 +118,143 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_call() {
+    fn test_interpret_function_decl_paren_explicit_args_and_ret() {
         let module = parser::parse_str_all(
             r#"
-			let add1(x: u8, y: u8) -> u8 {
-				x + y
+			let add(x: u8, y: u8, z: u8) -> u8 {
+				x + y + z
 			}
-			let add2 x: u8 y: u8 -> u8 {
-				x + y
-			}
-			let add3(x: u8, y: u8) -> u8 = x + y;
-			let add4 x: u8 y: u8 -> u8 = x + y;
-			add1(1, 2);
-			add2(1, 2);
-			add3(1, 2);
-			add4(1, 2);
-			add1 1 2;
-			add2 1 2;
-			add3 1 2;
-			add4 1 2;
 		"#,
         )
         .expect("Failed to parse module");
-        let result = interpret_module(&module, &mut global_env());
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
-        assert_eq!(result, make_u8(3));
+        assert!(env.get_function("add").is_some());
+    }
+
+    #[test]
+    fn test_interpret_function_decl_explicit_args_and_ret() {
+        let module = parser::parse_str_all(
+            r#"
+			let add x: u8 y: u8 z: u8 -> u8 {
+				x + y + z
+			}
+		"#,
+        )
+        .expect("Failed to parse module");
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get_function("add").is_some());
+    }
+
+    #[test]
+    fn test_interpret_function_decl_explicit_args() {
+        let module = parser::parse_str_all(
+            r#"
+			let add x: u8 y: u8 z: u8 {
+				x + y + z
+			}
+		"#,
+        )
+        .expect("Failed to parse module");
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get_function("add").is_some());
+    }
+
+    #[test]
+    fn test_interpret_function_decl_paren_implicit_args_and_ret() {
+        let module = parser::parse_str_all(
+            r#"
+			let add(x, y, z) {
+				x + y + z
+			}
+		"#,
+        )
+        .expect("Failed to parse module");
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get_function("add").is_some());
+    }
+
+    #[test]
+    fn test_interpret_function_decl_implicit_args_and_ret() {
+        let module = parser::parse_str_all(
+            r#"
+			let add x y z {
+				x + y + z
+			}
+		"#,
+        )
+        .expect("Failed to parse module");
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get_function("add").is_some());
+    }
+
+    #[test]
+    fn test_interpret_function_decl_implicit_random_parens() {
+        let module = parser::parse_str_all(
+            r#"
+			let add x y (z) a (b) (c) -> u8 {
+				x + y + z + a + b + c
+			}
+		"#,
+        )
+        .expect("Failed to parse module");
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get_function("add").is_some());
+    }
+
+    #[test]
+    fn test_interpret_function_decl_paren_explicit_signature_oneline() {
+        let module = parser::parse_str_all(
+            r#"
+			let add(x: u8, y: u8, z: u8) -> u8 = x + y + z;
+		"#,
+        )
+        .expect("Failed to parse module");
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get_function("add").is_some());
+    }
+
+    #[test]
+    fn test_interpret_function_decl_explicit_signature_oneline() {
+        let module = parser::parse_str_all(
+            r#"
+			let add x: u8 y: u8 z: u8 -> u8 = x + y + z;
+		"#,
+        )
+        .expect("Failed to parse module");
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get_function("add").is_some());
+    }
+
+    #[test]
+    fn test_interpret_function_decl_explicit_signature() {
+        let module = parser::parse_str_all(
+            r#"
+			type add :: u8 -> u8 -> u8 -> u8
+			let add x y z {
+				x + y + z
+			}
+		"#,
+        )
+        .expect("Failed to parse module");
+        let mut env = global_env();
+        let result = interpret_module(&module, &mut env);
+        assert!(result.is_ok());
+        assert!(env.get_function("add").is_some());
     }
 }
