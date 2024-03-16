@@ -98,4 +98,21 @@ mod tests {
         assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
         assert_eq!(result, make_u8(1));
     }
+
+    #[test]
+    fn test_interpret_module_assign_add() {
+        let module = parser::parse_str_all(
+            r#"
+			x = 1;
+			y = 2;
+			z = x + y;
+		"#,
+        )
+        .expect("Failed to parse module");
+        let result = interpret_module(&module, &mut global_env());
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
+        assert_eq!(result, make_u8(3));
+    }
 }
