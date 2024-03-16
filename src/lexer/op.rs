@@ -19,6 +19,22 @@ pub enum OperatorAssociativity {
 
 pub type OperatorPrecedence = u16;
 
+pub mod default_operator_precedence {
+    use super::OperatorPrecedence;
+
+    pub const ASSIGNMENT: OperatorPrecedence = 100;
+    pub const CONDITIONAL: OperatorPrecedence = 200;
+    pub const LOGICAL_OR: OperatorPrecedence = 300;
+    pub const LOGICAL_AND: OperatorPrecedence = 400;
+    pub const EQUALITY: OperatorPrecedence = 500;
+    pub const RELATIONAL: OperatorPrecedence = 600;
+    pub const ADDITIVE: OperatorPrecedence = 700;
+    pub const MULTIPLICATIVE: OperatorPrecedence = 800;
+    pub const EXPONENTIAL: OperatorPrecedence = 900;
+    pub const PREFIX: OperatorPrecedence = 1000;
+    pub const POSTFIX: OperatorPrecedence = 1100;
+}
+
 //--------------------------------------------------------------------------------------//
 //                                   Runtime Operator                                   //
 //--------------------------------------------------------------------------------------//
@@ -41,7 +57,7 @@ impl RuntimeOperator {
         name: String,
         symbol: String,
         pos: OperatorPosition,
-        precedence: u16,
+        precedence: OperatorPrecedence,
         associativity: OperatorAssociativity,
         overloadable: bool,
         handler: RuntimeOperatorHandler,
@@ -61,7 +77,7 @@ impl RuntimeOperator {
         name: &str,
         symbol: &str,
         pos: OperatorPosition,
-        precedence: u16,
+        precedence: OperatorPrecedence,
         associativity: OperatorAssociativity,
         overloadable: bool,
         handler: RuntimeOperatorHandler,

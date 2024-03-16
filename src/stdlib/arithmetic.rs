@@ -3,7 +3,9 @@ use crate::{
         error::runtime_error,
         value::{ArithmeticOperations, FunctionVariation, NativeFunctionParameters, Number, Value},
     },
-    lexer::op::{OperatorAssociativity, OperatorPosition, RuntimeOperator},
+    lexer::op::{
+        default_operator_precedence, OperatorAssociativity, OperatorPosition, RuntimeOperator,
+    },
     type_checker::types::{std_compount_types, FunctionParameterType, GetType},
 };
 
@@ -50,7 +52,7 @@ pub fn op_add() -> RuntimeOperator {
         "add",
         "+",
         OperatorPosition::Infix,
-        100,
+        default_operator_precedence::ADDITIVE,
         OperatorAssociativity::Left,
         false,
         Box::new(add()),
