@@ -112,8 +112,13 @@ impl LineInfoSpan {
     }
 }
 
+/// TokenInfo is a structure that contains a token and its line and column information
+/// along with the character before and after the token.
+/// This is used for error reporting and debugging.
 #[derive(Debug, Clone)]
 pub struct TokenInfo {
+    /// The token itself
     pub token: Token,
+    /// The line and column of the token
     pub info: LineInfoSpan,
 }
