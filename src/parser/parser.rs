@@ -26,6 +26,23 @@ use super::{
     error::ParseError,
 };
 
+/// Token predicates for parsing
+mod pred {
+    use crate::lexer::token::Token;
+
+    pub fn eof(t: &Token) -> bool {
+        matches!(t, Token::EndOfFile)
+    }
+
+    /// Check if the token is an ignored token.
+    /// These include:
+    /// - `Newline`
+    /// - `Comment`
+    pub fn ignored(t: &Token) -> bool {
+        matches!(t, Token::Comment(_) | Token::Newline)
+    }
+}
+
 //--------------------------------------------------------------------------------------//
 //                                        Parser                                        //
 //--------------------------------------------------------------------------------------//
@@ -77,8 +94,8 @@ impl<R: Read + Seek> Parser<R> {
     pub fn parse_all(&mut self) -> ParseResults {
         let mut asts = Vec::new();
         loop {
-            if let Ok(t) = self.lexer.peek_token_no_nl() {
-                if t.token == Token::EndOfFile {
+            if let Ok(t) = self.lexer.peek_token_not(pred::ignored) {
+                if pred::eof(&t.token) {
                     break;
                 }
             }
@@ -100,8 +117,8 @@ impl<R: Read + Seek> Parser<R> {
     /// There may be remaining tokens in the stream after the expression is parsed.
     pub fn parse_one(&mut self) -> ParseResult {
         // Check if the next token is an EOF, then return an empty unit top-level expression
-        if let Ok(t) = self.lexer.peek_token_no_nl() {
-            if t.token == Token::EndOfFile {
+        if let Ok(t) = self.lexer.peek_token_not(pred::ignored) {
+            if pred::eof(&t.token) {
                 return Ok(unit());
             }
         }
@@ -123,7 +140,7 @@ impl<R: Read + Seek> Parser<R> {
 
     fn parse_call(&mut self, id: String) -> ParseResult {
         let mut args = Vec::new();
-        let nt = self.lexer.read_next_token_no_nl();
+        let nt = self.lexer.read_next_token_not(pred::ignored);
         if nt.is_err() {
             return Err(ParseError {
                 message: "Expected '('".to_string(),
@@ -170,7 +187,7 @@ impl<R: Read + Seek> Parser<R> {
     }
 
     fn parse_primary(&mut self) -> ParseResult {
-        let nt = self.lexer.expect_next_token_no_nl();
+        let nt = self.lexer.expect_next_token_not(pred::ignored);
         if let Ok(t) = nt {
             if t.token.is_literal() {
                 Ok(Ast::Literal(self.parse_literal(t.token).unwrap()))

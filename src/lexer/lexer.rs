@@ -54,6 +54,14 @@ impl Display for InputSource {
 pub type LexResult = Result<TokenInfo, LexerError>;
 const BUFFER_SIZE: usize = 128;
 
+/// Helper function to check if a token matches a predicate.
+fn check_token(token: &LexResult, predicate: &impl Fn(&Token) -> bool) -> bool {
+    match token {
+        Ok(TokenInfo { token, .. }) => predicate(token),
+        _ => false,
+    }
+}
+
 /// The lexer tokenize a program input source and **output a stream of tokens**. \
 /// The lexer is a state machine that is used by the parser to generate an AST.
 #[derive(Clone)]
@@ -146,6 +154,14 @@ impl<R: Read + Seek> Lexer<R> {
     /// This function is called when the lexer is about to start reading a new token.
     fn set_info_start_to_current(&mut self) {
         self.line_info.start = self.line_info.end.clone();
+    }
+
+    /// Refill the buffer with new data from the reader on the next read.
+    /// This should only be called from the parser when the lexer has reached an unexpected end of file.
+    /// Usually only used in REPL mode.
+    pub fn refill_on_read(&mut self) {
+        // If the reader is a stream, we can refill the buffer on the next read
+        self.should_read = self.is_stream;
     }
 
     fn peek_char(&mut self, offset: i64) -> Option<char> {
@@ -245,34 +261,6 @@ impl<R: Read + Seek> Lexer<R> {
         }
     }
 
-    pub fn peek_token_no_nl(&mut self) -> LexResult {
-        let mut idx = 0usize;
-        let mut token = self.peek_token(idx);
-        while let Ok(TokenInfo {
-            token: Token::Newline,
-            ..
-        }) = token
-        {
-            token = self.peek_token(idx + 1);
-            idx += 1;
-        }
-        token
-    }
-
-    /// Get the next token from the source code, ignoring newlines.
-    /// Or return the next peeked token (again, ignoring newlines)
-    pub fn read_next_token_no_nl(&mut self) -> LexResult {
-        let mut token = self.read_next_token();
-        while let Ok(TokenInfo {
-            token: Token::Newline,
-            ..
-        }) = token
-        {
-            token = self.read_next_token();
-        }
-        token
-    }
-
     /// Get the next token from the source code,
     /// Or return the next peeked token.
     pub fn read_next_token(&mut self) -> LexResult {
@@ -281,14 +269,6 @@ impl<R: Read + Seek> Lexer<R> {
         } else {
             self.next_token()
         }
-    }
-
-    /// Refill the buffer with new data from the reader on the next read.
-    /// This should only be called from the parser when the lexer has reached an unexpected end of file.
-    /// Usually only used in REPL mode.
-    pub fn refill_on_read(&mut self) {
-        // If the reader is a stream, we can refill the buffer on the next read
-        self.should_read = self.is_stream;
     }
 
     /// Expect there to be a token (not EOF).
@@ -305,19 +285,41 @@ impl<R: Read + Seek> Lexer<R> {
         }
     }
 
-    /// Expect there to be a token (not EOF) while ignoring newlines.
+    /// Peek the next token from the source code, ignoring tokens that match the predicate.
+    /// Or return the next peeked token.
+    pub fn peek_token_not(&mut self, predicate: impl Fn(&Token) -> bool) -> LexResult {
+        let mut idx = 0usize;
+        let mut token = self.peek_token(idx);
+        // while Self::check_token(&token, predicate.clone()) {
+        //     token = self.peek_token(idx + 1);
+        //     idx += 1;
+        // }
+        while check_token(&token, &predicate) {
+            token = self.peek_token(idx + 1);
+            idx += 1;
+        }
+        token
+    }
+
+    /// Get the next token from the source code, ignoring tokens that match the predicate.
+    /// Or return the next peeked token.
+    pub fn read_next_token_not(&mut self, predicate: impl Fn(&Token) -> bool) -> LexResult {
+        let mut token = self.read_next_token();
+        while check_token(&token, &predicate) {
+            token = self.read_next_token();
+        }
+        token
+    }
+
+    /// Expect there to be a token (not EOF) while ignoring tokens that match the predicate.
     /// If there is a token, return it.
     /// Else, try to read from the source if the reader is a stream.
     /// Then return the first read token (can be EOF but will throw error later)
     /// Or return the next peeked token (again, ignoring newlines)
     /// Direct copy of `read_next_token_no_nl` but expecting tokens from the stream.
-    pub fn expect_next_token_no_nl(&mut self) -> LexResult {
+    pub fn expect_next_token_not(&mut self, predicate: impl Fn(&Token) -> bool) -> LexResult {
         let mut token = self.expect_next_token();
-        while let Ok(TokenInfo {
-            token: Token::Newline,
-            ..
-        }) = token
-        {
+        while check_token(&token, &predicate) {
             token = self.expect_next_token();
         }
         token
