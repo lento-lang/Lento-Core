@@ -9,6 +9,10 @@ use crate::{
     type_checker::types::{std_compount_types, FunctionParameterType, GetType},
 };
 
+//--------------------------------------------------------------------------------------//
+//                               Native Runtime Functions                               //
+//--------------------------------------------------------------------------------------//
+
 pub fn add() -> FunctionVariation {
     FunctionVariation::Native(
         |vals| {

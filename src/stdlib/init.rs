@@ -6,9 +6,7 @@ use std::{
 use crate::{
     interpreter::{
         environment::Environment,
-        value::{
-            FloatingPoint, Function, FunctionVariation, NativeFunctionParameters, Number, Value,
-        },
+        value::{FloatingPoint, Function, FunctionVariation, Number, Value},
     },
     lexer::op::{
         default_operator_precedence, Operator, OperatorAssociativity, OperatorPosition,
@@ -16,14 +14,11 @@ use crate::{
     },
     parser::ast::Ast,
     stdlib::arithmetic,
-    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, Type},
+    type_checker::types::CheckedType,
     util::str::Str,
 };
 
-use super::super::lexer::lexer::Lexer;
-
-const TY_ANY: Type = std_primitive_types::ANY;
-const TY_UNIT: Type = std_primitive_types::UNIT;
+use super::{super::lexer::lexer::Lexer, system};
 
 //--------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -124,26 +119,6 @@ pub fn init_environment(env: &mut Environment) {
     };
 
     //--------------------------------------------------------------------------------------//
-    //                               Native Runtime Functions                               //
-    //--------------------------------------------------------------------------------------//
-
-    let rt_print: FunctionVariation = FunctionVariation::Native(
-        |vals| {
-            let vals = if let NativeFunctionParameters::Variadic(_, v) = vals {
-                v
-            } else {
-                panic!("A native function with Variadic function parameter type should not be able to receive a Singles function parameter type")
-            };
-            for val in vals {
-                println!("{}", val);
-            }
-            Ok(Value::Unit)
-        },
-        FunctionParameterType::Variadic(vec![], ("params".to_string(), TY_ANY)),
-        TY_UNIT,
-    );
-
-    //--------------------------------------------------------------------------------------//
     //                                      Constants                                       //
     //--------------------------------------------------------------------------------------//
 
@@ -189,6 +164,6 @@ pub fn init_environment(env: &mut Environment) {
     //                                   Implementations                                    //
     //--------------------------------------------------------------------------------------//
 
-    add_func(env, "print", vec![rt_print]);
+    add_func(env, "print", vec![system::print()]);
     add_func(env, "add", vec![arithmetic::add()]);
 }
