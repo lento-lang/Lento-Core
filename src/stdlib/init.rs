@@ -160,8 +160,6 @@ pub fn init_environment(env: &mut Environment) {
     //                                      Constants                                       //
     //--------------------------------------------------------------------------------------//
 
-    add_value(env, "true", Value::Boolean(true));
-    add_value(env, "false", Value::Boolean(false));
     add_value(
         env,
         "pi",
