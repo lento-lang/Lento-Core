@@ -117,4 +117,12 @@ mod tests {
         assert_next_token_eq(&mut lexer, Token::Let);
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
+
+    #[test]
+    fn test_lexer_comment() {
+        let mut lexer = from_str("// This is a comment");
+        init_lexer(&mut lexer);
+        assert_next_token_eq(&mut lexer, Token::Comment(" This is a comment".to_string()));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
+    }
 }

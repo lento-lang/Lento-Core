@@ -344,6 +344,7 @@ impl<R: Read + Seek> Lexer<R> {
             } else if Self::is_identifier_head_char(c) {
                 self.read_identifier(c)
             } else {
+                let nt = self.peek_char(0);
                 self.new_token_info(match c {
                     '(' => Token::LeftParen,
                     ')' => Token::RightParen,
@@ -353,6 +354,7 @@ impl<R: Read + Seek> Lexer<R> {
                     ']' => Token::RightBracket,
                     ',' => Token::Comma,
                     ';' => Token::SemiColon,
+                    '/' if nt == Some('/') => return self.read_comment(),
                     _ => {
                         if let Some(op) = self.lookup_op(&c.to_string()) {
                             Token::Op(op)
@@ -521,6 +523,18 @@ impl<R: Read + Seek> Lexer<R> {
             Self::is_identifier_body_char,
             true,
             |this, s| this.new_token_info(this.create_identifier_or_keyword(s)),
+            |_, _| (),
+        )
+    }
+
+    /// Read a comment from the source code.
+    fn read_comment(&mut self) -> LexResult {
+        self.next_char(); // Eat the first '/'
+        self.read_while(
+            None,
+            |c| c != '\n',
+            true,
+            |this, s| this.new_token_info(Token::Comment(s)),
             |_, _| (),
         )
     }

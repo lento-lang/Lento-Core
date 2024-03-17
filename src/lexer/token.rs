@@ -31,6 +31,8 @@ pub enum Token {
     Op(Operator),
     // Keywords
     Let,
+    // Comments
+    Comment(String),
 }
 
 impl Token {
