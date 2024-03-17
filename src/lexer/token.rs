@@ -69,6 +69,7 @@ impl Token {
                 | Token::RightBrace
                 | Token::RightBracket
                 | Token::TypeRightAngleBracket
+                | Token::Comment(_)
         )
     }
 
