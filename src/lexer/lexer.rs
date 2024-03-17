@@ -1,6 +1,6 @@
 use std::{
     cell::Cell,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::Display,
     fs::File,
     io::{BufReader, Cursor, Error, Read, Seek},
@@ -77,6 +77,7 @@ where
     buffer_idx: usize,
     line_info: LineInfoSpan,
     operators: HashMap<String, Operator>,
+    types: HashSet<String>,
     peeked_tokens: Vec<LexResult>, // Queue of peeked tokens (FIFO)
 }
 
@@ -93,6 +94,7 @@ impl<R: Read + Seek> Lexer<R> {
             buffer_idx: 0,
             line_info: LineInfoSpan::new(),
             operators: HashMap::new(),
+            types: HashSet::new(),
             peeked_tokens: Vec::new(),
         }
     }
@@ -110,6 +112,7 @@ impl<R: Read + Seek> Lexer<R> {
             buffer_idx: 0,
             line_info: LineInfoSpan::new(),
             operators: HashMap::new(),
+            types: HashSet::new(),
             peeked_tokens: Vec::new(),
         }
     }
@@ -141,6 +144,21 @@ impl<R: Read + Seek> Lexer<R> {
         // TODO: Incremental search using peek_char and break when there is no match,
         //      otherwise, return the longest match while peeking all the way to the end and "eating" the characters if there is a match.
         self.operators.get(op).cloned()
+    }
+
+    pub fn define_type(&mut self, type_name: String) -> Failable<RuntimeError> {
+        if self.types.contains(&type_name) {
+            return Err(runtime_error(format!(
+                "Cannot override type '{}'",
+                type_name
+            )));
+        }
+        self.types.insert(type_name);
+        Ok(())
+    }
+
+    pub fn is_type(&self, type_name: &str) -> bool {
+        self.types.contains(type_name)
     }
 
     fn new_token_info(&self, token: Token) -> LexResult {
@@ -509,11 +527,12 @@ impl<R: Read + Seek> Lexer<R> {
         c.is_alphanumeric() || c == '_'
     }
 
-    fn create_identifier_or_keyword(&self, s: String) -> Token {
+    fn create_identifier_type_or_keyword(&self, s: String) -> Token {
         match s.as_str() {
             "true" => Token::Boolean(true),
             "false" => Token::Boolean(false),
             "let" => Token::Let,
+            t if self.is_type(t) => Token::TypeIdentifier(s),
             _ => Token::Identifier(s),
         }
     }
@@ -524,7 +543,7 @@ impl<R: Read + Seek> Lexer<R> {
             Some(c.to_string()),
             Self::is_identifier_body_char,
             true,
-            |this, s| this.new_token_info(this.create_identifier_or_keyword(s)),
+            |this, s| this.new_token_info(this.create_identifier_type_or_keyword(s)),
             |_, _| (),
         )
     }

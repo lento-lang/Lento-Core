@@ -14,7 +14,7 @@ use crate::{
     },
     parser::ast::Ast,
     stdlib::arithmetic,
-    type_checker::types::CheckedType,
+    type_checker::types::{std_primitive_types, CheckedType, Type},
     util::str::Str,
 };
 
@@ -31,14 +31,14 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
     //                                       Helpers                                        //
     //--------------------------------------------------------------------------------------//
 
-    let add_static = |lexer: &mut Lexer<R>,
-                      name: &str,
-                      sym: &str,
-                      pos: OperatorPosition,
-                      prec: u16,
-                      assoc: OperatorAssociativity,
-                      overloadable: bool,
-                      handler: StaticOperatorHandler| {
+    let add_op_static = |lexer: &mut Lexer<R>,
+                         name: &str,
+                         sym: &str,
+                         pos: OperatorPosition,
+                         prec: u16,
+                         assoc: OperatorAssociativity,
+                         overloadable: bool,
+                         handler: StaticOperatorHandler| {
         if let Err(e) = lexer.define_op(Operator::Static(StaticOperator::new_str(
             name,
             sym,
@@ -54,7 +54,7 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
             );
         }
     };
-    let add_runtime = |lexer: &mut Lexer<R>, operator: RuntimeOperator| {
+    let add_op_runtime = |lexer: &mut Lexer<R>, operator: RuntimeOperator| {
         let name = operator.name.clone();
         if let Err(e) = lexer.define_op(Operator::Runtime(operator)) {
             panic!(
@@ -62,6 +62,19 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
                 name.clone(),
                 e
             );
+        }
+    };
+
+    let add_literal_type = |lexer: &mut Lexer<R>, type_: Type| {
+        if let Type::Literal(name) = type_ {
+            if let Err(e) = lexer.define_type(name.to_string()) {
+                panic!(
+                    "Failed to initialize lexer when adding type '{}': {:?}",
+                    name, e
+                );
+            }
+        } else {
+            panic!("add_literal_type() expects a literal type")
         }
     };
 
@@ -82,7 +95,7 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
     //--------------------------------------------------------------------------------------//
 
     // Built-in operators, these are not overloadable and are reserved for the language
-    add_static(
+    add_op_static(
         lexer,
         "assign",
         "=",
@@ -92,7 +105,32 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
         false,
         assign_handler,
     );
-    add_runtime(lexer, arithmetic::op_add());
+    add_op_runtime(lexer, arithmetic::op_add());
+
+    //--------------------------------------------------------------------------------------//
+    //                                  Built-in Types                                      //
+    //--------------------------------------------------------------------------------------//
+
+    add_literal_type(lexer, Type::Literal(Str::Str("unit")));
+    add_literal_type(lexer, std_primitive_types::STRING);
+    add_literal_type(lexer, std_primitive_types::CHAR);
+    add_literal_type(lexer, std_primitive_types::BOOL);
+    add_literal_type(lexer, std_primitive_types::UINT1);
+    add_literal_type(lexer, std_primitive_types::UINT8);
+    add_literal_type(lexer, std_primitive_types::UINT16);
+    add_literal_type(lexer, std_primitive_types::UINT32);
+    add_literal_type(lexer, std_primitive_types::UINT64);
+    add_literal_type(lexer, std_primitive_types::UINT128);
+    add_literal_type(lexer, std_primitive_types::UINTBIG);
+    add_literal_type(lexer, std_primitive_types::INT8);
+    add_literal_type(lexer, std_primitive_types::INT16);
+    add_literal_type(lexer, std_primitive_types::INT32);
+    add_literal_type(lexer, std_primitive_types::INT64);
+    add_literal_type(lexer, std_primitive_types::INT128);
+    add_literal_type(lexer, std_primitive_types::INTBIG);
+    add_literal_type(lexer, std_primitive_types::FLOAT32);
+    add_literal_type(lexer, std_primitive_types::FLOAT64);
+    add_literal_type(lexer, std_primitive_types::FLOATBIG);
 }
 
 //--------------------------------------------------------------------------------------//

@@ -125,4 +125,29 @@ mod tests {
         assert_next_token_eq(&mut lexer, Token::Comment(" This is a comment".to_string()));
         assert_next_token_eq(&mut lexer, Token::EndOfFile);
     }
+
+    #[test]
+    fn test_lexer_types() {
+        let mut lexer =
+            from_str("unit str char bool u1 u8 u16 u32 u64 u128 i8 i16 i32 i64 i128 f32 f64");
+        init_lexer(&mut lexer);
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("unit".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("str".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("char".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("bool".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("u1".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("u8".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("u16".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("u32".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("u64".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("u128".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("i8".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("i16".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("i32".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("i64".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("i128".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("f32".to_string()));
+        assert_next_token_eq(&mut lexer, Token::TypeIdentifier("f64".to_string()));
+        assert_next_token_eq(&mut lexer, Token::EndOfFile);
+    }
 }

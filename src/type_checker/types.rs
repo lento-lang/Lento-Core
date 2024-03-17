@@ -494,7 +494,7 @@ pub mod std_primitive_types {
             "string" => Some(STRING),
             "char" => Some(CHAR),
             "bool" => Some(BOOL),
-            "unit" | "()" => Some(UNIT),
+            "unit" => Some(UNIT),
             _ => None,
         }
     }
