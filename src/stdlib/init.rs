@@ -164,6 +164,7 @@ pub fn init_environment(env: &mut Environment) {
     //                                   Implementations                                    //
     //--------------------------------------------------------------------------------------//
 
-    add_func(env, "print", vec![system::print()]);
     add_func(env, "add", vec![arithmetic::add()]);
+    add_func(env, "print", vec![system::print()]);
+    add_func(env, "exit", vec![system::exit()]);
 }
