@@ -16,9 +16,6 @@ pub enum Token {
     Char(char),
     Boolean(bool),
     TypeIdentifier(String),
-    // Type expression tokens
-    TypeLeftAngleBracket,
-    TypeRightAngleBracket,
     // Grouping and separation tokens
     LeftParen,
     RightParen,
@@ -68,7 +65,6 @@ impl Token {
                 | Token::RightParen
                 | Token::RightBrace
                 | Token::RightBracket
-                | Token::TypeRightAngleBracket
                 | Token::Comment(_)
         )
     }
