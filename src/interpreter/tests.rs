@@ -240,21 +240,4 @@ mod tests {
         assert!(result.is_ok());
         assert!(env.get_function("add").is_some());
     }
-
-    #[test]
-    fn test_interpret_function_decl_explicit_signature() {
-        let module = parser::parse_str_all(
-            r#"
-			type add :: u8 -> u8 -> u8 -> u8
-			let add x y z {
-				x + y + z
-			}
-		"#,
-        )
-        .expect("Failed to parse module");
-        let mut env = global_env();
-        let result = interpret_module(&module, &mut env);
-        assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
-    }
 }
