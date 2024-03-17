@@ -36,6 +36,21 @@ pub enum UnsignedInteger {
 }
 
 impl UnsignedInteger {
+    pub fn get_number_value<T>(&self) -> Option<T>
+    where
+        T: From<u8> + From<u16> + From<u32> + From<u64> + From<u128>,
+    {
+        match self {
+            UnsignedInteger::UInt1(v) => Some(T::from(*v)),
+            UnsignedInteger::UInt8(v) => Some(T::from(*v)),
+            UnsignedInteger::UInt16(v) => Some(T::from(*v)),
+            UnsignedInteger::UInt32(v) => Some(T::from(*v)),
+            UnsignedInteger::UInt64(v) => Some(T::from(*v)),
+            UnsignedInteger::UInt128(v) => Some(T::from(*v)),
+            _ => panic!("Cannot convert arbitrary sized integer to a fixed size type"),
+        }
+    }
+
     fn get_size_order(&self) -> u8 {
         match self {
             UnsignedInteger::UInt1(_) => 0,
@@ -492,12 +507,41 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
     }
 }
 
+impl SignedInteger {
+    pub fn get_number_value<T>(&self) -> Option<T>
+    where
+        T: From<i8> + From<i16> + From<i32> + From<i64> + From<i128> + From<f32> + From<f64>,
+    {
+        match self {
+            SignedInteger::Int8(v) => Some(T::from(*v)),
+            SignedInteger::Int16(v) => Some(T::from(*v)),
+            SignedInteger::Int32(v) => Some(T::from(*v)),
+            SignedInteger::Int64(v) => Some(T::from(*v)),
+            SignedInteger::Int128(v) => Some(T::from(*v)),
+            _ => panic!("Cannot convert arbitrary sized integer to a fixed size type"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum FloatingPoint {
     Float32(f32),
     Float64(f64),
     FloatBig(BigFloat), // Increased precision floating point numbers (fixed but large size)
                         // Look at https://github.com/stencillogic/astro-float for handling Arbitrary precision floating point numbers (variable size)
+}
+
+impl FloatingPoint {
+    pub fn get_number_value<T>(&self) -> Option<T>
+    where
+        T: From<f32> + From<f64>,
+    {
+        match self {
+            FloatingPoint::Float32(v) => Some(T::from(*v)),
+            FloatingPoint::Float64(v) => Some(T::from(*v)),
+            _ => panic!("Cannot convert arbitrary precision floating point to a fixed size type"),
+        }
+    }
 }
 
 impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
@@ -555,6 +599,28 @@ impl GetType for Number {
 }
 
 impl Number {
+    pub fn get_number_value<T>(&self) -> Option<T>
+    where
+        T: From<u8>
+            + From<u16>
+            + From<u32>
+            + From<u64>
+            + From<u128>
+            + From<i8>
+            + From<i16>
+            + From<i32>
+            + From<i64>
+            + From<i128>
+            + From<f32>
+            + From<f64>,
+    {
+        match self {
+            Number::UnsignedInteger(u) => u.get_number_value(),
+            Number::SignedInteger(i) => i.get_number_value(),
+            Number::FloatingPoint(f) => f.get_number_value(),
+        }
+    }
+
     fn parse_big_int(s: String) -> Number {
         let i = BigInt::parse_bytes(s.as_bytes(), 10).unwrap();
         Number::SignedInteger(SignedInteger::IntVar(i))
