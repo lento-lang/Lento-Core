@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     stdlib::init::init_environment,
-    type_checker::types::{std_primitive_types, Type},
+    type_checker::types::Type,
     util::{failable::Failable, str::Str},
 };
 
