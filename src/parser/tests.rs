@@ -167,4 +167,30 @@ mod tests {
         assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
         assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
     }
+
+    #[test]
+    fn test_parse_comment() {
+        let result = parse_str_all("1; // This is a comment");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+    }
+
+    #[test]
+    fn test_parse_comment_newline() {
+        let result = parse_str_all(
+            r#"
+			// This is a comment
+			1; // This is a comment
+			2;
+			// This is a comment
+		"#,
+        );
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 2);
+        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
+    }
 }
