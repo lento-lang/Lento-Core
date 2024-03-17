@@ -111,6 +111,7 @@ pub fn init_lexer<R: BufRead + Seek>(lexer: &mut Lexer<R>) {
     //                                  Built-in Types                                      //
     //--------------------------------------------------------------------------------------//
 
+    add_literal_type(lexer, Type::Literal(Str::Str("any")));
     add_literal_type(lexer, Type::Literal(Str::Str("unit")));
     add_literal_type(lexer, std_primitive_types::STRING);
     add_literal_type(lexer, std_primitive_types::CHAR);
@@ -154,6 +155,18 @@ pub fn init_environment(env: &mut Environment) {
             name,
             Value::Function(Function::new(name.to_string(), variations)),
         )
+    };
+    let add_literal_type = |env: &mut Environment, type_: Type| {
+        if let Type::Literal(name) = type_.clone() {
+            if let Err(e) = env.add_type(name.clone(), type_) {
+                panic!(
+                    "Failed to initialize environment when adding type '{}': {:?}",
+                    name, e
+                );
+            }
+        } else {
+            panic!("add_literal_type() expects a literal type")
+        }
     };
 
     //--------------------------------------------------------------------------------------//
@@ -203,4 +216,30 @@ pub fn init_environment(env: &mut Environment) {
     add_func(env, "add", vec![arithmetic::add()]);
     add_func(env, "print", vec![system::print()]);
     add_func(env, "exit", vec![system::exit()]);
+
+    //--------------------------------------------------------------------------------------//
+    //								  Built-in Types                                      //
+    //--------------------------------------------------------------------------------------//
+
+    add_literal_type(env, Type::Literal(Str::Str("any")));
+    add_literal_type(env, Type::Literal(Str::Str("unit")));
+    add_literal_type(env, std_primitive_types::STRING);
+    add_literal_type(env, std_primitive_types::CHAR);
+    add_literal_type(env, std_primitive_types::BOOL);
+    add_literal_type(env, std_primitive_types::UINT1);
+    add_literal_type(env, std_primitive_types::UINT8);
+    add_literal_type(env, std_primitive_types::UINT16);
+    add_literal_type(env, std_primitive_types::UINT32);
+    add_literal_type(env, std_primitive_types::UINT64);
+    add_literal_type(env, std_primitive_types::UINT128);
+    add_literal_type(env, std_primitive_types::UINTBIG);
+    add_literal_type(env, std_primitive_types::INT8);
+    add_literal_type(env, std_primitive_types::INT16);
+    add_literal_type(env, std_primitive_types::INT32);
+    add_literal_type(env, std_primitive_types::INT64);
+    add_literal_type(env, std_primitive_types::INT128);
+    add_literal_type(env, std_primitive_types::INTBIG);
+    add_literal_type(env, std_primitive_types::FLOAT32);
+    add_literal_type(env, std_primitive_types::FLOAT64);
+    add_literal_type(env, std_primitive_types::FLOATBIG);
 }

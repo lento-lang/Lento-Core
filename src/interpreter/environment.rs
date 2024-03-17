@@ -90,10 +90,6 @@ impl<'a> Environment<'a> {
     /// Add a type to the environment.
     /// If the type already exists in a parent environment, it is shadowed.
     pub fn add_type(&mut self, name: Str, type_: Type) -> Failable<RuntimeError> {
-        // Check if the type already exists in the standard library
-        if std_primitive_types::find_type(name.to_string()).is_some() {
-            panic!("Type {} already exists in the standard library", name);
-        }
         if self.types.contains_key(&name.to_string()) {
             panic!("Type {} already exists in the current environment", name);
         }

@@ -471,37 +471,6 @@ pub mod std_primitive_types {
 
     /// Increases the precision of a floating-point number.
     pub const FLOATBIG: Type = Type::Literal(Str::Str("fbig"));
-
-    /// Find a standard primitive type from a literal name or alias.
-    pub fn find_type(t: String) -> Option<Type> {
-        match t.as_str() {
-            "u1" | "bit" => Some(UINT1),
-            "u8" | "byte" => Some(UINT8),
-            "u16" | "ushort" => Some(UINT16),
-            "u32" | "uint" => Some(UINT32),
-            "u64" | "ulong" => Some(UINT64),
-            "u128" => Some(UINT128),
-            "ubig" => Some(UINTBIG),
-            "i8" => Some(INT8),
-            "i16" | "short" => Some(INT16),
-            "i32" | "int" => Some(INT32),
-            "i64" | "long" => Some(INT64),
-            "i128" => Some(INT128),
-            "ibig" => Some(INTBIG),
-            "f32" | "float" => Some(FLOAT32),
-            "f64" => Some(FLOAT64),
-            "fbig" => Some(FLOATBIG),
-            "string" => Some(STRING),
-            "char" => Some(CHAR),
-            "bool" => Some(BOOL),
-            "unit" => Some(UNIT),
-            _ => None,
-        }
-    }
-
-    pub fn find_type_str(t: &str) -> Option<Type> {
-        find_type(t.to_string())
-    }
 }
 
 pub mod std_compount_types {
