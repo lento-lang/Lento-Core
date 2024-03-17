@@ -9,6 +9,7 @@ Lento is designed to be a flexible and extensible compiler. It is intended to su
 | [QBE](qbe/README.md)               | `Native`                             | 🛑 Not started  |            |
 | [JavaScript](javascript/README.md) | `Browsers`, `Node.js`, `Deno`, `Bun` | 🛑 Not started  | Transpiler |
 | [C](c/README.md)                   | `libc`, `POSIX`, `Windows`           | 🛑 Not started  | Transpiler |
+| [Nasm](nasm/README.md)             | `x86`, `x86_64`, `ARM`, `ARM64`, etc | 🛑 Not started  |            |
 
 The backends are implemented as separate modules, and able to be loaded by the Lento compiler.
 
