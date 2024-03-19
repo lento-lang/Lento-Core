@@ -13,7 +13,7 @@ use crate::{
             StaticOperatorAst,
         },
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
-        token::Token,
+        token::TokenKind,
     },
     stdlib::init::init_lexer,
     type_checker::types::CheckedType,
@@ -28,18 +28,18 @@ use super::{
 
 /// Token predicates for parsing
 mod pred {
-    use crate::lexer::token::Token;
+    use crate::lexer::token::TokenKind;
 
-    pub fn eof(t: &Token) -> bool {
-        matches!(t, Token::EndOfFile)
+    pub fn eof(t: &TokenKind) -> bool {
+        matches!(t, TokenKind::EndOfFile)
     }
 
     /// Check if the token is an ignored token.
     /// These include:
     /// - `Newline`
     /// - `Comment`
-    pub fn ignored(t: &Token) -> bool {
-        matches!(t, Token::Comment(_) | Token::Newline)
+    pub fn ignored(t: &TokenKind) -> bool {
+        matches!(t, TokenKind::Comment(_) | TokenKind::Newline)
     }
 }
 
@@ -127,13 +127,13 @@ impl<R: Read + Seek> Parser<R> {
         self.parse_top_expr()
     }
 
-    fn parse_literal(&mut self, token: Token) -> Option<Value> {
+    fn parse_literal(&mut self, token: TokenKind) -> Option<Value> {
         Some(match token {
-            Token::Integer(n) => Value::Number(Number::parse(n)),
-            Token::Float(n) => Value::Number(Number::parse(n)),
-            Token::String(s) => Value::String(s.clone()),
-            Token::Char(c) => Value::Char(c),
-            Token::Boolean(b) => Value::Boolean(b),
+            TokenKind::Integer(n) => Value::Number(Number::parse(n)),
+            TokenKind::Float(n) => Value::Number(Number::parse(n)),
+            TokenKind::String(s) => Value::String(s.clone()),
+            TokenKind::Char(c) => Value::Char(c),
+            TokenKind::Boolean(b) => Value::Boolean(b),
             _ => return None,
         })
     }
@@ -146,9 +146,9 @@ impl<R: Read + Seek> Parser<R> {
                 message: "Expected '('".to_string(),
             });
         }
-        assert!(nt.unwrap().token == Token::LeftParen);
+        assert!(nt.unwrap().token == TokenKind::LeftParen);
         while let Ok(t) = self.lexer.peek_token(0) {
-            if t.token == Token::RightParen {
+            if t.token == TokenKind::RightParen {
                 break;
             }
             let expr = self.parse_top_expr()?;
@@ -160,7 +160,7 @@ impl<R: Read + Seek> Parser<R> {
                 });
             }
             let nt = nt.unwrap().token;
-            if nt == Token::RightParen {
+            if nt == TokenKind::RightParen {
                 if let Err(err) = self.lexer.read_next_token() {
                     return Err(ParseError {
                         message: format!("Expected ')' but failed with: {}", err.message),
@@ -191,15 +191,15 @@ impl<R: Read + Seek> Parser<R> {
         if let Ok(t) = nt {
             if t.token.is_literal() {
                 Ok(Ast::Literal(self.parse_literal(t.token).unwrap()))
-            } else if let Token::Identifier(id) = t.token {
+            } else if let TokenKind::Identifier(id) = t.token {
                 // Check if function call
                 if let Ok(t) = self.lexer.peek_token(0) {
-                    if t.token == Token::LeftParen {
+                    if t.token == TokenKind::LeftParen {
                         return self.parse_call(id);
                     }
                 }
                 Ok(Ast::Identifier(id, CheckedType::Unchecked))
-            } else if let Token::TypeIdentifier(t) = t.token {
+            } else if let TokenKind::TypeIdentifier(t) = t.token {
                 Ok(Ast::TypeIdentifier(t, CheckedType::Unchecked))
             } else if t.token.is_operator() {
                 let op = t.token.get_operator().unwrap();

@@ -18,7 +18,7 @@ use super::{
     error::LexerError,
     op::Operator,
     readers::bytes_reader::BytesReader,
-    token::{LineInfoSpan, Token, TokenInfo},
+    token::{LineInfoSpan, TokenInfo, TokenKind},
 };
 
 /// The source type of the program input. \
@@ -55,7 +55,7 @@ pub type LexResult = Result<TokenInfo, LexerError>;
 const BUFFER_SIZE: usize = 128;
 
 /// Helper function to check if a token matches a predicate.
-fn check_token(token: &LexResult, predicate: &impl Fn(&Token) -> bool) -> bool {
+fn check_token(token: &LexResult, predicate: &impl Fn(&TokenKind) -> bool) -> bool {
     match token {
         Ok(TokenInfo { token, .. }) => predicate(token),
         _ => false,
@@ -161,7 +161,7 @@ impl<R: Read + Seek> Lexer<R> {
         self.types.contains(type_name)
     }
 
-    fn new_token_info(&self, token: Token) -> LexResult {
+    fn new_token_info(&self, token: TokenKind) -> LexResult {
         Ok(TokenInfo {
             info: self.line_info.clone(),
             token,
@@ -268,7 +268,7 @@ impl<R: Read + Seek> Lexer<R> {
             let token = self.next_token();
             // Do not push EOF to the peeked tokens list
             if let Ok(TokenInfo {
-                token: Token::EndOfFile,
+                token: TokenKind::EndOfFile,
                 ..
             }) = token
             {
@@ -295,7 +295,7 @@ impl<R: Read + Seek> Lexer<R> {
     /// Then return the first read token (can be EOF but will throw error later)
     fn expect_next_token(&mut self) -> LexResult {
         let token = self.read_next_token()?;
-        if token.token == Token::EndOfFile {
+        if token.token == TokenKind::EndOfFile {
             self.should_read = self.is_stream;
             self.read_next_token()
         } else {
@@ -305,7 +305,7 @@ impl<R: Read + Seek> Lexer<R> {
 
     /// Peek the next token from the source code, ignoring tokens that match the predicate.
     /// Or return the next peeked token.
-    pub fn peek_token_not(&mut self, predicate: impl Fn(&Token) -> bool) -> LexResult {
+    pub fn peek_token_not(&mut self, predicate: impl Fn(&TokenKind) -> bool) -> LexResult {
         let mut idx = 0usize;
         let mut token = self.peek_token(idx);
         // while Self::check_token(&token, predicate.clone()) {
@@ -321,7 +321,7 @@ impl<R: Read + Seek> Lexer<R> {
 
     /// Get the next token from the source code, ignoring tokens that match the predicate.
     /// Or return the next peeked token.
-    pub fn read_next_token_not(&mut self, predicate: impl Fn(&Token) -> bool) -> LexResult {
+    pub fn read_next_token_not(&mut self, predicate: impl Fn(&TokenKind) -> bool) -> LexResult {
         let mut token = self.read_next_token();
         while check_token(&token, &predicate) {
             token = self.read_next_token();
@@ -335,7 +335,7 @@ impl<R: Read + Seek> Lexer<R> {
     /// Then return the first read token (can be EOF but will throw error later)
     /// Or return the next peeked token (again, ignoring newlines)
     /// Direct copy of `read_next_token_no_nl` but expecting tokens from the stream.
-    pub fn expect_next_token_not(&mut self, predicate: impl Fn(&Token) -> bool) -> LexResult {
+    pub fn expect_next_token_not(&mut self, predicate: impl Fn(&TokenKind) -> bool) -> LexResult {
         let mut token = self.expect_next_token();
         while check_token(&token, &predicate) {
             token = self.expect_next_token();
@@ -354,7 +354,7 @@ impl<R: Read + Seek> Lexer<R> {
             } else if c == '\n' {
                 self.line_info.end.line += 1;
                 self.line_info.end.column = 1;
-                self.new_token_info(Token::Newline)
+                self.new_token_info(TokenKind::Newline)
             } else if c == '"' {
                 self.read_string()
             } else if c == '\'' {
@@ -366,18 +366,18 @@ impl<R: Read + Seek> Lexer<R> {
             } else {
                 let nt = self.peek_char(0);
                 self.new_token_info(match c {
-                    '(' => Token::LeftParen,
-                    ')' => Token::RightParen,
-                    '{' => Token::LeftBrace,
-                    '}' => Token::RightBrace,
-                    '[' => Token::LeftBracket,
-                    ']' => Token::RightBracket,
-                    ',' => Token::Comma,
-                    ';' => Token::SemiColon,
+                    '(' => TokenKind::LeftParen,
+                    ')' => TokenKind::RightParen,
+                    '{' => TokenKind::LeftBrace,
+                    '}' => TokenKind::RightBrace,
+                    '[' => TokenKind::LeftBracket,
+                    ']' => TokenKind::RightBracket,
+                    ',' => TokenKind::Comma,
+                    ';' => TokenKind::SemiColon,
                     '/' if nt == Some('/') => return self.read_comment(),
                     _ => {
                         if let Some(op) = self.lookup_op(&c.to_string()) {
-                            Token::Op(op)
+                            TokenKind::Op(op)
                         } else {
                             return Err(LexerError::unexpected_character(
                                 c,
@@ -389,7 +389,7 @@ impl<R: Read + Seek> Lexer<R> {
                 })
             }
         } else {
-            self.new_token_info(Token::EndOfFile)
+            self.new_token_info(TokenKind::EndOfFile)
         }
     }
 
@@ -476,7 +476,7 @@ impl<R: Read + Seek> Lexer<R> {
 
     /// Read a string from the source code.
     fn read_string(&mut self) -> LexResult {
-        self.read_quoted('"', |this, s| this.new_token_info(Token::String(s)))
+        self.read_quoted('"', |this, s| this.new_token_info(TokenKind::String(s)))
     }
 
     /// Read a character from the source code.
@@ -489,7 +489,7 @@ impl<R: Read + Seek> Lexer<R> {
                     this.input_source.clone(),
                 ))
             } else {
-                this.new_token_info(Token::Char(s.chars().next().unwrap()))
+                this.new_token_info(TokenKind::Char(s.chars().next().unwrap()))
             }
         })
     }
@@ -511,9 +511,9 @@ impl<R: Read + Seek> Lexer<R> {
             true,
             |this, s| {
                 this.new_token_info(if has_dot.get() {
-                    Token::Float(s)
+                    TokenKind::Float(s)
                 } else {
-                    Token::Integer(s)
+                    TokenKind::Integer(s)
                 })
             },
             |_, _| (),
@@ -527,13 +527,13 @@ impl<R: Read + Seek> Lexer<R> {
         c.is_alphanumeric() || c == '_'
     }
 
-    fn create_identifier_type_or_keyword(&self, s: String) -> Token {
+    fn create_identifier_type_or_keyword(&self, s: String) -> TokenKind {
         match s.as_str() {
-            "true" => Token::Boolean(true),
-            "false" => Token::Boolean(false),
-            "let" => Token::Let,
-            t if self.is_type(t) => Token::TypeIdentifier(s),
-            _ => Token::Identifier(s),
+            "true" => TokenKind::Boolean(true),
+            "false" => TokenKind::Boolean(false),
+            "let" => TokenKind::Let,
+            t if self.is_type(t) => TokenKind::TypeIdentifier(s),
+            _ => TokenKind::Identifier(s),
         }
     }
 
@@ -555,7 +555,7 @@ impl<R: Read + Seek> Lexer<R> {
             None,
             |c| c != '\n',
             true,
-            |this, s| this.new_token_info(Token::Comment(s)),
+            |this, s| this.new_token_info(TokenKind::Comment(s)),
             |_, _| (),
         )
     }

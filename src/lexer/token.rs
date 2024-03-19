@@ -2,7 +2,7 @@ use super::op::Operator;
 
 // Token structure for the Lento programming language
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Token {
+pub enum TokenKind {
     EndOfFile,
     // Expression terminators
     Newline,
@@ -32,14 +32,14 @@ pub enum Token {
     Comment(String),
 }
 
-impl Token {
+impl TokenKind {
     pub fn is_operator(&self) -> bool {
-        matches!(self, Token::Op(_))
+        matches!(self, TokenKind::Op(_))
     }
 
     pub fn get_operator(&self) -> Option<Operator> {
         match self {
-            Token::Op(op) => Some(op.clone()),
+            TokenKind::Op(op) => Some(op.clone()),
             _ => None,
         }
     }
@@ -47,33 +47,36 @@ impl Token {
     pub fn is_literal(&self) -> bool {
         matches!(
             self,
-            Token::Integer(_)
-                | Token::Float(_)
-                | Token::String(_)
-                | Token::Char(_)
-                | Token::Boolean(_)
+            TokenKind::Integer(_)
+                | TokenKind::Float(_)
+                | TokenKind::String(_)
+                | TokenKind::Char(_)
+                | TokenKind::Boolean(_)
         )
     }
 
     pub fn is_terminator(&self) -> bool {
         matches!(
             self,
-            Token::EndOfFile
-                | Token::Newline
-                | Token::SemiColon
-                | Token::Comma
-                | Token::RightParen
-                | Token::RightBrace
-                | Token::RightBracket
-                | Token::Comment(_)
+            TokenKind::EndOfFile
+                | TokenKind::Newline
+                | TokenKind::SemiColon
+                | TokenKind::Comma
+                | TokenKind::RightParen
+                | TokenKind::RightBrace
+                | TokenKind::RightBracket
+                | TokenKind::Comment(_)
         )
     }
 
     pub fn is_top_level_terminal(&self, allow_eof: bool) -> bool {
         if allow_eof {
-            matches!(self, Token::EndOfFile | Token::Newline | Token::SemiColon)
+            matches!(
+                self,
+                TokenKind::EndOfFile | TokenKind::Newline | TokenKind::SemiColon
+            )
         } else {
-            matches!(self, Token::Newline | Token::SemiColon)
+            matches!(self, TokenKind::Newline | TokenKind::SemiColon)
         }
     }
 }
@@ -117,7 +120,7 @@ impl LineInfoSpan {
 #[derive(Debug, Clone)]
 pub struct TokenInfo {
     /// The token itself
-    pub token: Token,
+    pub token: TokenKind,
     /// The line and column of the token
     pub info: LineInfoSpan,
 }
