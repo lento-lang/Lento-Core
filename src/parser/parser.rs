@@ -54,7 +54,7 @@ pub type ParseResult = Result<Ast, ParseError>;
 #[derive(Clone)]
 pub struct Parser<R>
 where
-    R: Read + Seek,
+    R: Read,
 {
     lexer: Lexer<R>,
 }
