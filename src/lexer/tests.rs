@@ -4,7 +4,7 @@ mod tests {
 
     use crate::{
         lexer::{
-            lexer::{from_str, Lexer},
+            lexer::{from_str, from_string, Lexer},
             op::Operator,
             token::TokenKind,
         },
@@ -63,7 +63,7 @@ mod tests {
         init_lexer(&mut lexer);
         assert_next_token_eq(
             &mut lexer,
-            TokenKind::String("Hello, \"World\"!".to_string()),
+            TokenKind::String("Hello, \\\"World\\\"!".to_string()),
         );
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
@@ -134,30 +134,14 @@ mod tests {
 
     #[test]
     fn test_lexer_types() {
-        let mut lexer = from_str(
-            "unit str char bool u1 u8 u16 u32 u64 u128 ubig i8 i16 i32 i64 i128 ibig f32 f64 fbig",
-        );
+        let types = [
+            "unit", "str", "char", "bool", "u1", "u8", "u16", "u32", "u64", "u128", "ubig", "i8",
+            "i16", "i32", "i64", "i128", "ibig", "f32", "f64", "fbig"];
+        let mut lexer = from_string(types.join(" "));
         init_lexer(&mut lexer);
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("unit".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("str".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("char".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("bool".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("u1".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("u8".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("u16".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("u32".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("u64".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("u128".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("ubig".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("i8".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("i16".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("i32".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("i64".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("i128".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("ibig".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("f32".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("f64".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier("fbig".to_string()));
+        for ty in types.iter() {
+            assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier(ty.to_string()));
+        }
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
 }
