@@ -52,7 +52,6 @@ impl Display for InputSource {
 //--------------------------------------------------------------------------------------//
 
 pub type LexResult = Result<TokenInfo, LexerError>;
-const BUFFER_SIZE: usize = 128;
 
 /// Helper function to check if a token matches a predicate.
 fn check_token(token: &LexResult, predicate: &impl Fn(&TokenKind) -> bool) -> bool {
@@ -67,31 +66,28 @@ fn check_token(token: &LexResult, predicate: &impl Fn(&TokenKind) -> bool) -> bo
 #[derive(Clone)]
 pub struct Lexer<R>
 where
-    R: Read + Seek,
+    R: Read,
 {
     input_source: InputSource,
     reader: R,
-    is_stream: bool,
-    should_read: bool,
-    buffer: [u8; BUFFER_SIZE],
-    buffer_idx: usize,
+    /// Everything successfully read from the source code.
+    content: Vec<u8>,
+    index: usize,
     line_info: LineInfoSpan,
     operators: HashMap<String, Operator>,
     types: HashSet<String>,
     peeked_tokens: Vec<LexResult>, // Queue of peeked tokens (FIFO)
 }
 
-impl<R: Read + Seek> Lexer<R> {
+impl<R: Read> Lexer<R> {
     /// Create a new lexer from a reader.
     /// The lexer will read from the reader until it reaches the end of the file.
     pub fn new(reader: R, input_source: InputSource) -> Self {
         Self {
             input_source,
             reader,
-            is_stream: false,
-            should_read: true,
-            buffer: [0; BUFFER_SIZE],
-            buffer_idx: 0,
+            content: Vec::new(),
+            index: 0,
             line_info: LineInfoSpan::new(),
             operators: HashMap::new(),
             types: HashSet::new(),
@@ -106,10 +102,8 @@ impl<R: Read + Seek> Lexer<R> {
         Self {
             input_source: InputSource::Stream(stream_name),
             reader,
-            is_stream: true,
-            should_read: true,
-            buffer: [0; BUFFER_SIZE],
-            buffer_idx: 0,
+            content: Vec::new(),
+            index: 0,
             line_info: LineInfoSpan::new(),
             operators: HashMap::new(),
             types: HashSet::new(),
@@ -121,10 +115,13 @@ impl<R: Read + Seek> Lexer<R> {
         &mut self.reader
     }
 
+    pub fn current_index(&self) -> usize {
+        self.index
+    }
+
     pub fn reset(&mut self) {
-        self.should_read = true;
-        self.buffer = [0; BUFFER_SIZE];
-        self.buffer_idx = 0;
+        self.content.clear();
+        self.index = 0;
         self.line_info = LineInfoSpan::new();
         self.peeked_tokens.clear();
     }
@@ -174,71 +171,46 @@ impl<R: Read + Seek> Lexer<R> {
         self.line_info.start = self.line_info.end.clone();
     }
 
-    /// Refill the buffer with new data from the reader on the next read.
-    /// This should only be called from the parser when the lexer has reached an unexpected end of file.
-    /// Usually only used in REPL mode.
-    pub fn refill_on_read(&mut self) {
-        // If the reader is a stream, we can refill the buffer on the next read
-        self.should_read = self.is_stream;
+    pub fn try_read_chunk(&mut self) -> Option<()> {
+        const BUFFER_SIZE: usize = 128;
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        match self.reader.read(&mut buffer) {
+            Ok(n) => {
+                if n == 0 {
+                    None
+                } else {
+                    self.content.extend_from_slice(&buffer[..n]);
+                    Some(()) // Success
+                }
+            }
+            Err(_) => None
+        }
     }
 
     fn peek_char(&mut self, offset: i64) -> Option<char> {
-        // Read from buffer
-        let idx = self.buffer_idx + offset as usize;
-        if idx < BUFFER_SIZE {
-            let c = self.buffer[idx];
-            if c == 0 {
-                None
-            } else {
-                Some(c as char)
-            }
+        let peek_index = self.index.checked_add(offset)? as usize;
+        if peek_index >= self.content.len() {
+            self.try_read_chunk()?; // If fail, return None
+        }
+        let c = self.content[peek_index];
+        if c == 0 {
+            None
         } else {
-            // Read from reader
-            let prev_idx = self.reader.stream_position().unwrap();
-            self.reader
-                .seek(std::io::SeekFrom::Current(offset))
-                .unwrap();
-            let c = &mut [0; 1];
-            if let Ok(n) = self.reader.read(c) {
-                self.reader
-                    .seek(std::io::SeekFrom::Start(prev_idx))
-                    .unwrap();
-                if n > 0 {
-                    Some(c[0] as char)
-                } else {
-                    None
-                }
-            } else {
-                self.reader
-                    .seek(std::io::SeekFrom::Start(prev_idx))
-                    .unwrap();
-                None
-            }
+            Some(c as char)
         }
     }
 
     /// Read a string from the source code using a buffered reader.
     fn next_char(&mut self) -> Option<char> {
-        if self.should_read || self.buffer_idx >= BUFFER_SIZE {
-            match self.reader.read(&mut self.buffer) {
-                Ok(n) => {
-                    if n == 0 {
-                        return None;
-                    }
-                    self.should_read = false;
-                    self.buffer_idx = 0;
-                }
-                Err(_) => {
-                    // Try to re-initialize the buffer the next time
-                    return None;
-                }
-            }
+        if self.index >= self.content.len() {
+            self.try_read_chunk()?; // If fail, return None
         }
-        let c = self.buffer[self.buffer_idx];
+        let c = self.content[self.index];
         if c == 0 {
             return None;
         }
-        self.buffer_idx += 1;
+        self.index += 1;
+        self.line_info.end.index += 1;
         self.line_info.end.column += 1;
         Some(c as char)
     }
@@ -296,7 +268,6 @@ impl<R: Read + Seek> Lexer<R> {
     fn expect_next_token(&mut self) -> LexResult {
         let token = self.read_next_token()?;
         if token.token == TokenKind::EndOfFile {
-            self.should_read = self.is_stream;
             self.read_next_token()
         } else {
             Ok(token)
@@ -408,7 +379,7 @@ impl<R: Read + Seek> Lexer<R> {
         let s = regex_replace_all!(r#"\\r"#, &s, |_| "\r".to_string());
         let s = regex_replace_all!(r#"\\t"#, &s, |_| "\t".to_string());
         let s = regex_replace_all!(r#"\\0"#, &s, |_| "\0".to_string());
-        let s = regex_replace_all!(r#"\\\""#, &s, |_| "\"".to_string());
+        // let s = regex_replace_all!(r#"\\\""#, &s, |_| "\"".to_string());
         let s = regex_replace_all!(r#"\\'"#, &s, |_| "'".to_string());
         let s = regex_replace_all!(r#"\\\\"#, &s, |_| "\\".to_string());
         s.to_string()
@@ -580,6 +551,6 @@ pub fn from_path(path: PathBuf) -> Result<Lexer<BufReader<File>>, Error> {
     ))
 }
 
-pub fn from_stream<R: Read + Seek>(reader: R, name: String) -> Lexer<R> {
+pub fn from_stream<R: Read>(reader: R, name: String) -> Lexer<R> {
     Lexer::new_stream(reader, name)
 }

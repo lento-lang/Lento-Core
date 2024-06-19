@@ -21,10 +21,7 @@ use crate::{
 
 use crate::lexer::lexer::Lexer;
 
-use super::{
-    ast::{unit, Ast, Module},
-    error::ParseError,
-};
+use super::{ast::{unit, Ast, Module}, error::ParseError};
 
 /// Token predicates for parsing
 mod pred {
@@ -69,6 +66,10 @@ impl<R: Read + Seek> Parser<R> {
 
     pub fn get_lexer(&mut self) -> &mut Lexer<R> {
         &mut self.lexer
+    }
+
+    fn index(&self) -> usize {
+        self.lexer.current_index()
     }
 
     /// Parse a given number of expressions from the stream of tokens.
@@ -144,6 +145,7 @@ impl<R: Read + Seek> Parser<R> {
         if nt.is_err() {
             return Err(ParseError {
                 message: "Expected '('".to_string(),
+                span: (self.index(), self.index()),
             });
         }
         assert!(nt.unwrap().token == TokenKind::LeftParen);
@@ -157,6 +159,7 @@ impl<R: Read + Seek> Parser<R> {
             if nt.is_err() {
                 return Err(ParseError {
                     message: "Expected ')'".to_string(),
+                    span: (self.index(), self.index()),
                 });
             }
             let nt = nt.unwrap().token;
@@ -164,6 +167,7 @@ impl<R: Read + Seek> Parser<R> {
                 if let Err(err) = self.lexer.read_next_token() {
                     return Err(ParseError {
                         message: format!("Expected ')' but failed with: {}", err.message),
+                        span: (self.index(), self.index() + 1),
                     });
                 }
                 break;
@@ -172,6 +176,7 @@ impl<R: Read + Seek> Parser<R> {
             if nt.is_err() {
                 return Err(ParseError {
                     message: "Expected ')'".to_string(),
+                    span: (self.index(), self.index() + 1),
                 });
             }
             let nt = nt.unwrap().token;
@@ -180,6 +185,7 @@ impl<R: Read + Seek> Parser<R> {
             }
             return Err(ParseError {
                 message: "Expected ')'".to_string(),
+                span: (self.index(), self.index() + 1),
             });
         }
         // TODO: Extract read_until_terminator() helper method
@@ -187,6 +193,7 @@ impl<R: Read + Seek> Parser<R> {
     }
 
     fn parse_primary(&mut self) -> ParseResult {
+        let start_index = self.index();
         let nt = self.lexer.expect_next_token_not(pred::ignored);
         if let Ok(t) = nt {
             if t.token.is_literal() {
@@ -206,10 +213,11 @@ impl<R: Read + Seek> Parser<R> {
                 if op.pos() != OperatorPosition::Prefix {
                     return Err(ParseError {
                         message: format!(
-                            "Expected prefix operator, but found {:?} ({})",
+                            "Expected optional prefix operator, but found {:?} ({})",
                             op.symbol(),
                             op.name()
                         ),
+                        span: (start_index, self.index()),
                     });
                 }
                 let rhs = self.parse_primary()?;
@@ -221,6 +229,7 @@ impl<R: Read + Seek> Parser<R> {
             } else {
                 Err(ParseError {
                     message: format!("Expected primary expression, but found {:?}", t.token),
+                    span: (start_index, self.index()),
                 })
             }
         } else {
@@ -229,6 +238,7 @@ impl<R: Read + Seek> Parser<R> {
                     "Expected primary expression, but failed due to: {:?}",
                     nt.unwrap_err().message
                 ),
+                span: (start_index, self.index()),
             })
         }
     }
@@ -437,6 +447,7 @@ pub fn parse_file_all(file: File, path: &Path) -> ModuleResult {
 pub fn parse_path_one(path: &Path) -> ModuleResult {
     let mut parser = from_path(path).map_err(|e| ParseError {
         message: format!("Failed to open file: {}", e),
+        span: (0, 0),
     })?;
     Ok(Module::new(
         String::from("unnamed"),
@@ -448,6 +459,7 @@ pub fn parse_path_one(path: &Path) -> ModuleResult {
 pub fn parse_path_all(path: &Path) -> ModuleResult {
     let mut parser = from_path(path).map_err(|e| ParseError {
         message: format!("Failed to open file: {}", e),
+        span: (0, 0),
     })?;
     Ok(Module::new(
         String::from("unnamed"),
