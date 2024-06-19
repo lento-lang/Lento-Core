@@ -5,6 +5,16 @@ pub struct StdinReader {
     buffer: String,
 }
 
+impl StdinReader {
+    pub fn new() -> Self {
+        Self {
+            stdin: std::io::stdin(),
+            buffer: String::new(),
+        }
+    }
+
+}
+
 impl Read for StdinReader {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         while self.buffer.len() < buf.len() {

@@ -59,7 +59,7 @@ where
     lexer: Lexer<R>,
 }
 
-impl<R: Read + Seek> Parser<R> {
+impl<R: Read> Parser<R> {
     pub fn new(lexer: Lexer<R>) -> Self {
         Self { lexer }
     }
@@ -343,7 +343,7 @@ impl<R: Read + Seek> Parser<R> {
 //                               Parser Factory Functions                               //
 //--------------------------------------------------------------------------------------//
 
-fn setup_new_parser<R: BufRead + Seek>(mut lexer: Lexer<R>) -> Parser<R> {
+fn setup_new_parser<R: Read>(mut lexer: Lexer<R>) -> Parser<R> {
     init_lexer(&mut lexer);
     Parser::new(lexer)
 }
@@ -368,7 +368,7 @@ pub fn from_str(source: &str) -> Parser<BytesReader<'_>> {
 
 pub fn from_stdin() -> Parser<StdinReader> {
     setup_new_parser(lexer::from_stream(
-        StdinReader::new(std::io::stdin()),
+        StdinReader::new(),
         "stdin".to_string(),
     ))
 }

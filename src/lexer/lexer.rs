@@ -187,7 +187,7 @@ impl<R: Read> Lexer<R> {
         }
     }
 
-    fn peek_char(&mut self, offset: i64) -> Option<char> {
+    fn peek_char(&mut self, offset: usize) -> Option<char> {
         let peek_index = self.index.checked_add(offset)? as usize;
         if peek_index >= self.content.len() {
             self.try_read_chunk()?; // If fail, return None
