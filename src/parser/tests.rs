@@ -17,7 +17,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_call_paren_apply() {
+    fn call_paren_apply() {
         let result = parse_str_one("println(\"Hello, World!\")");
         let expected = Ast::FunctionCall(
             "println".to_string(),
@@ -31,7 +31,7 @@ mod tests {
     }
 
     // #[test]
-    // fn test_parser_call_no_paren_apply() {
+    // fn call_no_paren_apply() {
     //     let result = parse_str("println \"Hello, World!\"");
     //     let expected = Ast::FunctionCall(
     //         "println".to_string(),
@@ -43,7 +43,7 @@ mod tests {
     // }
 
     #[test]
-    fn test_parser_call_tuple_apply() {
+    fn call_tuple_apply() {
         let result = parse_str_one("println (\"Hello, World!\")");
         let expected = Ast::FunctionCall(
             "println".to_string(),
@@ -57,7 +57,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_hello_world_file() {
+    fn hello_world_file() {
         let result = parse_path_one(Path::new("./examples/basic/hello_world.lt"));
         let expected = Ast::FunctionCall(
             "println".to_string(),
@@ -71,7 +71,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_arithmetic() {
+    fn arithmetic() {
         let result = parse_str_one("1 + 2");
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -92,7 +92,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_arithmetic_tree() {
+    fn arithmetic_tree() {
         let result = parse_str_one("1 + 2 + 3");
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -112,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_assignment() {
+    fn assignment() {
         let result = parse_str_one("x = 1");
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -124,7 +124,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_assign_add() {
+    fn assign_add() {
         let result = parse_str_one("x = 1 + 2");
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -146,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_sequence() {
+    fn sequence() {
         let result = parse_str_all("1 2 3");
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -157,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parser_sequence_semicolon() {
+    fn sequence_semicolon() {
         let result = parse_str_all("1; 2; 3;");
         dbg!(&result);
         assert!(result.is_ok());

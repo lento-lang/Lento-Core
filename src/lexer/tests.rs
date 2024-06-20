@@ -16,7 +16,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_function() {
+    fn function() {
         let mut lexer = from_str("add a b = a + b");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Identifier("add".to_string()));
@@ -36,7 +36,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_assign() {
+    fn assign() {
         let mut lexer = from_str("x = 1;");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Identifier("x".to_string()));
@@ -50,7 +50,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_string() {
+    fn string() {
         let mut lexer = from_str(r#""Hello, World!""#);
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::String("Hello, World!".to_string()));
@@ -58,7 +58,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_string_escape() {
+    fn string_escape() {
         let mut lexer = from_str(r#""Hello, \"World\"!""#);
         init_lexer(&mut lexer);
         assert_next_token_eq(
@@ -69,7 +69,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_char() {
+    fn char() {
         let mut lexer = from_str(r#"'a'"#);
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Char('a'));
@@ -77,7 +77,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_char_escape() {
+    fn char_escape() {
         let mut lexer = from_str(r#"'\\'"#);
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Char('\\'));
@@ -85,7 +85,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_number() {
+    fn number() {
         let mut lexer = from_str("123.456");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Float("123.456".to_string()));
@@ -93,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_identifier() {
+    fn identifier() {
         let mut lexer = from_str("abc_123");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Identifier("abc_123".to_string()));
@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_operator_add() {
+    fn operator_add() {
         let mut lexer = from_str("+");
         init_lexer(&mut lexer);
         assert!(matches!(
@@ -112,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_keywords() {
+    fn keywords() {
         let mut lexer = from_str("true false let");
         init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Boolean(true));
@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_comment() {
+    fn comment() {
         let mut lexer = from_str("// This is a comment");
         init_lexer(&mut lexer);
         assert_next_token_eq(
@@ -133,7 +133,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lexer_types() {
+    fn types() {
         let types = [
             "unit", "str", "char", "bool", "u1", "u8", "u16", "u32", "u64", "u128", "ubig", "i8",
             "i16", "i32", "i64", "i128", "ibig", "f32", "f64", "fbig"];

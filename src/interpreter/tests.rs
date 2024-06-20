@@ -26,7 +26,7 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_binary_add() {
+    fn binary_add() {
         let ast = add(Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2)));
         // TODO: let checked_ast = type_check(&ast).unwrap();
         let result = interpret_ast(&ast, &mut global_env());
@@ -37,7 +37,7 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_tuple() {
+    fn tuple() {
         let ast = Ast::Tuple(
             vec![
                 Ast::Literal(make_u8(1)),
@@ -62,7 +62,7 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_call() {
+    fn function_call() {
         let ast = Ast::FunctionCall(
             "add".to_string(),
             vec![Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2))],
@@ -76,7 +76,7 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_invalid_function() {
+    fn invalid_function() {
         let ast = Ast::FunctionCall(
             "invalid_function_7194389034783682712840186".to_string(),
             vec![],
@@ -87,7 +87,7 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_assignment() {
+    fn assignment() {
         let ast = Ast::Assignment(
             Box::new(Ast::Identifier("x".to_string(), CheckedType::Unchecked)),
             Box::new(Ast::Literal(make_u8(1))),
@@ -101,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_module_assign_add() {
+    fn module_assign_add() {
         let module = parser::parse_str_all(
             r#"
 			x = 1;
@@ -118,10 +118,10 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_paren_explicit_args_and_ret() {
+    fn function_decl_paren_explicit_args_and_ret() {
         let module = parser::parse_str_all(
             r#"
-			let add(x: u8, y: u8, z: u8) -> u8 {
+			add(x: u8, y: u8, z: u8) -> u8 {
 				x + y + z
 			}
 		"#,
@@ -134,10 +134,10 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_explicit_args_and_ret() {
+    fn function_decl_explicit_args_and_ret() {
         let module = parser::parse_str_all(
             r#"
-			let add x: u8 y: u8 z: u8 -> u8 {
+			add x: u8 y: u8 z: u8 -> u8 {
 				x + y + z
 			}
 		"#,
@@ -150,10 +150,10 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_explicit_args() {
+    fn function_decl_explicit_args() {
         let module = parser::parse_str_all(
             r#"
-			let add x: u8 y: u8 z: u8 {
+			add x: u8 y: u8 z: u8 {
 				x + y + z
 			}
 		"#,
@@ -166,10 +166,10 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_paren_implicit_args_and_ret() {
+    fn function_decl_paren_implicit_args_and_ret() {
         let module = parser::parse_str_all(
             r#"
-			let add(x, y, z) {
+			add(x, y, z) {
 				x + y + z
 			}
 		"#,
@@ -182,10 +182,10 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_implicit_args_and_ret() {
+    fn function_decl_implicit_args_and_ret() {
         let module = parser::parse_str_all(
             r#"
-			let add x y z {
+			add x y z {
 				x + y + z
 			}
 		"#,
@@ -198,10 +198,10 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_implicit_random_parens() {
+    fn function_decl_implicit_random_parens() {
         let module = parser::parse_str_all(
             r#"
-			let add x y (z) a (b) (c) -> u8 {
+			add x y (z) a (b) (c) -> u8 {
 				x + y + z + a + b + c
 			}
 		"#,
@@ -214,10 +214,10 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_paren_explicit_signature_oneline() {
+    fn function_decl_paren_explicit_signature_oneline() {
         let module = parser::parse_str_all(
             r#"
-			let add(x: u8, y: u8, z: u8) -> u8 = x + y + z;
+			add(x: u8, y: u8, z: u8) -> u8 = x + y + z;
 		"#,
         )
         .expect("Failed to parse module");
@@ -228,10 +228,10 @@ mod tests {
     }
 
     #[test]
-    fn test_interpret_function_decl_explicit_signature_oneline() {
+    fn function_decl_explicit_signature_oneline() {
         let module = parser::parse_str_all(
             r#"
-			let add x: u8 y: u8 z: u8 -> u8 = x + y + z;
+			add x: u8 y: u8 z: u8 -> u8 = x + y + z;
 		"#,
         )
         .expect("Failed to parse module");
