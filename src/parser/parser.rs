@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Cursor, Error, Read, Seek},
+    io::{BufReader, Cursor, Error, Read},
     path::Path,
 };
 
@@ -193,7 +193,6 @@ impl<R: Read> Parser<R> {
     }
 
     fn parse_primary(&mut self) -> ParseResult {
-        let start_index = self.index();
         let nt = self.lexer.expect_next_token_not(pred::ignored);
         if let Ok(t) = nt {
             if t.token.is_literal() {
@@ -217,7 +216,7 @@ impl<R: Read> Parser<R> {
                             op.symbol(),
                             op.name()
                         ),
-                        span: (start_index, self.index()),
+                        span: (t.info.start.index, t.info.end.index)
                     });
                 }
                 let rhs = self.parse_primary()?;
@@ -229,7 +228,7 @@ impl<R: Read> Parser<R> {
             } else {
                 Err(ParseError {
                     message: format!("Expected primary expression, but found {:?}", t.token),
-                    span: (start_index, self.index()),
+                    span: (t.info.start.index, t.info.end.index),
                 })
             }
         } else {
@@ -238,7 +237,7 @@ impl<R: Read> Parser<R> {
                     "Expected primary expression, but failed due to: {:?}",
                     nt.unwrap_err().message
                 ),
-                span: (start_index, self.index()),
+                span: (self.index(), self.index()),
             })
         }
     }
@@ -309,10 +308,7 @@ impl<R: Read> Parser<R> {
             let mut rhs = self.parse_primary()?;
             nt = self.lexer.peek_token(0);
             while let Some(nt_op) = Self::parse_expr_check_next(&op, &nt) {
-                let curr_prec = op.precedence();
-                let nt_prec = nt_op.precedence();
-                let next_prec = curr_prec + (nt_prec > curr_prec) as OperatorPrecedence;
-                rhs = self.parse_expr(rhs, next_prec)?;
+                rhs = self.parse_expr(rhs, op.precedence() + (nt_op.precedence() > op.precedence()) as OperatorPrecedence)?;
                 nt = self.lexer.peek_token(0);
             }
             expr = match op {
