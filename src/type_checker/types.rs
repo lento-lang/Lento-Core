@@ -516,6 +516,22 @@ pub mod std_compount_types {
     }
 }
 
+pub mod std_collection_types {
+    use super::*;
+
+    pub fn list(t: Type) -> Type {
+        Type::List(Box::new(t))
+    }
+
+    pub fn tuple(types: Vec<Type>) -> Type {
+        Type::Tuple(types)
+    }
+
+    pub fn record(fields: Vec<(Str, Type)>) -> Type {
+        Type::Record(fields)
+    }
+}
+
 //--------------------------------------------------------------------------------------//
 //                                     Value trait                                      //
 //--------------------------------------------------------------------------------------//
