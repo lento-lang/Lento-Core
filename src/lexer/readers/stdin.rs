@@ -5,14 +5,13 @@ pub struct StdinReader {
     buffer: String,
 }
 
-impl StdinReader {
-    pub fn new() -> Self {
+impl Default for StdinReader {
+    fn default() -> Self {
         Self {
             stdin: std::io::stdin(),
             buffer: String::new(),
         }
     }
-
 }
 
 impl Read for StdinReader {

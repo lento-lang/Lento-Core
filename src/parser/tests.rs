@@ -17,6 +17,49 @@ mod tests {
     }
 
     #[test]
+    fn number() {
+        let result = parse_str_one("1");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+    }
+
+    #[test]
+    fn number_many() {
+        let result = parse_str_all("1 2 3 4 5");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 5);
+        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
+        assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
+        assert!(result.expressions[3] == Ast::Literal(make_u8(4)));
+        assert!(result.expressions[4] == Ast::Literal(make_u8(5)));
+    }
+
+    #[test]
+    fn number_many_semicolon() {
+        let result = parse_str_all("1; 2; 3;");
+        dbg!(&result);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 3);
+        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
+        assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
+    }
+
+    #[test]
+    fn number_par() {
+        let result = parse_str_one("(1)");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+    }
+
+    #[test]
     fn call_paren_apply() {
         let result = parse_str_one("println(\"Hello, World!\")");
         let expected = Ast::FunctionCall(

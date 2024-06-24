@@ -17,7 +17,7 @@ use super::{
 pub type InterpretResult = Result<Value, RuntimeError>;
 
 fn eval_function_variation_invocation(
-    name: String,
+    name: Option<String>,
     variation: FunctionVariation,
     arg_asts: Vec<Ast>,
     env: &mut Environment,
@@ -34,6 +34,7 @@ fn eval_function_variation_invocation(
     // Evaluate the function body or invoke the native handler
     match variation.clone() {
         FunctionVariation::User(_, body, _) => {
+            let name = name.unwrap_or_else(|| "anonymous".to_string());
             let mut new_env = env.new_child(Str::String(format!("Function closure: {}", name)));
             // Zip and add parameters and arguments as constants in the environment
             match var_params {
@@ -100,7 +101,7 @@ fn eval_function_call(name: String, arg_asts: Vec<Ast>, env: &mut Environment) -
                     name
                 )));
             }
-            eval_function_variation_invocation(name, found.unwrap(), arg_asts, env)
+            eval_function_variation_invocation(Some(name), found.unwrap(), arg_asts, env)
         }
         Some(_) => Err(runtime_error(format!("{} is not a function", name))),
         None => Err(runtime_error(format!("Unknown function: {}", name))),
@@ -143,7 +144,7 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
             None => return Err(runtime_error(format!("Unknown identifier: '{}'", id))),
         },
         Ast::Binary(lhs, op, rhs, _) => {
-            eval_function_variation_invocation(op.name, *op.handler, vec![*lhs, *rhs], env)?
+            eval_function_variation_invocation(Some(op.name), *op.handler, vec![*lhs, *rhs], env)?
         }
         Ast::Assignment(lhs, rhs, _) => {
             let lhs = match *lhs {

@@ -17,12 +17,12 @@ pub enum TokenKind {
     Boolean(bool),
     TypeIdentifier(String),
     // Grouping and separation tokens
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-    LeftBracket,
-    RightBracket,
+    LeftParen, // (
+    RightParen, // )
+    LeftBrace, // {
+    RightBrace, // }
+    LeftBracket, // [
+    RightBracket, // ]
     // All other operators will be implemented in a standard library at runtime in the future
     // leaving support for user-defined operators
     Op(Operator),
@@ -81,17 +81,29 @@ impl TokenKind {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LineInfo {
     pub index: usize,
     pub line: usize,
     pub column: usize,
 }
 
-#[derive(Debug, Clone)]
+impl Debug for LineInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index: {}, line: {}, column: {}", self.index, self.line, self.column)
+    }
+}
+
+#[derive(Clone)]
 pub struct LineInfoSpan {
     pub start: LineInfo,
     pub end: LineInfo,
+}
+
+impl Debug for LineInfoSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({:?}) to ({:?})", self.start, self.end)
+    }
 }
 
 impl Default for LineInfoSpan {
@@ -117,10 +129,16 @@ impl LineInfoSpan {
 /// TokenInfo is a structure that contains a token and its line and column information
 /// along with the character before and after the token.
 /// This is used for error reporting and debugging.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TokenInfo {
     /// The token itself
     pub token: TokenKind,
     /// The line and column of the token
     pub info: LineInfoSpan,
+}
+
+impl Debug for TokenInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} at {:?}", self.token, self.info)
+    }
 }

@@ -100,7 +100,7 @@ pub enum Ast {
 impl Ast {
     pub fn print_sexpr(&self) -> String {
         match self {
-            Ast::Error(_) => format!("<error!>"),
+            Ast::Error(_) => "<error!>".to_string(),
             Ast::Literal(value) => value.to_string(),
             Ast::Tuple(elements, _) => format!(
                 "({})",

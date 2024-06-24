@@ -3,7 +3,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
     fs::File,
-    io::{BufReader, Cursor, Error, Read, Seek},
+    io::{BufReader, Cursor, Error, Read},
     path::PathBuf,
 };
 
@@ -188,7 +188,7 @@ impl<R: Read> Lexer<R> {
     }
 
     fn peek_char(&mut self, offset: usize) -> Option<char> {
-        let peek_index = self.index.checked_add(offset)? as usize;
+        let peek_index = self.index.checked_add(offset)?;
         if peek_index >= self.content.len() {
             self.try_read_chunk()?; // If fail, return None
         }
@@ -343,10 +343,10 @@ impl<R: Read> Lexer<R> {
                     '}' => TokenKind::RightBrace,
                     '[' => TokenKind::LeftBracket,
                     ']' => TokenKind::RightBracket,
-                    ',' => TokenKind::Comma,
                     ';' => TokenKind::SemiColon,
                     '/' if nt == Some('/') => return self.read_comment(),
                     _ => {
+                        // TODO: Allow operators to be more than one character long!
                         if let Some(op) = self.lookup_op(&c.to_string()) {
                             TokenKind::Op(op)
                         } else {

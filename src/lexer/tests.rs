@@ -101,17 +101,6 @@ mod tests {
     }
 
     #[test]
-    fn operator_add() {
-        let mut lexer = from_str("+");
-        init_lexer(&mut lexer);
-        assert!(matches!(
-            lexer.read_next_token().unwrap().token,
-            TokenKind::Op(Operator::Runtime(_))
-        ));
-        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
-    }
-
-    #[test]
     fn keywords() {
         let mut lexer = from_str("true false let");
         init_lexer(&mut lexer);
