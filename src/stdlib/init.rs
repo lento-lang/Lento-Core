@@ -1,7 +1,4 @@
-use std::{
-    io::{BufRead, Read, Seek},
-    vec,
-};
+use std::io::Read;
 
 use crate::{
     interpreter::{
@@ -14,7 +11,7 @@ use crate::{
     },
     parser::ast::Ast,
     stdlib::arithmetic,
-    type_checker::types::{std_primitive_types, CheckedType, Type},
+    type_checker::types::{std_primitive_types, CheckedType, GetType, Type},
     util::str::Str,
 };
 
@@ -33,21 +30,23 @@ pub fn init_lexer<R: Read>(lexer: &mut Lexer<R>) {
 
     let add_op_static = |lexer: &mut Lexer<R>,
                          name: &str,
-                         sym: &str,
+                         symbol: &str,
                          pos: OperatorPosition,
-                         prec: u16,
-                         assoc: OperatorAssociativity,
+                         precedence: u16,
+                         associativity: OperatorAssociativity,
                          overloadable: bool,
+                         allow_trailing: bool,
                          handler: StaticOperatorHandler| {
-        if let Err(e) = lexer.define_op(Operator::Static(StaticOperator::new_str(
-            name,
-            sym,
-            pos,
-            prec,
-            assoc,
+        if let Err(e) = lexer.define_op(Operator::Static(StaticOperator {
+            name: name.into(),
+            symbol: symbol.into(),
+            position: pos,
+            precedence,
+            associativity,
             overloadable,
+            allow_trailing,
             handler,
-        ))) {
+        })) {
             panic!(
                 "Failed to initialize lexer when adding static operator '{}': {:?}",
                 name, e
@@ -78,15 +77,19 @@ pub fn init_lexer<R: Read>(lexer: &mut Lexer<R>) {
         }
     };
 
-    //--------------------------------------------------------------------------------------//
-    //                               Native Static Functions                                //
-    //--------------------------------------------------------------------------------------//
-
-    fn assign_handler(op: StaticOperatorAst) -> Ast {
+    fn static_infix(name: &'static str, op: StaticOperatorAst, callback: fn(Ast, Ast) -> Ast) -> Ast {
         if let StaticOperatorAst::Infix(lhs, rhs) = op {
-            Ast::Assignment(Box::new(lhs), Box::new(rhs), CheckedType::Unchecked)
+            callback(lhs, rhs)
         } else {
-            panic!("assign_handler() expects an infix operator")
+            panic!("{} expects an infix operator", name)
+        }
+    }
+
+    fn static_accum(name: &'static str, op: StaticOperatorAst, callback: fn(Vec<Ast>) -> Ast) -> Ast {
+        if let StaticOperatorAst::Accumulate(elems) = op {
+            callback(elems)
+        } else {
+            panic!("{} expects an accumulator operator", name)
         }
     }
 
@@ -103,7 +106,32 @@ pub fn init_lexer<R: Read>(lexer: &mut Lexer<R>) {
         default_operator_precedence::ASSIGNMENT,
         OperatorAssociativity::Right,
         false,
-        assign_handler,
+        false,
+        |op| static_infix("assign", op, |lhs, rhs| {
+            let assign_type = rhs.get_type(); // Inherit the type of the right-hand side
+            Ast::Assignment(Box::new(lhs), Box::new(rhs), assign_type)
+        }),
+    );
+    add_op_static(
+        lexer,
+        "tuple",
+        ",",
+        OperatorPosition::InfixAccumulate,
+        default_operator_precedence::TUPLE,
+        OperatorAssociativity::Right,
+        false,
+        true,
+        |op| static_accum("tuple", op, |elems| {
+            // Inherit the type of all elements as a new tuple type
+            let tuple_type = if elems.iter().any(|e| e.get_type() == CheckedType::Unchecked) {
+                CheckedType::Unchecked
+            } else {
+                CheckedType::Checked(
+                    Type::Tuple(elems.iter().map(|e| e.get_type().unwrap_checked().clone()).collect())
+                )
+            };
+            Ast::Tuple(elems, tuple_type)
+        }),
     );
     add_op_runtime(lexer, arithmetic::op_add());
 

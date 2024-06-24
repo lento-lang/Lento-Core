@@ -13,10 +13,10 @@ use crate::{
             StaticOperatorAst,
         },
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
-        token::TokenKind,
+        token::{TokenInfo, TokenKind},
     },
     stdlib::init::init_lexer,
-    type_checker::types::CheckedType,
+    type_checker::types::{CheckedType, GetType, Type},
 };
 
 use crate::lexer::lexer::Lexer;
@@ -225,6 +225,44 @@ impl<R: Read> Parser<R> {
                     Operator::Runtime(rt) => Ast::Unary(rt, Box::new(rhs), CheckedType::Unchecked),
                     Operator::Static(st) => (st.handler)(StaticOperatorAst::Prefix(rhs)),
                 })
+            } else if t.token.is_grouping_start() {
+                match t.token {
+                    TokenKind::LeftParen => {
+                        if let Ok(t) = self.lexer.peek_token(0) {
+                            if t.token == TokenKind::RightParen {
+                                self.lexer.read_next_token().unwrap();
+                                return Ok(Ast::Tuple(vec![], CheckedType::Checked(Type::Unit)));
+                            }
+                        }
+                        // Tuples are defined by a comma-separated list of expressions
+                        let expr = self.parse_top_expr()?;
+                        self.parse_expected(TokenKind::RightParen, ")")?;
+                        Ok(expr)
+                    }
+                    TokenKind::LeftBrace => {
+                        let mut exprs = Vec::new();
+                        while let Ok(t) = self.lexer.peek_token(0) {
+                            if t.token == TokenKind::RightBrace { break; }
+                            exprs.push(self.parse_top_expr()?);
+                        }
+                        self.parse_expected(TokenKind::RightBrace, "}")?;
+                        let return_type = if let Some(expr) = exprs.last() {
+                            expr.get_type()
+                        } else {
+                            CheckedType::Checked(Type::Unit)
+                        };
+                        Ok(Ast::Block(exprs, return_type))
+                    }
+                    TokenKind::LeftBracket => {
+                        let body = self.parse_top_expr()?;
+                        self.parse_expected(TokenKind::RightBracket, "]")?;
+                        match body {
+                            Ast::Tuple(elems, _) => Ok(Ast::List(elems, CheckedType::Unchecked)),
+                            single => Ok(Ast::List(vec![single], CheckedType::Unchecked))
+                        }
+                    }
+                    _ => unreachable!()
+                }
             } else {
                 Err(ParseError {
                     message: format!("Expected primary expression, but found {:?}", t.token),
@@ -247,7 +285,7 @@ impl<R: Read> Parser<R> {
     /// ## Note
     /// If it is, then return the operator, otherwise return None.
     /// If the next token is a terminator, then return None.
-    fn parse_expr_check_first(op: &LexResult, min_prec: OperatorPrecedence) -> Option<Operator> {
+    fn parse_expr_first(op: &LexResult, min_prec: OperatorPrecedence) -> Option<Operator> {
         if let Ok(t) = op {
             if t.token.is_terminator() {
                 return None;
@@ -255,7 +293,7 @@ impl<R: Read> Parser<R> {
             return t
                 .token
                 .get_operator()
-                .filter(|op| op.pos() == OperatorPosition::Infix && op.precedence() >= min_prec);
+                .filter(|op| op.pos().is_infix() && op.precedence() >= min_prec);
         }
         None
     }
@@ -268,19 +306,22 @@ impl<R: Read> Parser<R> {
     /// Return true if either:
     /// - `op` is a binary operator whose precedence is greater than op's
     /// - `op` is a right-associative binary operator whose precedence is equal to op's
-    fn parse_expr_check_next(op: &Operator, nt: &LexResult) -> Option<Operator> {
-        if let Ok(t) = nt {
-            if let Some(nt_op) = t.token.get_operator() {
-                let is_infix = nt_op.pos() == OperatorPosition::Infix;
-                let is_greater = nt_op.precedence() > op.precedence();
-                let is_right_assoc = nt_op.associativity() == OperatorAssociativity::Right;
-                let is_equal = nt_op.precedence() == op.precedence();
-                if is_infix && (is_greater || (is_right_assoc && is_equal)) {
-                    return Some(nt_op);
-                }
-            }
+    fn parse_expr_next(op: &Operator, nt: &LexResult) -> Option<Operator> {
+        let t = if let Ok(t) = nt { t } else { return None };
+        let nt_op = if let Some(nt_op) = t.token.get_operator() { nt_op } else { return None };
+        let is_infix = nt_op.pos().is_infix();
+        let is_greater = nt_op.precedence() > op.precedence();
+        let is_right_assoc = nt_op.associativity() == OperatorAssociativity::Right;
+        let is_equal = nt_op.precedence() == op.precedence();
+        if is_infix && (is_greater || (is_right_assoc && is_equal)) {
+            Some(nt_op)
+        } else {
+            None
         }
-        None
+    }
+
+    fn next_prec(curr_op: &Operator, next_op: &Operator) -> OperatorPrecedence {
+        curr_op.precedence() + (next_op.precedence() > curr_op.precedence()) as OperatorPrecedence
     }
 
     /// Parse an expression with a given left-hand side and minimum precedence level
@@ -303,15 +344,20 @@ impl<R: Read> Parser<R> {
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut nt = self.lexer.peek_token(0);
         let mut expr = lhs;
-        while let Some(op) = Self::parse_expr_check_first(&nt, min_prec) {
-            self.lexer.read_next_token().unwrap();
+        while let Some(curr_op) = Self::parse_expr_first(&nt, min_prec) {
+            self.lexer.read_next_token().unwrap(); // Consume the operator token
+            if curr_op.pos().is_accumulate() {
+                expr = self.parse_expr_accum(curr_op, expr)?;
+                nt = self.lexer.peek_token(0);
+                continue;
+            }
             let mut rhs = self.parse_primary()?;
             nt = self.lexer.peek_token(0);
-            while let Some(nt_op) = Self::parse_expr_check_next(&op, &nt) {
-                rhs = self.parse_expr(rhs, op.precedence() + (nt_op.precedence() > op.precedence()) as OperatorPrecedence)?;
+            while let Some(next_op) = Self::parse_expr_next(&curr_op, &nt) {
+                rhs = self.parse_expr(rhs, Self::next_prec(&curr_op, &next_op))?;
                 nt = self.lexer.peek_token(0);
             }
-            expr = match op {
+            expr = match curr_op {
                 Operator::Runtime(rt) => {
                     Ast::Binary(Box::new(expr), rt, Box::new(rhs), CheckedType::Unchecked)
                 }
@@ -319,6 +365,35 @@ impl<R: Read> Parser<R> {
             }
         }
         Ok(expr)
+    }
+
+    /// Expect the parser state to be at the end of [expr, op] sequence.
+    /// Next token should be a new expression or a terminator.
+    fn parse_expr_accum(&mut self, op: Operator, first: Ast) -> ParseResult {
+        let mut exprs = vec![first];
+        loop {
+            // Check if the next token is a terminator, then break the loop
+            let nt = self.lexer.peek_token(0);
+            if let Ok(nt) = nt {
+                if op.allow_trailing() && nt.token.is_terminator() { break; }
+            } else {
+                break;
+            }
+
+            // Parse the next expression in the sequence
+            exprs.push(self.parse_primary()?);
+
+            // Expect the next token to be the same operator or another expression
+            let nt = self.lexer.peek_token(0);
+            if let Some(nt_op) = Self::parse_expr_first(&nt, op.precedence()) {
+                if nt_op != op { break; }
+                self.lexer.read_next_token().unwrap(); // Consume the operator token
+            } else { break; }
+        }
+        Ok(match op {
+            Operator::Runtime(rt) => Ast::VariationCall(rt.handler, exprs, CheckedType::Unchecked),
+            Operator::Static(st) => (st.handler)(StaticOperatorAst::Accumulate(exprs)),
+        })
     }
 
     /// Parse a top-level expression.
@@ -332,6 +407,24 @@ impl<R: Read> Parser<R> {
             }
         }
         expr
+    }
+
+    fn parse_expected(&mut self, expected_token: TokenKind, symbol: &'static str) -> Result<TokenInfo, ParseError>{
+        match self.lexer.expect_next_token_not(pred::ignored) {
+            Ok(t) if t.token == expected_token => Ok(t),
+            Ok(t) => Err(ParseError {
+                message: format!("Expected '{}' but found {:?}", symbol, t),
+                span: (t.info.start.index, t.info.end.index),
+            }),
+            Err(err) => Err(ParseError {
+                message: format!(
+                    "Expected '{}', but failed due to: {:?}",
+                    symbol,
+                    err.message
+                ),
+                span: (self.index(), self.index()),
+            })
+        }
     }
 }
 
@@ -364,7 +457,7 @@ pub fn from_str(source: &str) -> Parser<BytesReader<'_>> {
 
 pub fn from_stdin() -> Parser<StdinReader> {
     setup_new_parser(lexer::from_stream(
-        StdinReader::new(),
+        StdinReader::default(),
         "stdin".to_string(),
     ))
 }

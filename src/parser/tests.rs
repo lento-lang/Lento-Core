@@ -60,6 +60,133 @@ mod tests {
     }
 
     #[test]
+    fn tuple_1() {
+        let result = parse_str_one("(1,)");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == Ast::Tuple(vec![Ast::Literal(make_u8(1))], CheckedType::Unchecked));
+    }
+
+    #[test]
+    fn tuple_1_no_par() {
+        let result = parse_str_one("1,");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == Ast::Tuple(vec![Ast::Literal(make_u8(1))], CheckedType::Unchecked));
+    }
+
+    #[test]
+    fn tuple_2() {
+        let result = parse_str_one("(1, 2)");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == Ast::Tuple(vec![Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2))], CheckedType::Unchecked));
+    }
+
+    #[test]
+    fn tuple_2_no_par() {
+        let result = parse_str_one("1, 2");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == Ast::Tuple(vec![Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2))], CheckedType::Unchecked));
+    }
+
+    #[test]
+    fn tuple_3() {
+        let result = parse_str_one("(1, 2, 3)");
+        dbg!(&result);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 3);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
+            assert_eq!(elems[2], Ast::Literal(make_u8(3)));
+        }
+    }
+
+    #[test]
+    fn tuple_3_no_par() {
+        let result = parse_str_one("1, 2, 3");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        dbg!(&result.expressions[0]);
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 3);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
+            assert_eq!(elems[2], Ast::Literal(make_u8(3)));
+        }
+    }
+
+    #[test]
+    fn tuple_3_trailing() {
+        let result = parse_str_one("(1, 2, 3,)");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 3);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
+            assert_eq!(elems[2], Ast::Literal(make_u8(3)));
+        }
+    }
+
+    #[test]
+    fn tuple_3_no_par_trailing() {
+        let result = parse_str_one("1, 2, 3,");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 3);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
+            assert_eq!(elems[2], Ast::Literal(make_u8(3)));
+        }
+    }
+
+    #[test]
+    fn tuple_addition() {
+        let result = parse_str_one("(1, 2) + (3, 4)");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Binary(_, _, _, CheckedType::Unchecked)));
+        if let Ast::Binary(lhs, op, rhs, _) = &result.expressions[0] {
+            assert_eq!(op, &op_add());
+            assert!(matches!(*lhs.to_owned(), Ast::Tuple(_, _)));
+            assert!(matches!(*rhs.to_owned(), Ast::Tuple(_, _)));
+        }
+    }
+
+    #[test]
+    fn list_3() {
+        let result = parse_str_one("[1, 2, 3]");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::List(_, _)));
+        if let Ast::List(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 3);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
+            assert_eq!(elems[2], Ast::Literal(make_u8(3)));
+        }
+    }
+
+    #[test]
     fn call_paren_apply() {
         let result = parse_str_one("println(\"Hello, World!\")");
         let expected = Ast::FunctionCall(
@@ -189,30 +316,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence() {
-        let result = parse_str_all("1 2 3");
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.expressions.len() == 3);
-        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
-        assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
-        assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
-    }
-
-    #[test]
-    fn sequence_semicolon() {
-        let result = parse_str_all("1; 2; 3;");
-        dbg!(&result);
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.expressions.len() == 3);
-        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
-        assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
-        assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
-    }
-
-    #[test]
-    fn test_parse_comment() {
+    fn comment() {
         let result = parse_str_all("1; // This is a comment");
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -221,7 +325,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_comment_newline() {
+    fn comment_newline() {
         let result = parse_str_all(
             r#"
 			// This is a comment
@@ -236,4 +340,16 @@ mod tests {
         assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
         assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
     }
+
+    // #[test]
+    // fn arithmetic_complex() {
+    //     let result = parse_str_one("5 * (10 - 2) / 2 + 1");
+    //     assert!(result.is_ok());
+    //     let result = result.unwrap();
+    //     assert!(result.expressions.len() == 1);
+    //     assert!(matches!(
+    //         result.expressions[0],
+    //         Ast::Binary(_, _, _, CheckedType::Unchecked)
+    //     ));
+    // }
 }

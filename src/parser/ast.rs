@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    interpreter::value::Value,
+    interpreter::value::{FunctionVariation, Value},
     lexer::{lexer::InputSource, op::RuntimeOperator},
     type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
 };
@@ -69,6 +69,11 @@ pub enum Ast {
     /// 2. List of arguments
     /// 3. Type of the return value of the function
     FunctionCall(String, Vec<Ast>, CheckedType),
+    /// A function variation call is an invocation of a function variation with a list of arguments
+    /// 1. Function variation
+    /// 2. List of arguments
+    /// 3. Type of the return value of the function
+    VariationCall(Box<FunctionVariation>, Vec<Ast>, CheckedType),
     /// A function definition is a named function with a list of parameters and a body expression
     /// 1. Name of the function
     /// 2. List of parameters
@@ -124,6 +129,14 @@ impl Ast {
             Ast::FunctionCall(name, args, _) => format!(
                 "({} {})",
                 name,
+                args.iter()
+                    .map(|e| e.print_sexpr())
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            ),
+            Ast::VariationCall(variation, args, _) => format!(
+                "({} {})",
+                variation,
                 args.iter()
                     .map(|e| e.print_sexpr())
                     .collect::<Vec<String>>()

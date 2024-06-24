@@ -131,6 +131,8 @@ fn eval_tuple(elems: Vec<Ast>, env: &mut Environment) -> InterpretResult {
 pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
     Ok(match ast.to_owned() {
         Ast::FunctionCall(name, args, _) => eval_function_call(name, args, env)?,
+        Ast::VariationCall(handler, args, _) =>
+            eval_function_variation_invocation(None, *handler, args, env)?,
         Ast::Tuple(v, _) => {
             if v.is_empty() {
                 Value::Unit

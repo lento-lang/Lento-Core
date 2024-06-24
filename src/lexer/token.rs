@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use super::op::Operator;
 
 // Token structure for the Lento programming language
@@ -6,7 +8,6 @@ pub enum TokenKind {
     EndOfFile,
     // Expression terminators
     Newline,
-    Comma,
     SemiColon,
     // Literals
     Identifier(String),
@@ -61,12 +62,29 @@ impl TokenKind {
             TokenKind::EndOfFile
                 | TokenKind::Newline
                 | TokenKind::SemiColon
-                | TokenKind::Comma
                 | TokenKind::RightParen
                 | TokenKind::RightBrace
                 | TokenKind::RightBracket
                 | TokenKind::Comment(_)
         )
+    }
+
+    pub fn is_grouping_start(&self) -> bool {
+        matches!(
+            self,
+            TokenKind::LeftParen | TokenKind::LeftBrace | TokenKind::LeftBracket
+        )
+    }
+
+    pub fn is_grouping_end(&self) -> bool {
+        matches!(
+            self,
+            TokenKind::RightParen | TokenKind::RightBrace | TokenKind::RightBracket
+        )
+    }
+
+    pub fn is_grouping(&self) -> bool {
+        self.is_grouping_start() || self.is_grouping_end()
     }
 
     pub fn is_top_level_terminal(&self, allow_eof: bool) -> bool {

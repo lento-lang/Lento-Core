@@ -52,13 +52,14 @@ pub fn add() -> FunctionVariation {
 }
 
 pub fn op_add() -> RuntimeOperator {
-    RuntimeOperator::new_str(
-        "add",
-        "+",
-        OperatorPosition::Infix,
-        default_operator_precedence::ADDITIVE,
-        OperatorAssociativity::Left,
-        false,
-        Box::new(add()),
-    )
+    RuntimeOperator {
+        name: "add".into(),
+        symbol: "+".into(),
+        position: OperatorPosition::Infix,
+        precedence: default_operator_precedence::ADDITIVE,
+        associativity: OperatorAssociativity::Left,
+        allow_trailing: false,
+        overloadable: true,
+        handler: Box::new(add()),
+    }
 }

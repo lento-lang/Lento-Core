@@ -13,6 +13,7 @@ mod tests {
         init_lexer(&mut lexer);
         assert!(lexer.lookup_op("=").is_some());
         assert!(lexer.lookup_op("+").is_some());
+        assert!(lexer.lookup_op(",").is_some());
         // Types
         assert!(lexer.is_type("any"));
         assert!(lexer.is_type("unit"));
