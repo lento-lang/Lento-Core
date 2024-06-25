@@ -208,7 +208,7 @@ impl<R: Read> Parser<R> {
             } else if let TokenKind::TypeIdentifier(t) = t.token {
                 Ok(Ast::TypeIdentifier(t, CheckedType::Unchecked))
             } else if t.token.is_operator() {
-                let op = t.token.get_operator().unwrap();
+                let op = t.token.as_operator().unwrap();
                 if op.pos() != OperatorPosition::Prefix {
                     return Err(ParseError {
                         message: format!(
@@ -292,7 +292,7 @@ impl<R: Read> Parser<R> {
             }
             return t
                 .token
-                .get_operator()
+                .as_operator()
                 .filter(|op| op.pos().is_infix() && op.precedence() >= min_prec);
         }
         None
@@ -307,8 +307,8 @@ impl<R: Read> Parser<R> {
     /// - `op` is a binary operator whose precedence is greater than op's
     /// - `op` is a right-associative binary operator whose precedence is equal to op's
     fn parse_expr_next(op: &Operator, nt: &LexResult) -> Option<Operator> {
-        let t = if let Ok(t) = nt { t } else { return None };
-        let nt_op = if let Some(nt_op) = t.token.get_operator() { nt_op } else { return None };
+        let t = nt.as_ref().ok()?;
+        let nt_op = t.token.as_operator()?;
         let is_infix = nt_op.pos().is_infix();
         let is_greater = nt_op.precedence() > op.precedence();
         let is_right_assoc = nt_op.associativity() == OperatorAssociativity::Right;

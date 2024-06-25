@@ -38,7 +38,7 @@ impl TokenKind {
         matches!(self, TokenKind::Op(_))
     }
 
-    pub fn get_operator(&self) -> Option<Operator> {
+    pub fn as_operator(&self) -> Option<Operator> {
         match self {
             TokenKind::Op(op) => Some(op.clone()),
             _ => None,
