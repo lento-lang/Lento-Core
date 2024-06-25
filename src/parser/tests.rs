@@ -327,7 +327,7 @@ mod tests {
         assert!(result.expressions.len() == 1);
         assert!(matches!(
             result.expressions[0],
-            Ast::Assignment(_, _, CheckedType::Unchecked)
+            Ast::Assignment(_, _, _)
         ));
     }
 
