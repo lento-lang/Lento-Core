@@ -280,41 +280,27 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    /// Check if the next token is an infix binary operator with a precedence greater than or equal to `min_prec`.
+    /// Check if to continue parsing the next expression in the sequence
+    /// based on the precedence of the next operator.
     ///
-    /// ## Note
-    /// If it is, then return the operator, otherwise return None.
-    /// If the next token is a terminator, then return None.
-    fn parse_expr_first(op: &LexResult, min_prec: OperatorPrecedence) -> Option<Operator> {
-        if let Ok(t) = op {
-            if t.token.is_terminator() {
-                return None;
-            }
-            return t
-                .token
-                .as_operator()
-                .filter(|op| op.pos().is_infix() && op.precedence() >= min_prec);
-        }
-        None
-    }
-
-    /// Check if the next token `nt` is an infix binary operator whose precedence
-    /// is greater than op's, or a right-associative operator whose precedence is equal to `op`'s.
-    /// If it is, then return the operator, otherwise return None.
-    ///
-    /// ## Note
-    /// Return true if either:
-    /// - `op` is a binary operator whose precedence is greater than op's
-    /// - `op` is a right-associative binary operator whose precedence is equal to op's
-    fn parse_expr_next(op: &Operator, nt: &LexResult) -> Option<Operator> {
+    /// ## Returns
+    /// - `Some(op)`: If the next token is an infix binary operator that either:
+    ///     - has a precedence **greater than** `min_prec`
+    ///     - is **right-associative** with a precedence **greater than or equal** to `min_prec`
+    ///     - `allow_eq` is `true` and precedence **equal** to `min_prec`
+    /// - `None`: If the next token is either:
+    ///     - **not an infix operator**
+    ///     - its **precedence is lower than** `min_prec`
+    ///     - it is a **terminator**
+    fn next_op(min_prec: OperatorPrecedence, nt: &LexResult, allow_eq: bool) -> Option<Operator> {
         let t = nt.as_ref().ok()?;
-        let nt_op = t.token.as_operator()?;
-        let is_infix = nt_op.pos().is_infix();
-        let is_greater = nt_op.precedence() > op.precedence();
-        let is_right_assoc = nt_op.associativity() == OperatorAssociativity::Right;
-        let is_equal = nt_op.precedence() == op.precedence();
-        if is_infix && (is_greater || (is_right_assoc && is_equal)) {
-            Some(nt_op)
+        let op = t.token.as_operator()?;
+        let is_infix = op.pos().is_infix();
+        let is_greater = op.precedence() > min_prec;
+        let is_right_assoc = op.associativity() == OperatorAssociativity::Right;
+        let is_equal = op.precedence() == min_prec;
+        if is_infix && (is_greater || ((is_right_assoc || allow_eq) && is_equal)) {
+            Some(op)
         } else {
             None
         }
@@ -344,7 +330,7 @@ impl<R: Read> Parser<R> {
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut nt = self.lexer.peek_token(0);
         let mut expr = lhs;
-        while let Some(curr_op) = Self::parse_expr_first(&nt, min_prec) {
+        while let Some(curr_op) = Self::next_op(min_prec, &nt, false) {
             self.lexer.read_next_token().unwrap(); // Consume the operator token
             if curr_op.pos().is_accumulate() {
                 expr = self.parse_expr_accum(curr_op, expr)?;
@@ -353,7 +339,7 @@ impl<R: Read> Parser<R> {
             }
             let mut rhs = self.parse_primary()?;
             nt = self.lexer.peek_token(0);
-            while let Some(next_op) = Self::parse_expr_next(&curr_op, &nt) {
+            while let Some(next_op) = Self::next_op(curr_op.precedence(), &nt, false) {
                 rhs = self.parse_expr(rhs, Self::next_prec(&curr_op, &next_op))?;
                 nt = self.lexer.peek_token(0);
             }
