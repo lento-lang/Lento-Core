@@ -118,7 +118,7 @@ pub fn init_lexer<R: Read>(lexer: &mut Lexer<R>) {
         ",",
         OperatorPosition::InfixAccumulate,
         default_operator_precedence::TUPLE,
-        OperatorAssociativity::Right,
+        OperatorAssociativity::Left,
         false,
         true,
         |op| static_accum("tuple", op, |elems| {

@@ -65,7 +65,11 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(result.expressions[0] == Ast::Tuple(vec![Ast::Literal(make_u8(1))], CheckedType::Unchecked));
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 1);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+        }
     }
 
     #[test]
@@ -74,7 +78,11 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(result.expressions[0] == Ast::Tuple(vec![Ast::Literal(make_u8(1))], CheckedType::Unchecked));
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 1);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+        }
     }
 
     #[test]
@@ -83,7 +91,12 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(result.expressions[0] == Ast::Tuple(vec![Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2))], CheckedType::Unchecked));
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 2);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
+        }
     }
 
     #[test]
@@ -92,16 +105,21 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(result.expressions[0] == Ast::Tuple(vec![Ast::Literal(make_u8(1)), Ast::Literal(make_u8(2))], CheckedType::Unchecked));
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 2);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
+        }
     }
 
     #[test]
     fn tuple_3() {
         let result = parse_str_one("(1, 2, 3)");
-        dbg!(&result);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
+        dbg!(&result.expressions[0]);
         assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
         if let Ast::Tuple(elems, _) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
@@ -168,6 +186,26 @@ mod tests {
             assert_eq!(op, &op_add());
             assert!(matches!(*lhs.to_owned(), Ast::Tuple(_, _)));
             assert!(matches!(*rhs.to_owned(), Ast::Tuple(_, _)));
+        }
+    }
+
+    #[test]
+    fn tuple_with_addition() {
+        let result = parse_str_one("1, 2 + 3, 4");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Tuple(_, _)));
+        if let Ast::Tuple(elems, _) = &result.expressions[0] {
+            assert_eq!(elems.len(), 3);
+            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert!(matches!(&elems[1], Ast::Binary(_, _, _, CheckedType::Unchecked)));
+            assert_eq!(elems[2], Ast::Literal(make_u8(4)));
+            if let Ast::Binary(lhs, op, rhs, _) = &elems[1] {
+                assert_eq!(op, &op_add());
+                assert_eq!(**lhs, Ast::Literal(make_u8(2)));
+                assert_eq!(**rhs, Ast::Literal(make_u8(3)));
+            }
         }
     }
 

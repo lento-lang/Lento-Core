@@ -359,21 +359,21 @@ impl<R: Read> Parser<R> {
         let mut exprs = vec![first];
         loop {
             // Check if the next token is a terminator, then break the loop
-            let nt = self.lexer.peek_token(0);
-            if let Ok(nt) = nt {
-                if op.allow_trailing() && nt.token.is_terminator() { break; }
-            } else {
-                break;
-            }
+            if let Ok(t) = self.lexer.peek_token_not(pred::ignored) {
+                if op.allow_trailing() && t.token.is_terminator() { break; }
+            } else { break; }
 
-            // Parse the next expression in the sequence
-            exprs.push(self.parse_primary()?);
+            // Parse the next nested expression in the sequence
+            let lhs = self.parse_primary()?;
+            exprs.push(self.parse_expr(lhs, op.precedence())?);
 
             // Expect the next token to be the same operator or another expression
-            let nt = self.lexer.peek_token(0);
-            if let Some(nt_op) = Self::parse_expr_first(&nt, op.precedence()) {
-                if nt_op != op { break; }
-                self.lexer.read_next_token().unwrap(); // Consume the operator token
+            if let Some(next_op) = Self::next_op(
+                op.precedence(),
+                &self.lexer.peek_token_not(pred::ignored),
+                true) {
+                if next_op != op { break; }
+                self.lexer.read_next_token_not(pred::ignored).unwrap(); // Consume the operator token
             } else { break; }
         }
         Ok(match op {
