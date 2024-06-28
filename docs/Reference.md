@@ -280,6 +280,10 @@ Lento defines operators as either symbols or keywords.
 
 When defining custom operators, it is recommended to use symbols for arithmetic, bitwise, and comparison operations, and keywords for logical and relational operations.
 
+Sometimes operator symbols may include characters used in other operators, such as `+` and `++`, or `=` and `==`. In such cases, it is recommended to in these ambiguous cases to either, use the operator function directly, such as `increment` instead of `++`, or `equals` instead of `==`, or use whitespace to separate the operator symbols from other tokens in the expression to avoid confusion, such as `x + ++y` instead of `x+++y`, which can be ambiguous in prefix and postfix operators `++` and infix `+`.
+
+So if one wants to define a custom operator for incrementing a value, it is recommended to use a different symbol, such as `++` and `+=`, or use a keyword, such as `increment` and `increment_by`.
+
 ---
 
 #### REST OF THE DOCUMENTATION IS COMING SOON...
