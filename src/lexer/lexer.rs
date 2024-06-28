@@ -137,10 +137,8 @@ impl<R: Read> Lexer<R> {
         Ok(())
     }
 
-    pub fn lookup_op(&self, op: &str) -> Option<Operator> {
-        // TODO: Incremental search using peek_char and break when there is no match,
-        //      otherwise, return the longest match while peeking all the way to the end and "eating" the characters if there is a match.
-        self.operators.get(op).cloned()
+    pub fn lookup_op(&self, symbol: &str) -> Option<&Operator> {
+        self.operators.get(symbol)
     }
 
     pub fn define_type(&mut self, type_name: String) -> Failable<RuntimeError> {
@@ -335,7 +333,6 @@ impl<R: Read> Lexer<R> {
             } else if Self::is_identifier_head_char(c) {
                 self.read_identifier(c)
             } else {
-                let nt = self.peek_char(0);
                 self.new_token_info(match c {
                     '(' => TokenKind::LeftParen,
                     ')' => TokenKind::RightParen,
@@ -344,19 +341,8 @@ impl<R: Read> Lexer<R> {
                     '[' => TokenKind::LeftBracket,
                     ']' => TokenKind::RightBracket,
                     ';' => TokenKind::SemiColon,
-                    '/' if nt == Some('/') => return self.read_comment(),
-                    _ => {
-                        // TODO: Allow operators to be more than one character long!
-                        if let Some(op) = self.lookup_op(&c.to_string()) {
-                            TokenKind::Op(op)
-                        } else {
-                            return Err(LexerError::unexpected_character(
-                                c,
-                                self.line_info.clone(),
-                                self.input_source.clone(),
-                            ));
-                        }
-                    }
+                    '/' if self.peek_char(0) == Some('/') => return self.read_comment(),
+                    _ => return self.read_operator(c),
                 })
             }
         } else {
@@ -504,7 +490,10 @@ impl<R: Read> Lexer<R> {
             "false" => TokenKind::Boolean(false),
             "let" => TokenKind::Let,
             t if self.is_type(t) => TokenKind::TypeIdentifier(s),
-            _ => TokenKind::Identifier(s),
+            sym => match self.lookup_op(sym) {
+                Some(op) => TokenKind::Op(op.clone()),
+                None => TokenKind::Identifier(s),
+            }
         }
     }
 
@@ -529,6 +518,38 @@ impl<R: Read> Lexer<R> {
             |this, s| this.new_token_info(TokenKind::Comment(s)),
             |_, _| (),
         )
+    }
+
+    fn read_operator(&mut self, first: char) -> LexResult {
+        // get all self.operators starting with first
+        let mut ops = self
+            .operators
+            .clone()
+            .into_iter()
+            .filter(|(k, _)| k.starts_with(first))
+            .collect::<HashMap<_, _>>();
+         if ops.is_empty() {
+            return Err(LexerError::unexpected_character(
+                first,
+                self.line_info.clone(),
+                self.input_source.clone(),
+            ));
+        }
+        let mut longest_match = first.to_string();
+        loop {
+            let c = if let Some(c) = self.peek_char(0) { c }
+            else { break; };
+            longest_match.push(c);
+            let new_ops = ops.into_iter().filter(|(k, _)| k.starts_with(&longest_match)).collect::<HashMap<_, _>>();
+            if new_ops.is_empty() {
+                longest_match.pop();
+                break;
+            }
+            ops = new_ops;
+            self.next_char(); // Eat the peeked character
+        }
+        let op = self.lookup_op(&longest_match).unwrap(); // Safe because we know the operator exists
+        self.new_token_info(TokenKind::Op(op.clone()))
     }
 }
 

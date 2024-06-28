@@ -3,12 +3,11 @@ mod tests {
     use std::io::{Read, Seek};
 
     use crate::{
-        lexer::{
+        interpreter::value::Value, lexer::{
             lexer::{from_str, from_string, Lexer},
-            op::Operator,
+            op::{default_operator_precedence, Operator, OperatorAssociativity, OperatorPosition, OperatorPrecedence, StaticOperator},
             token::TokenKind,
-        },
-        stdlib::init::init_lexer,
+        }, parser::ast::Ast, stdlib::init::init_lexer
     };
 
     fn assert_next_token_eq<R: Read + Seek>(lexer: &mut Lexer<R>, token: TokenKind) {
@@ -46,6 +45,55 @@ mod tests {
         ));
         assert_next_token_eq(&mut lexer, TokenKind::Integer("1".to_string()));
         assert_next_token_eq(&mut lexer, TokenKind::SemiColon);
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn many_match_operators() {
+        let mut lexer = from_str("== = === ====");
+        let equals = Operator::Static(StaticOperator {
+            name: "equals".into(),
+            symbol: "==".into(),
+            position: OperatorPosition::Infix,
+            precedence: default_operator_precedence::EQUALITY,
+            associativity: OperatorAssociativity::Left,
+            overloadable: false,
+            allow_trailing: false,
+            handler: |_| Ast::Literal(Value::Unit),
+        });
+        let assignment = Operator::Static(StaticOperator {
+            name: "assign".into(),
+            symbol: "=".into(),
+            position: OperatorPosition::Infix,
+            precedence: default_operator_precedence::ASSIGNMENT,
+            associativity: OperatorAssociativity::Right,
+            overloadable: false,
+            allow_trailing: false,
+            handler: |_| Ast::Literal(Value::Unit),
+        });
+        let strict_equals = Operator::Static(StaticOperator {
+            name: "strict_equals".into(),
+            symbol: "===".into(),
+            position: OperatorPosition::Infix,
+            precedence: default_operator_precedence::EQUALITY,
+            associativity: OperatorAssociativity::Left,
+            overloadable: false,
+            allow_trailing: false,
+            handler: |_| Ast::Literal(Value::Unit),
+        });
+        lexer.define_op(equals.clone()).unwrap();
+        lexer.define_op(strict_equals.clone()).unwrap();
+        lexer.define_op(assignment.clone()).unwrap();
+        // ==
+        assert_next_token_eq(&mut lexer, TokenKind::Op(equals));
+        // =
+        assert_next_token_eq(&mut lexer, TokenKind::Op(assignment.clone()));
+        // ===
+        assert_next_token_eq(&mut lexer, TokenKind::Op(strict_equals.clone()));
+        // ====
+        assert_next_token_eq(&mut lexer, TokenKind::Op(strict_equals));
+        assert_next_token_eq(&mut lexer, TokenKind::Op(assignment));
+
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
 
