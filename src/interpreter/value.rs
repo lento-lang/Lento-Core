@@ -4,7 +4,7 @@ use num_bigfloat::BigFloat;
 use num_bigint::{BigInt, BigUint};
 
 use crate::{
-    parser::ast::Ast,
+    parser::{ast::Ast, op::OperatorSignature},
     type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, GetType, Type},
 };
 

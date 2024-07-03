@@ -6,7 +6,7 @@ mod tests {
             interpreter::{interpret_ast, interpret_module},
             value::{Number, UnsignedInteger, Value},
         },
-        parser::{ast::Ast, parser},
+        parser::{ast::Ast, op::RuntimeOperator, parser},
         stdlib::arithmetic,
         type_checker::types::{std_primitive_types, CheckedType, GetType, Type},
         util::str::Str,
@@ -19,7 +19,11 @@ mod tests {
     fn add(lhs: Ast, rhs: Ast) -> Ast {
         Ast::Binary(
             Box::new(lhs),
-            arithmetic::op_add(),
+            RuntimeOperator {
+                name: "add".into(),
+                symbol: "+".into(),
+                handler: Box::new(arithmetic::add())
+            },
             Box::new(rhs),
             CheckedType::Unchecked, // Not required for this test
         )

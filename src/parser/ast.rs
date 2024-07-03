@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use crate::{
     interpreter::value::{FunctionVariation, Value},
-    lexer::{lexer::InputSource, op::RuntimeOperator},
+    lexer::lexer::InputSource,
     type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
 };
 
-use super::error::ParseError;
+use super::{error::ParseError, op::{Operator, OperatorHandler, RuntimeOperator, RuntimeOperatorHandler}};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordKeyAst {

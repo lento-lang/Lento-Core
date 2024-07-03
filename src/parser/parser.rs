@@ -1,27 +1,25 @@
 use std::{
-    fs::File,
-    io::{BufReader, Cursor, Error, Read},
-    path::Path,
+    collections::HashMap, fs::File, io::{BufReader, Cursor, Error, Read}, path::Path
 };
 
 use crate::{
     interpreter::value::{Number, Value},
     lexer::{
         lexer::{self, InputSource, LexResult},
-        op::{
-            Operator, OperatorAssociativity, OperatorPosition, OperatorPrecedence,
-            StaticOperatorAst,
-        },
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
         token::{TokenInfo, TokenKind},
     },
-    stdlib::init::init_lexer,
-    type_checker::types::{CheckedType, GetType, Type},
+    stdlib::init::stdlib,
+    type_checker::types::{CheckedType, GetType, Type}, util::failable::Failable,
 };
 
 use crate::lexer::lexer::Lexer;
 
-use super::{ast::{unit, Ast, Module}, error::ParseError};
+use super::{
+    ast::{unit, Ast, Module},
+    error::{OperatorError, ParseError, TypeError},
+    op::{Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorPrecedence, RuntimeOperator, StaticOperatorAst}
+};
 
 /// Token predicates for parsing
 mod pred {
@@ -57,19 +55,80 @@ where
     R: Read,
 {
     lexer: Lexer<R>,
+    /// A map of all defined operators in the parser indexed by their symbol.
+    ///
+    /// ## Note
+    /// The parser will allow redefining operators with the same symbol **only if**:
+    /// - They have different signatures
+    /// - They have different positions
+    /// - The symbol is a built-in operator that is overloadable
+    operators: HashMap<String, Vec<Operator>>,
+    /// A map of all defined types in the parser.
+    ///
+    /// ## Note
+    /// This is used to lookup types during parse-time type-inference
+    /// and to prevent redefining types.
+    types: HashMap<String, Type>,
 }
 
 impl<R: Read> Parser<R> {
     pub fn new(lexer: Lexer<R>) -> Self {
-        Self { lexer }
-    }
-
-    pub fn get_lexer(&mut self) -> &mut Lexer<R> {
-        &mut self.lexer
+        Self { lexer, operators: HashMap::new(), types: HashMap::new() }
     }
 
     fn index(&self) -> usize {
         self.lexer.current_index()
+    }
+
+    /// Define an operator in the parser.
+    /// If the operator already exists with the same signature,
+    pub fn define_op(&mut self, op: Operator) -> Failable<OperatorError> {
+        if let Some(existing) = self.get_op(&op.symbol) {
+            if existing.iter().any(|e| e.signature() == op.signature()) {
+                return Err(OperatorError::SignatureForSymbolExists);
+            }
+            if existing.iter().any(|e| e.position == op.position) {
+                return Err(OperatorError::PositionForSymbolExists);
+            }
+            if !op.overloadable && existing.iter().any(|e| !e.overloadable) {
+                return Err(OperatorError::SymbolNotOverloadable);
+            }
+        }
+        self.lexer.operators.insert(op.symbol.clone());
+        self.operators.entry(op.symbol.clone()).or_insert_with(Vec::new).push(op);
+        Ok(())
+    }
+
+    pub fn get_op(&self, symbol: &str) -> Option<&Vec<Operator>> {
+        self.operators.get(symbol)
+    }
+
+    pub fn find_operator(&self, symbol: &str, pred: impl Fn(&Operator) -> bool) -> Option<&Operator> {
+        self.get_op(symbol).and_then(|ops| ops.iter().find(|op| pred(op)))
+    }
+
+    pub fn find_operator_pos(&self, symbol: &str, pos: OperatorPosition) -> Option<&Operator> {
+        self.find_operator(symbol, |op| op.position == pos)
+    }
+
+    pub fn define_literal_type(&mut self, ty: Type) -> Failable<TypeError> {
+        if let Type::Literal(name) = ty.clone() {
+            if self.types.contains_key(&name.to_string()) { return Err(TypeError::TypeExists); }
+            self.types.insert(name.to_string(), ty);
+            Ok(())
+        } else {
+            Err(TypeError::NonLiteralType)
+        }
+    }
+
+    pub fn define_alias_type(&mut self, name: String, ty: Type) -> Failable<TypeError> {
+        if self.types.contains_key(&name) { return Err(TypeError::TypeExists); }
+        self.types.insert(name, ty);
+        Ok(())
+    }
+
+    pub fn get_type(&self, name: &str) -> Option<&Type> {
+        self.types.get(name)
     }
 
     /// Parse a given number of expressions from the stream of tokens.
@@ -207,24 +266,21 @@ impl<R: Read> Parser<R> {
                 Ok(Ast::Identifier(id, CheckedType::Unchecked))
             } else if let TokenKind::TypeIdentifier(t) = t.token {
                 Ok(Ast::TypeIdentifier(t, CheckedType::Unchecked))
-            } else if t.token.is_operator() {
-                let op = t.token.as_operator().unwrap();
-                if op.pos() != OperatorPosition::Prefix {
+            } else if let TokenKind::Op(op) = t.token {
+                if let Some(op) = self.find_operator_pos(&op, OperatorPosition::Prefix) {
+                    let op = op.clone();
+                    let rhs = self.parse_primary()?;
+                    Ok(if let OperatorHandler::Static(_, handler) = op.handler {
+                        (handler)(StaticOperatorAst::Prefix(rhs))
+                    } else {
+                        Ast::Unary(RuntimeOperator::from(op.clone()), Box::new(rhs), CheckedType::Checked(op.signature().returns))
+                    })
+                } else {
                     return Err(ParseError {
-                        message: format!(
-                            "Expected optional prefix operator, but found {:?} ({})",
-                            op.symbol(),
-                            op.name()
-                        ),
-                        span: (t.info.start.index, t.info.end.index)
+                        message: format!("Expected prefix operator, but found {:?}", op),
+                        span: (t.info.start.index, t.info.end.index),
                     });
                 }
-                let rhs = self.parse_primary()?;
-                // Ok(Ast::Unary(op, Box::new(rhs), CheckedType::Unchecked))
-                Ok(match op {
-                    Operator::Runtime(rt) => Ast::Unary(rt, Box::new(rhs), CheckedType::Unchecked),
-                    Operator::Static(st) => (st.handler)(StaticOperatorAst::Prefix(rhs)),
-                })
             } else if t.token.is_grouping_start() {
                 match t.token {
                     TokenKind::LeftParen => {
@@ -292,22 +348,26 @@ impl<R: Read> Parser<R> {
     ///     - **not an infix operator**
     ///     - its **precedence is lower than** `min_prec`
     ///     - it is a **terminator**
-    fn next_op(min_prec: OperatorPrecedence, nt: &LexResult, allow_eq: bool) -> Option<Operator> {
+    fn next_op(&self, min_prec: OperatorPrecedence, nt: &LexResult, allow_eq: bool) -> Option<Operator> {
         let t = nt.as_ref().ok()?;
-        let op = t.token.as_operator()?;
-        let is_infix = op.pos().is_infix();
-        let is_greater = op.precedence() > min_prec;
-        let is_right_assoc = op.associativity() == OperatorAssociativity::Right;
-        let is_equal = op.precedence() == min_prec;
+        let op = if let TokenKind::Op(op) = &t.token { op } else { return None; };
+        let op = match self.find_operator_pos(op, OperatorPosition::Infix) {
+            Some(op) => op,
+            None => return None,
+        };
+        let is_infix = op.position.is_infix();
+        let is_greater = op.precedence > min_prec;
+        let is_right_assoc = op.associativity == OperatorAssociativity::Right;
+        let is_equal = op.precedence == min_prec;
         if is_infix && (is_greater || ((is_right_assoc || allow_eq) && is_equal)) {
-            Some(op)
+            Some(op.clone())
         } else {
             None
         }
     }
 
     fn next_prec(curr_op: &Operator, next_op: &Operator) -> OperatorPrecedence {
-        curr_op.precedence() + (next_op.precedence() > curr_op.precedence()) as OperatorPrecedence
+        curr_op.precedence + (next_op.precedence > curr_op.precedence) as OperatorPrecedence
     }
 
     /// Parse an expression with a given left-hand side and minimum precedence level
@@ -330,55 +390,52 @@ impl<R: Read> Parser<R> {
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut nt = self.lexer.peek_token(0);
         let mut expr = lhs;
-        while let Some(curr_op) = Self::next_op(min_prec, &nt, false) {
+        while let Some(curr_op) = self.next_op(min_prec, &nt, false) {
             self.lexer.read_next_token().unwrap(); // Consume the operator token
-            if curr_op.pos().is_accumulate() {
-                expr = self.parse_expr_accum(curr_op, expr)?;
+            if curr_op.position.is_accumulate() {
+                expr = self.parse_expr_accum(&curr_op, expr)?;
                 nt = self.lexer.peek_token(0);
                 continue;
             }
             let mut rhs = self.parse_primary()?;
             nt = self.lexer.peek_token(0);
-            while let Some(next_op) = Self::next_op(curr_op.precedence(), &nt, false) {
+            while let Some(next_op) = self.next_op(curr_op.precedence, &nt, false) {
                 rhs = self.parse_expr(rhs, Self::next_prec(&curr_op, &next_op))?;
                 nt = self.lexer.peek_token(0);
             }
-            expr = match curr_op {
-                Operator::Runtime(rt) => {
-                    Ast::Binary(Box::new(expr), rt, Box::new(rhs), CheckedType::Unchecked)
-                }
-                Operator::Static(st) => (st.handler)(StaticOperatorAst::Infix(expr, rhs)),
-            }
+            expr = if let OperatorHandler::Static(_, handler) = curr_op.handler {
+                (handler)(StaticOperatorAst::Infix(expr, rhs))
+            } else {
+                Ast::Binary(Box::new(expr), RuntimeOperator::from(curr_op.clone()), Box::new(rhs), CheckedType::Checked(curr_op.signature().returns))
+            };
         }
         Ok(expr)
     }
 
     /// Expect the parser state to be at the end of [expr, op] sequence.
     /// Next token should be a new expression or a terminator.
-    fn parse_expr_accum(&mut self, op: Operator, first: Ast) -> ParseResult {
+    fn parse_expr_accum(&mut self, op: &Operator, first: Ast) -> ParseResult {
         let mut exprs = vec![first];
-        loop {
-            // Check if the next token is a terminator, then break the loop
-            if let Ok(t) = self.lexer.peek_token_not(pred::ignored) {
-                if op.allow_trailing() && t.token.is_terminator() { break; }
-            } else { break; }
+        while let Ok(t) = self.lexer.peek_token_not(pred::ignored) {
+            if op.allow_trailing && t.token.is_terminator() { break; }
 
             // Parse the next nested expression in the sequence
             let lhs = self.parse_primary()?;
-            exprs.push(self.parse_expr(lhs, op.precedence())?);
+            exprs.push(self.parse_expr(lhs, op.precedence)?);
 
             // Expect the next token to be the same operator or another expression
-            if let Some(next_op) = Self::next_op(
-                op.precedence(),
-                &self.lexer.peek_token_not(pred::ignored),
+            let nt = self.lexer.peek_token_not(pred::ignored);
+            if let Some(next_op) = self.next_op(
+                op.precedence,
+                &nt,
                 true) {
-                if next_op != op { break; }
+                if !next_op.eq(op) { break; }
                 self.lexer.read_next_token_not(pred::ignored).unwrap(); // Consume the operator token
             } else { break; }
         }
-        Ok(match op {
-            Operator::Runtime(rt) => Ast::VariationCall(rt.handler, exprs, CheckedType::Unchecked),
-            Operator::Static(st) => (st.handler)(StaticOperatorAst::Accumulate(exprs)),
+        Ok(match &op.handler {
+            OperatorHandler::Static(_, handler) => (handler)(StaticOperatorAst::Accumulate(exprs)),
+            OperatorHandler::Runtime(func) => Ast::VariationCall(func.clone(), exprs, CheckedType::Unchecked)
         })
     }
 
@@ -418,31 +475,32 @@ impl<R: Read> Parser<R> {
 //                               Parser Factory Functions                               //
 //--------------------------------------------------------------------------------------//
 
-fn setup_new_parser<R: Read>(mut lexer: Lexer<R>) -> Parser<R> {
-    init_lexer(&mut lexer);
-    Parser::new(lexer)
+fn parser_with_stdlib<R: Read>(mut lexer: Lexer<R>) -> Parser<R> {
+    let mut parser = Parser::new(lexer);
+    stdlib().init_parser(&mut parser);
+    parser
 }
 
 pub fn from_file(file: File, path: &Path) -> Parser<BufReader<File>> {
-    setup_new_parser(lexer::from_file(file, path.to_path_buf()))
+    parser_with_stdlib(lexer::from_file(file, path.to_path_buf()))
 }
 
 pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
-    Ok(setup_new_parser(lexer::from_path(
+    Ok(parser_with_stdlib(lexer::from_path(
         source_file.to_path_buf(),
     )?))
 }
 
 pub fn from_string(source: String) -> Parser<Cursor<String>> {
-    setup_new_parser(lexer::from_string(source))
+    parser_with_stdlib(lexer::from_string(source))
 }
 
 pub fn from_str(source: &str) -> Parser<BytesReader<'_>> {
-    setup_new_parser(lexer::from_str(source))
+    parser_with_stdlib(lexer::from_str(source))
 }
 
 pub fn from_stdin() -> Parser<StdinReader> {
-    setup_new_parser(lexer::from_stream(
+    parser_with_stdlib(lexer::from_stream(
         StdinReader::default(),
         "stdin".to_string(),
     ))

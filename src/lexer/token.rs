@@ -1,9 +1,7 @@
 use std::fmt::Debug;
 
-use super::op::Operator;
-
 // Token structure for the Lento programming language
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum TokenKind {
     EndOfFile,
     // Expression terminators
@@ -26,7 +24,7 @@ pub enum TokenKind {
     RightBracket, // ]
     // All other operators will be implemented in a standard library at runtime in the future
     // leaving support for user-defined operators
-    Op(Operator),
+    Op(String),
     // Keywords
     Let,
     // Comments
@@ -34,17 +32,6 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    pub fn is_operator(&self) -> bool {
-        matches!(self, TokenKind::Op(_))
-    }
-
-    pub fn as_operator(&self) -> Option<Operator> {
-        match self {
-            TokenKind::Op(op) => Some(op.clone()),
-            _ => None,
-        }
-    }
-
     pub fn is_literal(&self) -> bool {
         matches!(
             self,
@@ -95,6 +82,32 @@ impl TokenKind {
             )
         } else {
             matches!(self, TokenKind::Newline | TokenKind::SemiColon)
+        }
+    }
+}
+
+impl Debug for TokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EndOfFile => write!(f, "EndOfFile"),
+            Self::Newline => write!(f, "newline"),
+            Self::SemiColon => write!(f, ";"),
+            Self::Identifier(s) => write!(f, "{}", s),
+            Self::Integer(s) => write!(f, "{}", s),
+            Self::Float(s) => write!(f, "{}", s),
+            Self::String(s) => write!(f, "\"{}\"", s),
+            Self::Char(c) => write!(f, "'{}'", c),
+            Self::Boolean(b) => write!(f, "{}", b),
+            Self::TypeIdentifier(s) => write!(f, "{}", s),
+            Self::LeftParen => write!(f, "("),
+            Self::RightParen => write!(f, ")"),
+            Self::LeftBrace => write!(f, "{{"),
+            Self::RightBrace => write!(f, "}}"),
+            Self::LeftBracket => write!(f, "["),
+            Self::RightBracket => write!(f, "]"),
+            Self::Op(s) => write!(f, "{}", s),
+            Self::Let => write!(f, "let"),
+            Self::Comment(s) => write!(f, "// {}", s),
         }
     }
 }

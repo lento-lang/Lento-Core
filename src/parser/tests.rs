@@ -8,7 +8,7 @@ mod tests {
             ast::Ast,
             parser::{parse_path_one, parse_str_all, parse_str_one},
         },
-        stdlib::arithmetic::op_add,
+        stdlib::arithmetic::add,
         type_checker::types::CheckedType,
     };
 
@@ -183,7 +183,7 @@ mod tests {
         assert!(result.expressions.len() == 1);
         assert!(matches!(result.expressions[0], Ast::Binary(_, _, _, CheckedType::Unchecked)));
         if let Ast::Binary(lhs, op, rhs, _) = &result.expressions[0] {
-            assert_eq!(op, &op_add());
+            assert_eq!(op.name, "add".to_string());
             assert!(matches!(*lhs.to_owned(), Ast::Tuple(_, _)));
             assert!(matches!(*rhs.to_owned(), Ast::Tuple(_, _)));
         }
@@ -202,7 +202,7 @@ mod tests {
             assert!(matches!(&elems[1], Ast::Binary(_, _, _, CheckedType::Unchecked)));
             assert_eq!(elems[2], Ast::Literal(make_u8(4)));
             if let Ast::Binary(lhs, op, rhs, _) = &elems[1] {
-                assert_eq!(op, &op_add());
+                assert_eq!(op.name, "add".to_string());
                 assert_eq!(**lhs, Ast::Literal(make_u8(2)));
                 assert_eq!(**rhs, Ast::Literal(make_u8(3)));
             }
@@ -290,7 +290,7 @@ mod tests {
         ));
         // Assert "add"
         if let Ast::Binary(_, op, _, _) = &result.expressions[0] {
-            assert_eq!(op, &op_add());
+            assert_eq!(op.name, "add".to_string());
         }
         if let Ast::Binary(lhs, _, rhs, _) = &result.expressions[0] {
             // Always true

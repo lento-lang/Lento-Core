@@ -1,4 +1,4 @@
-use crate::{interpreter::value::FunctionVariation, parser::ast::Ast};
+use crate::{interpreter::value::FunctionVariation, parser::ast::Ast, type_checker::types::{FunctionParameterType, Type}};
 
 //--------------------------------------------------------------------------------------//
 //                               Execution Agnostic Data                                //
@@ -73,39 +73,8 @@ pub mod default_operator_precedence {
 //                                      Operators                                       //
 //--------------------------------------------------------------------------------------//
 
-pub type RuntimeOperatorHandler = Box<FunctionVariation>; // Function reference, verify arity is the same as the operator position
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct RuntimeOperator {
-    /// Descriptive name of the operator
-    pub name: String,
-    /// The symbol of the operator
-    pub symbol: String,
-    /// The position of the operator
-    pub position: OperatorPosition,
-    /// The precedence of the operator
-    pub precedence: OperatorPrecedence,
-    /// The associativity of the operator
-    pub associativity: OperatorAssociativity,
-    /// If the operator is overloadable (false for built-in operators)
-    pub overloadable: bool,
-    /// If the operator allows trailing arguments
-    ///
-    /// ## Note
-    /// **Only applicable for infix accumulate operators!**
-    ///
-    /// ## Example
-    /// Addition operator (`+`) does usually **not** allow trailing arguments, while the comma operator (`,`) does.
-    /// ```ignore
-    /// a + b + c   // OK
-    /// a + b + c + // Error `+` does not allow trailing arguments
-    /// a, b, c     // OK
-    /// a, b, c,    // OK `,` allow trailing arguments
-    /// ```
-    pub allow_trailing: bool,
-    /// The runtime handler for the operator
-    pub handler: RuntimeOperatorHandler,
-}
+// Function reference, verify arity is the same as the operator position
+pub type RuntimeOperatorHandler = Box<FunctionVariation>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StaticOperatorAst {
@@ -117,9 +86,32 @@ pub enum StaticOperatorAst {
 
 pub type StaticOperatorHandler = fn(StaticOperatorAst) -> Ast;
 
-#[derive(Clone, Debug)]
-pub struct StaticOperator {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OperatorSignature {
+    pub params: Vec<Type>,
+    pub returns: Type,
+}
+
+//--------------------------------------------------------------------------------------//
+//                                       Prelude                                        //
+//--------------------------------------------------------------------------------------//
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum OperatorHandler {
+    /// Runtime operators (functions)
+    /// 1. The handler function for the operator called at runtime
+    Runtime(RuntimeOperatorHandler),
+    /// The compile-time handler for the operator
+    /// (macros or syntax extensions/sugar)
+    /// 1. The signature of the operator. This is used for type checking and inference on the operator in expressions.
+    /// 2. The native handler function for the operator called at compile-time
+    Static(OperatorSignature, StaticOperatorHandler),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Operator {
     /// Descriptive name of the operator
+    /// (used for error messages and introspection)
     pub name: String,
     /// The symbol of the operator
     pub symbol: String,
@@ -145,78 +137,59 @@ pub struct StaticOperator {
     /// a, b, c,    // OK `,` allow trailing arguments
     /// ```
     pub allow_trailing: bool,
-    /// The compile-time handler for the operator
-    pub handler: StaticOperatorHandler,
-}
-
-//--------------------------------------------------------------------------------------//
-//                                       Prelude                                        //
-//--------------------------------------------------------------------------------------//
-
-#[derive(Clone, Debug)]
-pub enum Operator {
-    Runtime(RuntimeOperator), // Runtime operators (functions)
-    Static(StaticOperator),   // Compile-time operators (macros or syntax extensions/sugar)
+    /// The handler for the operator
+    pub handler: OperatorHandler,
 }
 
 impl Operator {
-    pub fn name(&self) -> String {
-        match self {
-            Operator::Runtime(op) => op.name.clone(),
-            Operator::Static(op) => op.name.clone(),
-        }
-    }
-
-    pub fn symbol(&self) -> String {
-        match self {
-            Operator::Runtime(op) => op.symbol.clone(),
-            Operator::Static(op) => op.symbol.clone(),
-        }
-    }
-
-    pub fn pos(&self) -> OperatorPosition {
-        match self {
-            Operator::Runtime(op) => op.position.clone(),
-            Operator::Static(op) => op.position.clone(),
-        }
-    }
-
-    pub fn precedence(&self) -> OperatorPrecedence {
-        match self {
-            Operator::Runtime(op) => op.precedence,
-            Operator::Static(op) => op.precedence,
-        }
-    }
-
-    pub fn associativity(&self) -> OperatorAssociativity {
-        match self {
-            Operator::Runtime(op) => op.associativity.clone(),
-            Operator::Static(op) => op.associativity.clone(),
-        }
-    }
-
-    pub fn overloadable(&self) -> bool {
-        match self {
-            Operator::Runtime(op) => op.overloadable,
-            Operator::Static(op) => op.overloadable,
-        }
-    }
-
-    pub fn allow_trailing(&self) -> bool {
-        match self {
-            Operator::Runtime(op) => op.allow_trailing,
-            Operator::Static(op) => op.allow_trailing,
+    pub fn signature(&self) -> OperatorSignature {
+        match self.handler {
+            OperatorHandler::Runtime(ref handler) => {
+                let params = match handler.get_params() {
+                    FunctionParameterType::Singles(p) => p
+                        .iter()
+                        .map(|(_, t)| t.clone())
+                        .collect::<Vec<Type>>(),
+                    FunctionParameterType::Variadic(_, _) => panic!("Variadic functions are not supported for operators"),
+                };
+                let returns = handler.get_return_type().clone();
+                OperatorSignature { params, returns }
+            },
+            OperatorHandler::Static(ref signature, _) => signature.clone(),
         }
     }
 }
 
-impl PartialEq for Operator {
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            Operator::Runtime(op) => op.symbol == other.symbol(),
-            Operator::Static(op) => op.symbol == other.symbol(),
-        }
+#[derive(Clone, Debug, PartialEq)]
+pub struct RuntimeOperator {
+    pub name: String,
+    pub symbol: String,
+    pub handler: RuntimeOperatorHandler,
+}
+
+impl RuntimeOperator {
+    pub fn signature(&self) -> OperatorSignature {
+        let params = match self.handler.get_params() {
+            FunctionParameterType::Singles(p) => p
+                .iter()
+                .map(|(_, t)| t.clone())
+                .collect::<Vec<Type>>(),
+            FunctionParameterType::Variadic(_, _) => panic!("Variadic functions are not supported for operators"),
+        };
+        let returns = self.handler.get_return_type().clone();
+        OperatorSignature { params, returns }
     }
 }
 
-impl Eq for Operator {}
+impl From<Operator> for RuntimeOperator {
+    fn from(op: Operator) -> Self {
+        match op.handler {
+            OperatorHandler::Runtime(handler) => RuntimeOperator {
+                name: op.name,
+                symbol: op.symbol,
+                handler,
+            },
+            OperatorHandler::Static(_, _) => panic!("Cannot convert a static operator to a runtime operator"),
+        }
+    }
+}

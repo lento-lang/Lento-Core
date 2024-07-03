@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    stdlib::init::init_environment,
+    stdlib::init::stdlib,
     type_checker::types::Type,
     util::{failable::Failable, str::Str},
 };
@@ -135,6 +135,6 @@ impl<'a> Environment<'a> {
 
 pub fn global_env() -> Environment<'static> {
     let mut global_env = Environment::new(Str::from("global"));
-    init_environment(&mut global_env);
+    stdlib().init_environment(&mut global_env);
     global_env
 }

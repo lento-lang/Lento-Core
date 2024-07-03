@@ -3,8 +3,8 @@ use crate::{
         error::runtime_error,
         value::{ArithmeticOperations, FunctionVariation, NativeFunctionParameters, Number, Value},
     },
-    lexer::op::{
-        default_operator_precedence, OperatorAssociativity, OperatorPosition, RuntimeOperator,
+    parser::op::{
+        default_operator_precedence, Operator, OperatorAssociativity, OperatorPosition, OperatorSignature
     },
     type_checker::types::{std_compount_types, FunctionParameterType, GetType},
 };
@@ -32,11 +32,11 @@ pub fn add() -> FunctionVariation {
             {
                 match (lhs, rhs) {
                     (Value::Number(l), Value::Number(r)) => Ok(Value::Number(Number::add(&l, &r))),
-                    _ => panic!("add() expects 2 arguments of type '{}'", ty_num),
+                    _ => panic!("add expects 2 arguments of type '{}'", ty_num),
                 }
             } else {
                 Err(runtime_error(format!(
-                    "add() expects 2 arguments of type '{}', got '{}' and '{}'",
+                    "add expects 2 arguments of type '{}', got '{}' and '{}'",
                     ty_num,
                     lhs.get_type(),
                     rhs.get_type()
@@ -49,17 +49,4 @@ pub fn add() -> FunctionVariation {
         ]),
         std_compount_types::any_number(),
     )
-}
-
-pub fn op_add() -> RuntimeOperator {
-    RuntimeOperator {
-        name: "add".into(),
-        symbol: "+".into(),
-        position: OperatorPosition::Infix,
-        precedence: default_operator_precedence::ADDITIVE,
-        associativity: OperatorAssociativity::Left,
-        allow_trailing: false,
-        overloadable: true,
-        handler: Box::new(add()),
-    }
 }

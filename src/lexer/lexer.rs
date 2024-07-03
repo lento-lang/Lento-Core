@@ -1,6 +1,6 @@
 use std::{
     cell::Cell,
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fmt::Display,
     fs::File,
     io::{BufReader, Cursor, Error, Read},
@@ -16,7 +16,6 @@ use crate::{
 
 use super::{
     error::LexerError,
-    op::Operator,
     readers::bytes_reader::BytesReader,
     token::{LineInfoSpan, TokenInfo, TokenKind},
 };
@@ -74,8 +73,8 @@ where
     content: Vec<u8>,
     index: usize,
     line_info: LineInfoSpan,
-    operators: HashMap<String, Operator>,
-    types: HashSet<String>,
+    pub operators: HashSet<String>,
+    pub types: HashSet<String>,
     peeked_tokens: Vec<LexResult>, // Queue of peeked tokens (FIFO)
 }
 
@@ -89,7 +88,7 @@ impl<R: Read> Lexer<R> {
             content: Vec::new(),
             index: 0,
             line_info: LineInfoSpan::new(),
-            operators: HashMap::new(),
+            operators: HashSet::new(),
             types: HashSet::new(),
             peeked_tokens: Vec::new(),
         }
@@ -105,7 +104,7 @@ impl<R: Read> Lexer<R> {
             content: Vec::new(),
             index: 0,
             line_info: LineInfoSpan::new(),
-            operators: HashMap::new(),
+            operators: HashSet::new(),
             types: HashSet::new(),
             peeked_tokens: Vec::new(),
         }
@@ -124,36 +123,6 @@ impl<R: Read> Lexer<R> {
         self.index = 0;
         self.line_info = LineInfoSpan::new();
         self.peeked_tokens.clear();
-    }
-
-    pub fn define_op(&mut self, op: Operator) -> Failable<RuntimeError> {
-        if self.operators.contains_key(&op.symbol()) {
-            return Err(runtime_error(format!(
-                "Cannot override operator '{}'",
-                op.symbol()
-            )));
-        }
-        self.operators.insert(op.symbol().clone(), op);
-        Ok(())
-    }
-
-    pub fn lookup_op(&self, symbol: &str) -> Option<&Operator> {
-        self.operators.get(symbol)
-    }
-
-    pub fn define_type(&mut self, type_name: String) -> Failable<RuntimeError> {
-        if self.types.contains(&type_name) {
-            return Err(runtime_error(format!(
-                "Cannot override type '{}'",
-                type_name
-            )));
-        }
-        self.types.insert(type_name);
-        Ok(())
-    }
-
-    pub fn is_type(&self, type_name: &str) -> bool {
-        self.types.contains(type_name)
     }
 
     fn new_token_info(&self, token: TokenKind) -> LexResult {
@@ -489,8 +458,8 @@ impl<R: Read> Lexer<R> {
             "true" => TokenKind::Boolean(true),
             "false" => TokenKind::Boolean(false),
             "let" => TokenKind::Let,
-            t if self.is_type(t) => TokenKind::TypeIdentifier(s),
-            sym => match self.lookup_op(sym) {
+            t if self.types.contains(t) => TokenKind::TypeIdentifier(s),
+            sym => match self.operators.get(sym) {
                 Some(op) => TokenKind::Op(op.clone()),
                 None => TokenKind::Identifier(s),
             }
@@ -526,8 +495,8 @@ impl<R: Read> Lexer<R> {
             .operators
             .clone()
             .into_iter()
-            .filter(|(k, _)| k.starts_with(first))
-            .collect::<HashMap<_, _>>();
+            .filter(|op| op.starts_with(first))
+            .collect::<HashSet<_>>();
          if ops.is_empty() {
             return Err(LexerError::unexpected_character(
                 first,
@@ -540,7 +509,7 @@ impl<R: Read> Lexer<R> {
             let c = if let Some(c) = self.peek_char(0) { c }
             else { break; };
             longest_match.push(c);
-            let new_ops = ops.into_iter().filter(|(k, _)| k.starts_with(&longest_match)).collect::<HashMap<_, _>>();
+            let new_ops = ops.into_iter().filter(|op| op.starts_with(&longest_match)).collect::<HashSet<_>>();
             if new_ops.is_empty() {
                 longest_match.pop();
                 break;
@@ -548,7 +517,7 @@ impl<R: Read> Lexer<R> {
             ops = new_ops;
             self.next_char(); // Eat the peeked character
         }
-        let op = self.lookup_op(&longest_match).unwrap(); // Safe because we know the operator exists
+        let op = self.operators.get(&longest_match).unwrap(); // Safe because we know the operator exists
         self.new_token_info(TokenKind::Op(op.clone()))
     }
 }

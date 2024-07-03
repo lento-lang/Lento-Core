@@ -17,3 +17,20 @@ impl Debug for ParseError {
         write!(f, "{} in {:?}", self.message, self.span)
     }
 }
+
+/// Errors for when an operator is inserted into the parser
+/// operator table.
+#[derive(Debug, PartialEq)]
+pub enum OperatorError {
+    SignatureForSymbolExists,
+    SymbolNotOverloadable,
+    PositionForSymbolExists,
+}
+
+/// Errors for when a type is inserted into the parser
+/// type table.
+#[derive(Debug, PartialEq)]
+pub enum TypeError {
+    TypeExists,
+    NonLiteralType,
+}

@@ -6,6 +6,12 @@ pub enum Str {
     Str(&'static str),
 }
 
+impl Str {
+    pub fn empty() -> Self {
+        Str::Str("")
+    }
+}
+
 impl Display for Str {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
