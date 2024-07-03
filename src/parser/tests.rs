@@ -8,7 +8,6 @@ mod tests {
             ast::Ast,
             parser::{parse_path_one, parse_str_all, parse_str_one},
         },
-        stdlib::arithmetic::add,
         type_checker::types::CheckedType,
     };
 

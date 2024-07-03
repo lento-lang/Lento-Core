@@ -3,9 +3,9 @@ use std::io::Read;
 use crate::{
     interpreter::{
         environment::Environment,
-        value::{FloatingPoint, Function, FunctionVariation, Number, Value},
+        value::{FloatingPoint, Function, Number, Value},
     }, lexer::lexer::Lexer, parser::{ast::Ast, op::{
-        default_operator_precedence, Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorSignature, RuntimeOperatorHandler, StaticOperatorAst, StaticOperatorHandler
+        default_operator_precedence, Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorSignature, StaticOperatorAst
     }, parser::Parser}, stdlib::arithmetic, type_checker::types::{std_primitive_types, CheckedType, GetType, Type}, util::str::Str
 };
 
@@ -21,7 +21,7 @@ pub struct Initializer {
 impl Initializer {
     pub fn init_lexer(&self, lexer: &mut Lexer<impl Read>) {
         for op in &self.operators {
-            if let OperatorHandler::Static(_, handler) = &op.handler {
+            if let OperatorHandler::Static(_, _handler) = &op.handler {
                 lexer.operators.insert(op.symbol.clone());
             }
         }

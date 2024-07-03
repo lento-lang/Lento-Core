@@ -475,7 +475,7 @@ impl<R: Read> Parser<R> {
 //                               Parser Factory Functions                               //
 //--------------------------------------------------------------------------------------//
 
-fn parser_with_stdlib<R: Read>(mut lexer: Lexer<R>) -> Parser<R> {
+fn parser_with_stdlib<R: Read>(lexer: Lexer<R>) -> Parser<R> {
     let mut parser = Parser::new(lexer);
     stdlib().init_parser(&mut parser);
     parser

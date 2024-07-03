@@ -3,11 +3,10 @@ mod tests {
     use std::io::{Read, Seek};
 
     use crate::{
-        interpreter::value::Value, lexer::{
+        lexer::{
             lexer::{from_str, from_string, Lexer},
             token::TokenKind,
-        }, parser::op::{default_operator_precedence, Operator, OperatorAssociativity, OperatorPosition},
-        parser::ast::Ast, stdlib::init::stdlib
+        }, stdlib::init::stdlib
     };
 
     fn assert_next_token_eq<R: Read + Seek>(lexer: &mut Lexer<R>, token: TokenKind) {

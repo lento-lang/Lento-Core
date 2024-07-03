@@ -3,9 +3,6 @@ use crate::{
         error::runtime_error,
         value::{ArithmeticOperations, FunctionVariation, NativeFunctionParameters, Number, Value},
     },
-    parser::op::{
-        default_operator_precedence, Operator, OperatorAssociativity, OperatorPosition, OperatorSignature
-    },
     type_checker::types::{std_compount_types, FunctionParameterType, GetType},
 };
 
