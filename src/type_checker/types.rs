@@ -5,6 +5,13 @@ use std::fmt::{Debug, Display};
 //                                     Type System                                      //
 //--------------------------------------------------------------------------------------//
 
+/// Generalized trait for type implementations
+pub trait TypeTrait {
+    fn subtype(&self, other: &Self) -> bool;
+    fn cast(&self, other: &Self) -> bool;
+    fn simplify(self) -> Self;
+}
+
 // Compound Type Expressions
 pub type NamedType = (String, Type);
 
@@ -129,6 +136,59 @@ impl Display for FunctionParameterType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FunctionType {
+    params: FunctionParameterType,
+    ret: Type,
+}
+
+impl FunctionType {
+    pub fn new(params: FunctionParameterType, ret: Type) -> Self {
+        FunctionType { params, ret }
+    }
+}
+
+impl TypeTrait for FunctionType {
+    fn subtype(&self, other: &Self) -> bool {
+            match (self.params.is_variadic(), other.params.is_variadic()) {
+                (true, true) => {
+                    let (params, variadic) = self.params.as_variadic().unwrap();
+                    let (other_params, other_variadic) = other.params.as_variadic().unwrap();
+                    params.len() == other_params.len()
+                        && params
+                            .iter()
+                            .zip(other_params)
+                            .all(|((_, p1), (_, p2))| p1.subtype(p2))
+                        && variadic.1.subtype(&other_variadic.1)
+                        && self.ret.subtype(&other.ret)
+                }
+                (false, false) => {
+                    let params = self.params.as_single().unwrap();
+                    let other_params = other.params.as_single().unwrap();
+                    params.len() == other_params.len()
+                        && params
+                            .iter()
+                            .zip(other_params)
+                            .all(|((_, p1), (_, p2))| p1.subtype(p2))
+                        && self.ret.subtype(&other.ret)
+                }
+                (true, false) => false, // Cannot convert a variadic function to a non-variadic function.
+                (false, true) => false, // Cannot convert a non-variadic function to a variadic function.
+            }
+    }
+
+    fn cast(&self, _other: &Self) -> bool {
+        todo!("implement type casting")
+    }
+
+    fn simplify(self) -> Self {
+        FunctionType {
+            params: self.params,
+            ret: self.ret.simplify(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     /// The type of the `any` value.
     /// This is the top type.
@@ -146,7 +206,7 @@ pub enum Type {
     /// A function type.
     /// The first argument is the list of parameter types.
     /// The second argument is the return type.
-    Function(Box<FunctionParameterType>, Box<Type>),
+    Function(Box<FunctionType>),
 
     /// A tuple type.
     /// The first argument is the list of element types.
@@ -200,8 +260,8 @@ pub enum Type {
     // TODO: Figure out how to separate or join sum and enum types.
 }
 
-impl Type {
-    pub fn subtype(&self, other: &Type) -> bool {
+impl TypeTrait for Type {
+    fn subtype(&self, other: &Type) -> bool {
         match (self, other) {
             (Type::Literal(s1), Type::Literal(s2)) => *s1 == *s2,
             (Type::Generic(s1, params1, _), Type::Generic(s2, params2, _)) => {
@@ -209,33 +269,7 @@ impl Type {
                     && params1.len() == params2.len()
                     && params1.iter().zip(params2).all(|(p1, p2)| p1.subtype(p2))
             }
-            (Type::Function(params1, ret1), Type::Function(params2, ret2)) => {
-                match (params1.is_variadic(), params2.is_variadic()) {
-                    (true, true) => {
-                        let (params1, variadic1) = params1.as_variadic().unwrap();
-                        let (params2, variadic2) = params2.as_variadic().unwrap();
-                        params1.len() == params2.len()
-                            && params1
-                                .iter()
-                                .zip(params2)
-                                .all(|((_, p1), (_, p2))| p1.subtype(p2))
-                            && variadic1.1.subtype(&variadic2.1)
-                            && ret1.subtype(ret2)
-                    }
-                    (false, false) => {
-                        let params1 = params1.as_single().unwrap();
-                        let params2 = params2.as_single().unwrap();
-                        params1.len() == params2.len()
-                            && params1
-                                .iter()
-                                .zip(params2)
-                                .all(|((_, p1), (_, p2))| p1.subtype(p2))
-                            && ret1.subtype(ret2)
-                    }
-                    (true, false) => false, // Cannot convert a variadic function to a non-variadic function.
-                    (false, true) => false, // Cannot convert a non-variadic function to a variadic function.
-                }
-            }
+            (Type::Function(ty1), Type::Function(ty2)) => ty1.subtype(ty2),
             (Type::Tuple(types1), Type::Tuple(types2)) => {
                 types1.len() == types2.len()
                     && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
@@ -268,25 +302,25 @@ impl Type {
         }
     }
 
-    pub fn cast(&self, _other: &Self) -> bool {
+    fn cast(&self, _other: &Self) -> bool {
         todo!("implement type casting")
     }
 
-    pub fn simplify(&self) -> Self {
+    fn simplify(self) -> Self {
         match self {
-            Type::Literal(_) => self.clone(),
+            Type::Literal(_) => self,
             Type::Generic(s, params, body) => Type::Generic(
-                s.clone(),
-                params.iter().map(Type::simplify).collect(),
+                s,
+                params.into_iter().map(Type::simplify).collect(),
                 Box::new(body.simplify()),
             ),
-            Type::Function(params, ret) => Type::Function(params.clone(), Box::new(ret.simplify())),
-            Type::Tuple(types) => Type::Tuple(types.iter().map(Type::simplify).collect()),
+            Type::Function(ty) => Type::Function(Box::new(ty.simplify())),
+            Type::Tuple(types) => Type::Tuple(types.into_iter().map(Type::simplify).collect()),
             Type::List(t) => Type::List(Box::new(t.simplify())),
             Type::Record(fields) => Type::Record(
                 fields
-                    .iter()
-                    .map(|(n, t)| (n.clone(), t.simplify()))
+                    .into_iter()
+                    .map(|(n, t)| (n, t.simplify()))
                     .collect(),
             ),
             Type::Sum(types) => {
@@ -301,25 +335,25 @@ impl Type {
                 Type::Sum(result)
             }
             Type::Enum(name, variants) => Type::Enum(
-                name.clone(),
+                name,
                 variants
-                    .iter()
-                    .map(|(n, t)| (n.clone(), t.iter().map(Type::simplify).collect()))
+                    .into_iter()
+                    .map(|(n, t)| (n, t.into_iter().map(Type::simplify).collect()))
                     .collect(),
             ),
-            Type::Any => self.clone(),
-            Type::Unit => self.clone(),
+            Type::Any => self,
+            Type::Unit => self,
         }
     }
 }
 
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.simplify() {
+        match self.clone().simplify() {
             Type::Any => write!(f, "any"),
             Type::Unit => write!(f, "()"),
             Type::Literal(t) => write!(f, "{}", t),
-            Type::Function(v, r) => {
+            Type::Function(t) => {
                 write!(f, "(")?;
                 let mut print_params = |p: &Vec<NamedType>| -> std::fmt::Result {
                     for (i, (_, t)) in p.iter().enumerate() {
@@ -330,17 +364,17 @@ impl Display for Type {
                     }
                     Ok(())
                 };
-                match v.as_ref() {
-                    FunctionParameterType::Singles(s) => print_params(s)?,
+                match t.params {
+                    FunctionParameterType::Singles(s) => print_params(&s)?,
                     FunctionParameterType::Variadic(s, v) => {
-                        print_params(s)?;
+                        print_params(&s)?;
                         if !s.is_empty() {
                             write!(f, ", ")?;
                         }
                         write!(f, "...{}", v.1)?;
                     }
                 };
-                write!(f, ") -> {}", r)
+                write!(f, ") -> {}", t.ret)
             }
             Type::Tuple(types) => {
                 write!(f, "(")?;
