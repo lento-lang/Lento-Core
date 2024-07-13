@@ -1,10 +1,5 @@
 use std::{
-    cell::Cell,
-    collections::HashSet,
-    fmt::Display,
-    fs::File,
-    io::{BufReader, Cursor, Error, Read},
-    path::PathBuf,
+    cell::Cell, collections::HashSet, fmt::Display, fs::File, io::{BufReader, Cursor, Error, Read}, ops::Deref, path::PathBuf
 };
 
 use lazy_regex::regex_replace_all;
@@ -490,10 +485,10 @@ impl<R: Read> Lexer<R> {
         // get all self.operators starting with first
         let mut ops = self
             .operators
-            .clone()
-            .into_iter()
+            .iter()
             .filter(|op| op.starts_with(first))
-            .collect::<HashSet<_>>();
+            .cloned()
+            .collect::<HashSet<String>>();
          if ops.is_empty() {
             return Err(LexerError::unexpected_character(
                 first,
