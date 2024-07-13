@@ -502,9 +502,7 @@ impl<R: Read> Lexer<R> {
             ));
         }
         let mut longest_match = first.to_string();
-        loop {
-            let c = if let Some(c) = self.peek_char(0) { c }
-            else { break; };
+        while let Some(c) = self.peek_char(0) {
             longest_match.push(c);
             let new_ops = ops.into_iter().filter(|op| op.starts_with(&longest_match)).collect::<HashSet<_>>();
             if new_ops.is_empty() {
