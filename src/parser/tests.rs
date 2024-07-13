@@ -180,7 +180,7 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(matches!(result.expressions[0], Ast::Binary(_, _, _, CheckedType::Unchecked)));
+        assert!(matches!(result.expressions[0], Ast::Binary(_, _, _, _)));
         if let Ast::Binary(lhs, op, rhs, _) = &result.expressions[0] {
             assert_eq!(op.name, "add".to_string());
             assert!(matches!(*lhs.to_owned(), Ast::Tuple(_, _)));
@@ -198,7 +198,7 @@ mod tests {
         if let Ast::Tuple(elems, _) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
             assert_eq!(elems[0], Ast::Literal(make_u8(1)));
-            assert!(matches!(&elems[1], Ast::Binary(_, _, _, CheckedType::Unchecked)));
+            assert!(matches!(&elems[1], Ast::Binary(_, _, _, _)));
             assert_eq!(elems[2], Ast::Literal(make_u8(4)));
             if let Ast::Binary(lhs, op, rhs, _) = &elems[1] {
                 assert_eq!(op.name, "add".to_string());

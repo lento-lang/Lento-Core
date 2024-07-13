@@ -6,7 +6,7 @@ use crate::{
         value::{FloatingPoint, Function, Number, Value},
     }, lexer::lexer::Lexer, parser::{ast::Ast, op::{
         default_operator_precedence, Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorSignature, StaticOperatorAst
-    }, parser::Parser}, stdlib::arithmetic, type_checker::types::{std_primitive_types, CheckedType, GetType, Type}, util::str::Str
+    }, parser::Parser}, stdlib::arithmetic, type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, GetType, Type}, util::str::Str
 };
 
 use super::system;
@@ -83,7 +83,7 @@ pub fn stdlib() -> Initializer {
                 allow_trailing: false,
                 handler: OperatorHandler::Static(
                     OperatorSignature {
-                        params: vec![Type::Any, Type::Any],
+                        params: FunctionParameterType::Singles(vec![("lhs".into(), Type::Any), ("rhs".into(), Type::Any)]),
                         returns: Type::Any,
                     },
                     |op| {
@@ -106,7 +106,7 @@ pub fn stdlib() -> Initializer {
                 allow_trailing: true,
                 handler: OperatorHandler::Static(
                     OperatorSignature {
-                        params: vec![Type::Any, Type::Any],
+                        params: FunctionParameterType::Variadic(vec![], ("elements".into(), Type::Any)),
                         returns: Type::Any,
                     },
                     |op| {
@@ -131,14 +131,14 @@ pub fn stdlib() -> Initializer {
                 position: OperatorPosition::Infix,
                 precedence: default_operator_precedence::ADDITIVE,
                 associativity: OperatorAssociativity::Left,
-                overloadable: false,
-                allow_trailing: true,
+                overloadable: true,
+                allow_trailing: false,
                 handler: OperatorHandler::Runtime(Box::new(arithmetic::add())),
             },
         ],
 
         //--------------------------------------------------------------------------------------//
-        //								  Built-in Types                                      //
+        //						            Built-in Types                                      //
         //--------------------------------------------------------------------------------------//
 
         types: vec![
@@ -175,6 +175,10 @@ pub fn stdlib() -> Initializer {
             (Str::String("e".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::E)))),
             (Str::String("phi".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(1.618_033_988_749_895)))),
             (Str::String("sqrt2".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::SQRT_2)))),
+            (Str::String("ln2".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::LN_2)))),
+            (Str::String("ln10".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::LN_10)))),
+            (Str::String("inf".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::INFINITY)))),
+            (Str::String("nan".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::NAN)))),
         ],
 
         //--------------------------------------------------------------------------------------//

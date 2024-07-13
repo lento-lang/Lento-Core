@@ -88,7 +88,7 @@ pub type StaticOperatorHandler = fn(StaticOperatorAst) -> Ast;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OperatorSignature {
-    pub params: Vec<Type>,
+    pub params: FunctionParameterType,
     pub returns: Type,
 }
 
@@ -145,13 +145,7 @@ impl Operator {
     pub fn signature(&self) -> OperatorSignature {
         match self.handler {
             OperatorHandler::Runtime(ref handler) => {
-                let params = match handler.get_params() {
-                    FunctionParameterType::Singles(p) => p
-                        .iter()
-                        .map(|(_, t)| t.clone())
-                        .collect::<Vec<Type>>(),
-                    FunctionParameterType::Variadic(_, _) => panic!("Variadic functions are not supported for operators"),
-                };
+                let params = handler.get_params().clone();
                 let returns = handler.get_return_type().clone();
                 OperatorSignature { params, returns }
             },
@@ -169,13 +163,7 @@ pub struct RuntimeOperator {
 
 impl RuntimeOperator {
     pub fn signature(&self) -> OperatorSignature {
-        let params = match self.handler.get_params() {
-            FunctionParameterType::Singles(p) => p
-                .iter()
-                .map(|(_, t)| t.clone())
-                .collect::<Vec<Type>>(),
-            FunctionParameterType::Variadic(_, _) => panic!("Variadic functions are not supported for operators"),
-        };
+        let params = self.handler.get_params().clone();
         let returns = self.handler.get_return_type().clone();
         OperatorSignature { params, returns }
     }

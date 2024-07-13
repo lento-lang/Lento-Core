@@ -3,7 +3,7 @@ use crate::{
         error::runtime_error,
         value::{ArithmeticOperations, FunctionVariation, NativeFunctionParameters, Number, Value},
     },
-    type_checker::types::{std_compount_types, FunctionParameterType, GetType},
+    type_checker::types::{std_compount_types, FunctionParameterType, GetType, TypeTrait},
 };
 
 //--------------------------------------------------------------------------------------//

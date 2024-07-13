@@ -4,8 +4,8 @@ use num_bigfloat::BigFloat;
 use num_bigint::{BigInt, BigUint};
 
 use crate::{
-    parser::{ast::Ast},
-    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, GetType, Type},
+    parser::ast::Ast,
+    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, FunctionType, GetType, Type},
 };
 
 use super::interpreter::InterpretResult;
@@ -780,12 +780,10 @@ impl FunctionVariation {
 impl GetType for FunctionVariation {
     fn get_type(&self) -> CheckedType {
         CheckedType::Checked(match self {
-            FunctionVariation::User(p, _, r) => {
-                Type::Function(Box::new(p.clone()), Box::new(r.clone()))
-            }
-            FunctionVariation::Native(_, v, r) => {
-                Type::Function(Box::new(v.clone()), Box::new(r.clone()))
-            }
+            FunctionVariation::User(p, _, r) => 
+                Type::Function(Box::new(FunctionType::new(p.clone(), r.clone()))),
+            FunctionVariation::Native(_, v, r) => 
+                Type::Function(Box::new(FunctionType::new(v.clone(), r.clone()))),
         })
     }
 }

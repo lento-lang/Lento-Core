@@ -95,7 +95,7 @@ impl<R: Read> Parser<R> {
             }
         }
         self.lexer.operators.insert(op.symbol.clone());
-        self.operators.entry(op.symbol.clone()).or_insert_with(Vec::new).push(op);
+        self.operators.entry(op.symbol.clone()).or_default().push(op);
         Ok(())
     }
 
@@ -115,6 +115,7 @@ impl<R: Read> Parser<R> {
         if let Type::Literal(name) = ty.clone() {
             if self.types.contains_key(&name.to_string()) { return Err(TypeError::TypeExists); }
             self.types.insert(name.to_string(), ty);
+            self.lexer.types.insert(name.to_string());
             Ok(())
         } else {
             Err(TypeError::NonLiteralType)
@@ -123,7 +124,8 @@ impl<R: Read> Parser<R> {
 
     pub fn define_alias_type(&mut self, name: String, ty: Type) -> Failable<TypeError> {
         if self.types.contains_key(&name) { return Err(TypeError::TypeExists); }
-        self.types.insert(name, ty);
+        self.types.insert(name.clone(), ty);
+        self.lexer.types.insert(name);
         Ok(())
     }
 
@@ -348,13 +350,11 @@ impl<R: Read> Parser<R> {
     ///     - **not an infix operator**
     ///     - its **precedence is lower than** `min_prec`
     ///     - it is a **terminator**
-    fn next_op(&self, min_prec: OperatorPrecedence, nt: &LexResult, allow_eq: bool) -> Option<Operator> {
+    fn check_op(&self, nt: &LexResult, min_prec: OperatorPrecedence, allow_eq: bool) -> Option<Operator> {
         let t = nt.as_ref().ok()?;
         let op = if let TokenKind::Op(op) = &t.token { op } else { return None; };
-        let op = match self.find_operator_pos(op, OperatorPosition::Infix) {
-            Some(op) => op,
-            None => return None,
-        };
+        let op = self.find_operator(op, |op|
+            op.position == OperatorPosition::Infix || op.position == OperatorPosition::InfixAccumulate)?;
         let is_infix = op.position.is_infix();
         let is_greater = op.precedence > min_prec;
         let is_right_assoc = op.associativity == OperatorAssociativity::Right;
@@ -390,7 +390,7 @@ impl<R: Read> Parser<R> {
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
         let mut nt = self.lexer.peek_token(0);
         let mut expr = lhs;
-        while let Some(curr_op) = self.next_op(min_prec, &nt, false) {
+        while let Some(curr_op) = self.check_op(&nt, min_prec, false) {
             self.lexer.read_next_token().unwrap(); // Consume the operator token
             if curr_op.position.is_accumulate() {
                 expr = self.parse_expr_accum(&curr_op, expr)?;
@@ -399,7 +399,7 @@ impl<R: Read> Parser<R> {
             }
             let mut rhs = self.parse_primary()?;
             nt = self.lexer.peek_token(0);
-            while let Some(next_op) = self.next_op(curr_op.precedence, &nt, false) {
+            while let Some(next_op) = self.check_op(&nt, curr_op.precedence, false) {
                 rhs = self.parse_expr(rhs, Self::next_prec(&curr_op, &next_op))?;
                 nt = self.lexer.peek_token(0);
             }
@@ -425,9 +425,9 @@ impl<R: Read> Parser<R> {
 
             // Expect the next token to be the same operator or another expression
             let nt = self.lexer.peek_token_not(pred::ignored);
-            if let Some(next_op) = self.next_op(
-                op.precedence,
+            if let Some(next_op) = self.check_op(
                 &nt,
+                op.precedence,
                 true) {
                 if !next_op.eq(op) { break; }
                 self.lexer.read_next_token_not(pred::ignored).unwrap(); // Consume the operator token
