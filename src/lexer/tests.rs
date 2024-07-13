@@ -10,7 +10,7 @@ mod tests {
     };
 
     fn assert_next_token_eq<R: Read + Seek>(lexer: &mut Lexer<R>, token: TokenKind) {
-        assert_eq!(lexer.read_next_token().unwrap().token, token);
+        assert_eq!(lexer.next_token().unwrap().token, token);
     }
 
     #[test]

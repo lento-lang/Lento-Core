@@ -225,7 +225,7 @@ impl<R: Read> Parser<R> {
             }
             let nt = nt.unwrap().token;
             if nt == TokenKind::RightParen {
-                if let Err(err) = self.lexer.read_next_token() {
+                if let Err(err) = self.lexer.next_token() {
                     return Err(ParseError {
                         message: format!("Expected ')' but failed with: {}", err.message),
                         span: (self.index(), self.index() + 1),
@@ -233,7 +233,7 @@ impl<R: Read> Parser<R> {
                 }
                 break;
             }
-            let nt = self.lexer.read_next_token();
+            let nt = self.lexer.next_token();
             if nt.is_err() {
                 return Err(ParseError {
                     message: "Expected ')'".to_string(),
@@ -288,7 +288,7 @@ impl<R: Read> Parser<R> {
                     TokenKind::LeftParen => {
                         if let Ok(t) = self.lexer.peek_token(0) {
                             if t.token == TokenKind::RightParen {
-                                self.lexer.read_next_token().unwrap();
+                                self.lexer.next_token().unwrap();
                                 return Ok(Ast::Tuple(vec![], CheckedType::Checked(Type::Unit)));
                             }
                         }
@@ -391,7 +391,7 @@ impl<R: Read> Parser<R> {
         let mut nt = self.lexer.peek_token(0);
         let mut expr = lhs;
         while let Some(curr_op) = self.check_op(&nt, min_prec, false) {
-            self.lexer.read_next_token().unwrap(); // Consume the operator token
+            self.lexer.next_token().unwrap(); // Consume the operator token
             if curr_op.position.is_accumulate() {
                 expr = self.parse_expr_accum(&curr_op, expr)?;
                 nt = self.lexer.peek_token(0);
@@ -446,7 +446,7 @@ impl<R: Read> Parser<R> {
         let nt = self.lexer.peek_token(0);
         if let Ok(t) = nt {
             if t.token.is_top_level_terminal(false) {
-                self.lexer.read_next_token().unwrap();
+                self.lexer.next_token().unwrap();
             }
         }
         expr
