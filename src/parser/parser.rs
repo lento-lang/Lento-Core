@@ -388,20 +388,22 @@ impl<R: Read> Parser<R> {
     /// - https://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
     /// - https://crockford.com/javascript/tdop/tdop.html
     fn parse_expr(&mut self, lhs: Ast, min_prec: OperatorPrecedence) -> ParseResult {
-        let mut nt = self.lexer.peek_token(0);
         let mut expr = lhs;
-        while let Some(curr_op) = self.check_op(&nt, min_prec, false) {
+        while let Some(curr_op) = {
+            let nt = self.lexer.peek_token(0);
+            self.check_op(&nt, min_prec, false)
+        } {
             self.lexer.next_token().unwrap(); // Consume the operator token
             if curr_op.position.is_accumulate() {
                 expr = self.parse_expr_accum(&curr_op, expr)?;
-                nt = self.lexer.peek_token(0);
                 continue;
             }
             let mut rhs = self.parse_primary()?;
-            nt = self.lexer.peek_token(0);
-            while let Some(next_op) = self.check_op(&nt, curr_op.precedence, false) {
+            while let Some(next_op) = {
+                let nt = self.lexer.peek_token(0);
+                self.check_op(&nt, curr_op.precedence, false)
+            } {
                 rhs = self.parse_expr(rhs, Self::next_prec(&curr_op, &next_op))?;
-                nt = self.lexer.peek_token(0);
             }
             expr = if let OperatorHandler::Static(_, handler) = curr_op.handler {
                 (handler)(StaticOperatorAst::Infix(expr, rhs))
