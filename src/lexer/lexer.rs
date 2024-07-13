@@ -1,5 +1,5 @@
 use std::{
-    cell::Cell, collections::HashSet, fmt::Display, fs::File, io::{BufReader, Cursor, Error, Read}, ops::Deref, path::PathBuf
+    cell::Cell, collections::HashSet, fmt::Display, fs::File, io::{BufReader, Cursor, Error, Read}, path::PathBuf
 };
 
 use lazy_regex::regex_replace_all;
