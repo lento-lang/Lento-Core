@@ -11,7 +11,7 @@ use lazy_regex::regex_replace_all;
 
 use super::{
     error::LexerError,
-    readers::bytes_reader::BytesReader,
+    readers::{bytes_reader::BytesReader, stdin::StdinReader},
     token::{LineInfoSpan, TokenInfo, TokenKind},
 };
 
@@ -546,4 +546,8 @@ pub fn from_path(path: PathBuf) -> Result<Lexer<BufReader<File>>, Error> {
 
 pub fn from_stream<R: Read>(reader: R, name: String) -> Lexer<R> {
     Lexer::new_stream(reader, name)
+}
+
+pub fn from_stdin() -> Lexer<StdinReader> {
+    from_stream(StdinReader::default(), "stdin".to_string())
 }

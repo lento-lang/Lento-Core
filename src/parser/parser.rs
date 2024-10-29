@@ -91,7 +91,7 @@ impl<R: Read> Parser<R> {
         self.lexer.current_index()
     }
 
-    fn reset(&mut self, reader: R) {
+    pub fn reset(&mut self, reader: R) {
         self.lexer.reset(reader);
     }
 
@@ -668,10 +668,7 @@ pub fn from_str(source: &str) -> Parser<BytesReader<'_>> {
 }
 
 pub fn from_stdin() -> Parser<StdinReader> {
-    parser_with_stdlib(lexer::from_stream(
-        StdinReader::default(),
-        "stdin".to_string(),
-    ))
+    parser_with_stdlib(lexer::from_stdin())
 }
 
 //--------------------------------------------------------------------------------------//

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     interpreter::value::{FunctionVariation, Value},
     lexer::lexer::InputSource,
