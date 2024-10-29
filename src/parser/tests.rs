@@ -3,7 +3,8 @@ mod tests {
     use std::path::Path;
 
     use crate::{
-        interpreter::value::{Number, UnsignedInteger, Value},
+        interpreter::number::{Number, UnsignedInteger},
+        interpreter::value::Value,
         parser::{
             ast::{Ast, RecordKeyAst},
             parser::{parse_path_one, parse_str_all, parse_str_one},

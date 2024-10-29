@@ -3,10 +3,21 @@ use std::io::Read;
 use crate::{
     interpreter::{
         environment::Environment,
-        value::{FloatingPoint, Function, Number, Value},
-    }, lexer::lexer::Lexer, parser::{ast::Ast, op::{
-        default_operator_precedence, Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorSignature, StaticOperatorAst
-    }, parser::Parser}, stdlib::arithmetic, type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, GetType, Type}, util::str::Str
+        number::{FloatingPoint, Number},
+        value::{Function, Value},
+    },
+    lexer::lexer::Lexer,
+    parser::{
+        ast::Ast,
+        op::{
+            default_operator_precedence, Operator, OperatorAssociativity, OperatorHandler,
+            OperatorPosition, OperatorSignature, StaticOperatorAst,
+        },
+        parser::Parser,
+    },
+    stdlib::arithmetic,
+    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, GetType, Type},
+    util::str::Str,
 };
 
 use super::system;
@@ -37,13 +48,19 @@ impl Initializer {
     pub fn init_parser(&self, parser: &mut Parser<impl Read>) {
         for op in &self.operators {
             if let Err(e) = parser.define_op(op.clone()) {
-                panic!("Parser initialization failed when adding operator '{:?}': {:?}", op, e);
+                panic!(
+                    "Parser initialization failed when adding operator '{:?}': {:?}",
+                    op, e
+                );
             }
         }
         for type_ in &self.types {
             if let Type::Literal(name) = type_ {
                 if let Err(e) = parser.define_literal_type(type_.clone()) {
-                    panic!("Parser initialization failed when adding type '{}': {:?}", name, e);
+                    panic!(
+                        "Parser initialization failed when adding type '{}': {:?}",
+                        name, e
+                    );
                 }
             } else {
                 panic!("init_parser() expects a literal type");
@@ -54,12 +71,18 @@ impl Initializer {
     pub fn init_environment(&self, env: &mut Environment) {
         for (name, val) in &self.values {
             if let Err(e) = env.add_value(name.clone(), val.clone()) {
-                panic!("Environment initialization failed when adding value '{}': {:?}", name, e);
+                panic!(
+                    "Environment initialization failed when adding value '{}': {:?}",
+                    name, e
+                );
             }
         }
         for (name, func) in &self.functions {
             if let Err(e) = env.add_value(name.clone(), Value::Function(func.clone())) {
-                panic!("Environment initialization failed when adding function '{}': {:?}", name, e);
+                panic!(
+                    "Environment initialization failed when adding function '{}': {:?}",
+                    name, e
+                );
             }
         }
     }
@@ -67,11 +90,9 @@ impl Initializer {
 
 pub fn stdlib() -> Initializer {
     Initializer {
-
         //--------------------------------------------------------------------------------------//
         //                                       Operators                                      //
         //--------------------------------------------------------------------------------------//
-
         operators: vec![
             Operator {
                 name: "assign".into(),
@@ -83,7 +104,10 @@ pub fn stdlib() -> Initializer {
                 allow_trailing: false,
                 handler: OperatorHandler::Static(
                     OperatorSignature {
-                        params: FunctionParameterType::Singles(vec![("lhs".into(), Type::Any), ("rhs".into(), Type::Any)]),
+                        params: FunctionParameterType::Singles(vec![
+                            ("lhs".into(), Type::Any),
+                            ("rhs".into(), Type::Any),
+                        ]),
                         returns: Type::Any,
                     },
                     |op| {
@@ -106,18 +130,25 @@ pub fn stdlib() -> Initializer {
                 allow_trailing: true,
                 handler: OperatorHandler::Static(
                     OperatorSignature {
-                        params: FunctionParameterType::Variadic(vec![], ("elements".into(), Type::Any)),
+                        params: FunctionParameterType::Variadic(
+                            vec![],
+                            ("elements".into(), Type::Any),
+                        ),
                         returns: Type::Any,
                     },
                     |op| {
                         if let StaticOperatorAst::Accumulate(elems) = op {
-                            let tuple_type = if elems.iter().any(|e| e.get_type() == CheckedType::Unchecked) {
-                                CheckedType::Unchecked
-                            } else {
-                                CheckedType::Checked(
-                                    Type::Tuple(elems.iter().map(|e| e.get_type().unwrap_checked().clone()).collect())
-                                )
-                            };
+                            let tuple_type =
+                                if elems.iter().any(|e| e.get_type() == CheckedType::Unchecked) {
+                                    CheckedType::Unchecked
+                                } else {
+                                    CheckedType::Checked(Type::Tuple(
+                                        elems
+                                            .iter()
+                                            .map(|e| e.get_type().unwrap_checked().clone())
+                                            .collect(),
+                                    ))
+                                };
                             Ast::Tuple(elems, tuple_type)
                         } else {
                             panic!("tuple expects an accumulator operator");
@@ -140,7 +171,6 @@ pub fn stdlib() -> Initializer {
         //--------------------------------------------------------------------------------------//
         //						            Built-in Types                                      //
         //--------------------------------------------------------------------------------------//
-
         types: vec![
             Type::Literal(Str::Str("any")),
             Type::Literal(Str::Str("unit")),
@@ -168,26 +198,75 @@ pub fn stdlib() -> Initializer {
         //--------------------------------------------------------------------------------------//
         //                                      Constants                                       //
         //--------------------------------------------------------------------------------------//
-
         values: vec![
-            (Str::String("pi".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::PI)))),
-            (Str::String("tau".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::TAU)))),
-            (Str::String("e".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::E)))),
-            (Str::String("phi".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(1.618_033_988_749_895)))),
-            (Str::String("sqrt2".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::SQRT_2)))),
-            (Str::String("ln2".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::LN_2)))),
-            (Str::String("ln10".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::consts::LN_10)))),
-            (Str::String("inf".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::INFINITY)))),
-            (Str::String("nan".to_string()), Value::Number(Number::FloatingPoint(FloatingPoint::Float64(std::f64::NAN)))),
+            (
+                Str::String("pi".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(
+                    std::f64::consts::PI,
+                ))),
+            ),
+            (
+                Str::String("tau".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(
+                    std::f64::consts::TAU,
+                ))),
+            ),
+            (
+                Str::String("e".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(
+                    std::f64::consts::E,
+                ))),
+            ),
+            (
+                Str::String("phi".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(
+                    1.618_033_988_749_895,
+                ))),
+            ),
+            (
+                Str::String("sqrt2".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(
+                    std::f64::consts::SQRT_2,
+                ))),
+            ),
+            (
+                Str::String("ln2".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(
+                    std::f64::consts::LN_2,
+                ))),
+            ),
+            (
+                Str::String("ln10".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(
+                    std::f64::consts::LN_10,
+                ))),
+            ),
+            (
+                Str::String("inf".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(f64::INFINITY))),
+            ),
+            (
+                Str::String("nan".to_string()),
+                Value::Number(Number::FloatingPoint(FloatingPoint::Float64(f64::NAN))),
+            ),
         ],
 
         //--------------------------------------------------------------------------------------//
         //                                       Functions                                      //
         //--------------------------------------------------------------------------------------//
         functions: vec![
-            (Str::String("add".to_string()), Function::new("add".to_string(), vec![arithmetic::add()])),
-            (Str::String("print".to_string()), Function::new("print".to_string(), vec![system::print()])),
-            (Str::String("exit".to_string()), Function::new("exit".to_string(), vec![system::exit()])),
+            (
+                Str::String("add".to_string()),
+                Function::new("add".to_string(), vec![arithmetic::add()]),
+            ),
+            (
+                Str::String("print".to_string()),
+                Function::new("print".to_string(), vec![system::print()]),
+            ),
+            (
+                Str::String("exit".to_string()),
+                Function::new("exit".to_string(), vec![system::exit()]),
+            ),
         ],
     }
 }

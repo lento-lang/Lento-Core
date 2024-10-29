@@ -4,7 +4,8 @@ mod tests {
         interpreter::{
             environment::{global_env, Environment},
             interpreter::{interpret_ast, interpret_module},
-            value::{Number, UnsignedInteger, Value},
+            number::{Number, UnsignedInteger},
+            value::Value,
         },
         parser::{ast::Ast, op::RuntimeOperator, parser},
         stdlib::arithmetic,
@@ -22,7 +23,7 @@ mod tests {
             RuntimeOperator {
                 name: "add".into(),
                 symbol: "+".into(),
-                handler: Box::new(arithmetic::add())
+                handler: Box::new(arithmetic::add()),
             },
             Box::new(rhs),
             CheckedType::Unchecked, // Not required for this test

@@ -545,7 +545,7 @@ pub mod std_primitive_types {
     pub const FLOATBIG: Type = Type::Literal(Str::Str("fbig"));
 }
 
-pub mod std_compount_types {
+pub mod std_compound_types {
     use super::*;
 
     pub fn any_signed_integer() -> Type {

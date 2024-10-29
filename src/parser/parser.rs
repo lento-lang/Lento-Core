@@ -6,7 +6,8 @@ use std::{
 };
 
 use crate::{
-    interpreter::value::{Number, Value},
+    interpreter::number::Number,
+    interpreter::value::Value,
     lexer::{
         lexer::{self, InputSource, LexResult},
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
