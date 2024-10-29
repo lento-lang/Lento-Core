@@ -5,7 +5,9 @@ use num_bigint::{BigInt, BigUint};
 
 use crate::{
     parser::ast::Ast,
-    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, FunctionType, GetType, Type},
+    type_checker::types::{
+        std_primitive_types, CheckedType, FunctionParameterType, FunctionType, GetType, Type,
+    },
 };
 
 use super::interpreter::InterpretResult;
@@ -780,10 +782,12 @@ impl FunctionVariation {
 impl GetType for FunctionVariation {
     fn get_type(&self) -> CheckedType {
         CheckedType::Checked(match self {
-            FunctionVariation::User(p, _, r) => 
-                Type::Function(Box::new(FunctionType::new(p.clone(), r.clone()))),
-            FunctionVariation::Native(_, v, r) => 
-                Type::Function(Box::new(FunctionType::new(v.clone(), r.clone()))),
+            FunctionVariation::User(p, _, r) => {
+                Type::Function(Box::new(FunctionType::new(p.clone(), r.clone())))
+            }
+            FunctionVariation::Native(_, v, r) => {
+                Type::Function(Box::new(FunctionType::new(v.clone(), r.clone())))
+            }
         })
     }
 }
@@ -941,6 +945,62 @@ impl Display for Value {
                     writeln!(f, "\t{}", v)?;
                 }
                 write!(f, "}}")
+            }
+        }
+    }
+}
+
+impl Value {
+    pub fn print_color(&self) -> String {
+        use colorful::Colorful;
+
+        match self {
+            Value::Unit => format!("{}", "()".light_gray()),
+            Value::Number(_) => format!("{}", format!("{}", self).yellow()),
+            Value::String(s) => format!("{}", s.clone().light_green()),
+            Value::Char(c) => format!("{}", c.to_string().light_green()),
+            Value::Boolean(b) => format!("{}", b.to_string().magenta()),
+            Value::Tuple(t, _) => {
+                let mut result = "(".green().to_string();
+                for (i, v) in t.iter().enumerate() {
+                    result.push_str(&v.print_color());
+                    if i < t.len() - 1 {
+                        result.push_str(&", ".green().to_string());
+                    }
+                }
+                result.push_str(&")".green().to_string());
+                result
+            }
+            Value::List(l, _) => {
+                let mut result = "[".green().to_string();
+                for (i, v) in l.iter().enumerate() {
+                    result.push_str(&v.print_color());
+                    if i < l.len() - 1 {
+                        result.push_str(&", ".green().to_string());
+                    }
+                }
+                result.push_str(&"]".green().to_string());
+                result
+            }
+            Value::Record(r, _) => {
+                let mut result = "{ ".green().to_string();
+                for (i, (k, v)) in r.iter().enumerate() {
+                    result.push_str(&format!("{}: ", k));
+                    result.push_str(&v.print_color());
+                    if i < r.len() - 1 {
+                        result.push_str(&", ".green().to_string());
+                    }
+                }
+                result.push_str(&" }".green().to_string());
+                result
+            }
+            Value::Function(fun) => {
+                let mut result = format!("function[{}] {{\n", fun.name).green().to_string();
+                for v in fun.variations.iter() {
+                    result.push_str(&format!("\t{}\n", v));
+                }
+                result.push_str(&"}".green().to_string());
+                result
             }
         }
     }
