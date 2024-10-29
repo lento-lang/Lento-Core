@@ -7,8 +7,34 @@ use std::fmt::{Debug, Display};
 
 /// Generalized trait for type implementations
 pub trait TypeTrait {
+    /// Check if the type is equal to the other type.
+    /// Two types are equal if they are the same type.
+    /// The equality relation is reflexive, symmetric, and transitive.
+    fn equals(&self, other: &Self) -> bool {
+        self.subtype(other) && other.subtype(self)
+    }
+
+    /// Check if the type is a subtype of the other type.
+    /// A type is a subtype of another type if it can be used in place of the other type.
+    ///
+    /// ## Mathematical Notation
+    /// ```ignore
+    /// A <: B, where A and B are types.
+    /// ```
+    ///
+    /// ## Examples
+    /// ```ignore
+    /// int <: number
+    /// list int <: list number
+    /// list int <: list any <: any
+    ///
+    /// // Covariant return type and contravariant parameter type
+    /// f(x: int) -> int <: f(x: number) -> number
+    /// ```
+    ///
+    /// **Covariant return type**: The return type of the subtype function (int) is a subtype of the return type of the supertype function (number). \
+    /// **Contravariant parameter type** : The parameter type of the supertype function (number) is a supertype of the parameter type of the subtype function (int).
     fn subtype(&self, other: &Self) -> bool;
-    fn cast(&self, other: &Self) -> bool;
     fn simplify(self) -> Self;
 }
 
@@ -149,35 +175,31 @@ impl FunctionType {
 
 impl TypeTrait for FunctionType {
     fn subtype(&self, other: &Self) -> bool {
-            match (self.params.is_variadic(), other.params.is_variadic()) {
-                (true, true) => {
-                    let (params, variadic) = self.params.as_variadic().unwrap();
-                    let (other_params, other_variadic) = other.params.as_variadic().unwrap();
-                    params.len() == other_params.len()
-                        && params
-                            .iter()
-                            .zip(other_params)
-                            .all(|((_, p1), (_, p2))| p1.subtype(p2))
-                        && variadic.1.subtype(&other_variadic.1)
-                        && self.ret.subtype(&other.ret)
-                }
-                (false, false) => {
-                    let params = self.params.as_single().unwrap();
-                    let other_params = other.params.as_single().unwrap();
-                    params.len() == other_params.len()
-                        && params
-                            .iter()
-                            .zip(other_params)
-                            .all(|((_, p1), (_, p2))| p1.subtype(p2))
-                        && self.ret.subtype(&other.ret)
-                }
-                (true, false) => false, // Cannot convert a variadic function to a non-variadic function.
-                (false, true) => false, // Cannot convert a non-variadic function to a variadic function.
+        match (self.params.is_variadic(), other.params.is_variadic()) {
+            (true, true) => {
+                let (params, variadic) = self.params.as_variadic().unwrap();
+                let (other_params, other_variadic) = other.params.as_variadic().unwrap();
+                params.len() == other_params.len()
+                    && params
+                        .iter()
+                        .zip(other_params)
+                        .all(|((_, p1), (_, p2))| p1.subtype(p2))
+                    && variadic.1.subtype(&other_variadic.1)
+                    && self.ret.subtype(&other.ret)
             }
-    }
-
-    fn cast(&self, _other: &Self) -> bool {
-        todo!("implement type casting")
+            (false, false) => {
+                let params = self.params.as_single().unwrap();
+                let other_params = other.params.as_single().unwrap();
+                params.len() == other_params.len()
+                    && params
+                        .iter()
+                        .zip(other_params)
+                        .all(|((_, p1), (_, p2))| p1.subtype(p2))
+                    && self.ret.subtype(&other.ret)
+            }
+            (true, false) => false, // Cannot convert a variadic function to a non-variadic function.
+            (false, true) => false, // Cannot convert a non-variadic function to a variadic function.
+        }
     }
 
     fn simplify(self) -> Self {
@@ -192,7 +214,7 @@ impl TypeTrait for FunctionType {
 pub enum Type {
     /// The type of the `any` value.
     /// This is the top type.
-    ///! Should only accessible within the compiler and native functions in the standard library.
+    /// ! Should only accessible within the compiler and native functions in the standard library.
     Any,
 
     /// The unit type.
@@ -210,7 +232,7 @@ pub enum Type {
 
     /// A tuple type.
     /// The first argument is the list of element types.
-    ///! There must be at least one element in the tuple.
+    /// ! There must be at least one element in the tuple.
     /// A tuple type is a product type.
     Tuple(Vec<Type>),
 
@@ -232,32 +254,33 @@ pub enum Type {
     /// A sum type.
     /// The first argument is the list of variants in the sum type.
     /// A sum type must only refer to existing types. To create alterative types/data structures holding data, use an enum type.
-    /// Examples of sum types are `int | float`, `string | char`, `bool | unit`, `Option | Result | Either`.
+    /// Examples of sum types are `int | float`, `string | char`, `bool | unit`, `Option | Result | Either` or
+    /// `Dir = Left | Right | Up | Down | Forward(i32) | Backward(i32)`.
     Sum(Vec<Type>),
 
-    /// An enum type.
-    /// The first argument is the name of the enum type plus any generic type parameters.
-    ///  * It can be a reference to a literal type or a generic type.
-    ///
-    /// The second argument is the list of variants in the enum type.
-    ///
-    ///  * Each variant is a tuple of the variant name and the contained data types.
-    ///  * The variant data types can be inferred from the enum type parameters or be references to already existing types.
-    ///
-    /// Enums must be named using the `enum` keyword: `enum Dir = Left | Right | Up | Down | Forward(i32) | Backward(i32)`.
-    /// An enum type is a sum type of literal or product types.
+    /// A variant type.
+    /// The first argument is a reference to the parent type holding a sum type of one or more variants.
+    /// The second argument is the type of the boxed value.
+    /// The third argument is the name of the boxed variant.
+    /// A variant type is a product type of one or more wrapped types.
     ///
     /// ## Examples:
     /// ```fsharp
-    /// enum Dir = Left | Right | Up | Down | Forward(i32) | Backward(i32)
-    /// enum Option<T> = None | Some(T)
-    /// enum Result<T, E> = Ok(T) | Err(E)
-    /// enum Either<T, U> = Left(T) | Right(U)
-    /// enum List<T> = Nil | Cons(T, List<T>)
-    /// enum Tree<T> = Leaf(T) | Node(Tree<T>, Tree<T>)
+    /// type Box T = Wrapped T        // Box.Wrapped(T)
+    /// type Option T = Some T | None
+    /// type Result T E = Ok(T) | Err(E)
+    /// type Either T U = Left T | Right U
+    /// type List T = Nil | Cons(T, (List T))
+    /// type Tree T = Leaf T | Node (Tree T) (Tree T)
     /// ```
-    Enum(Box<Type>, Vec<(Str, Vec<Type>)>),
-    // TODO: Figure out how to separate or join sum and enum types.
+    ///
+    /// ## Note
+    /// The variant type is a product type, but it is not a sum type.
+    /// It is often used to create sum types with named variants and to create recursive data structures.
+    ///
+    /// ## Note on equality
+    /// Two variant types are equal if they have the same name and the same number of fields with the same types.
+    Variant(Box<Type>, Str, Vec<Type>),
 }
 
 impl TypeTrait for Type {
@@ -287,23 +310,25 @@ impl TypeTrait for Type {
                     && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
             }
             (_, Type::Sum(types)) => types.iter().any(|t| self.subtype(t)),
-            (Type::Enum(name1, variants1), Type::Enum(name2, variants2)) => {
-                name1 == name2
-                    && variants1.len() == variants2.len()
-                    && variants1.iter().zip(variants2).all(|((n1, t1), (n2, t2))| {
-                        n1 == n2
-                            && t1.len() == t2.len()
-                            && t1.iter().zip(t2).all(|(t1, t2)| t1.subtype(t2))
-                    })
+            // (Type::Enum(name1, variants1), Type::Enum(name2, variants2)) => {
+            //     name1 == name2
+            //         && variants1.len() == variants2.len()
+            //         && variants1.iter().zip(variants2).all(|((n1, t1), (n2, t2))| {
+            //             n1 == n2
+            //                 && t1.len() == t2.len()
+            //                 && t1.iter().zip(t2).all(|(t1, t2)| t1.subtype(t2))
+            //         })
+            // }
+            (Type::Variant(parent1, name1, fields1), Type::Variant(parent2, name2, fields2)) => {
+                parent1.eq(parent2)
+                    && name1 == name2
+                    && fields1.len() == fields2.len()
+                    && fields1.iter().zip(fields2).all(|(t1, t2)| t1.subtype(t2))
             }
             (Type::Any, _) => true,
             (_, Type::Any) => true,
             _ => false, // todo!("implement subtype"),
         }
-    }
-
-    fn cast(&self, _other: &Self) -> bool {
-        todo!("implement type casting")
     }
 
     fn simplify(self) -> Self {
@@ -317,12 +342,9 @@ impl TypeTrait for Type {
             Type::Function(ty) => Type::Function(Box::new(ty.simplify())),
             Type::Tuple(types) => Type::Tuple(types.into_iter().map(Type::simplify).collect()),
             Type::List(t) => Type::List(Box::new(t.simplify())),
-            Type::Record(fields) => Type::Record(
-                fields
-                    .into_iter()
-                    .map(|(n, t)| (n, t.simplify()))
-                    .collect(),
-            ),
+            Type::Record(fields) => {
+                Type::Record(fields.into_iter().map(|(n, t)| (n, t.simplify())).collect())
+            }
             Type::Sum(types) => {
                 // Flatten nested sums.
                 let mut result = vec![];
@@ -334,12 +356,18 @@ impl TypeTrait for Type {
                 }
                 Type::Sum(result)
             }
-            Type::Enum(name, variants) => Type::Enum(
+
+            // Type::Enum(name, variants) => Type::Enum(
+            //     name,
+            //     variants
+            //         .into_iter()
+            //         .map(|(n, t)| (n, t.into_iter().map(Type::simplify).collect()))
+            //         .collect(),
+            // ),
+            Type::Variant(parent, name, fields) => Type::Variant(
+                parent,
                 name,
-                variants
-                    .into_iter()
-                    .map(|(n, t)| (n, t.into_iter().map(Type::simplify).collect()))
-                    .collect(),
+                fields.into_iter().map(Type::simplify).collect(),
             ),
             Type::Any => self,
             Type::Unit => self,
@@ -419,7 +447,17 @@ impl Display for Type {
                 }
                 write!(f, ">")
             }
-            Type::Enum(e, _) => write!(f, "{}", e),
+            // Type::Enum(e, _) => write!(f, "{}", e),
+            Type::Variant(_, name, fields) => {
+                write!(f, "{}(", name)?;
+                for (i, t) in fields.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", t)?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }
