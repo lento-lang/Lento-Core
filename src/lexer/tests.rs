@@ -97,10 +97,16 @@ mod tests {
     }
 
     #[test]
-    fn number() {
+    fn float() {
         let mut lexer = from_str("123.456");
-        stdlib().init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Float("123.456".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn integer() {
+        let mut lexer = from_str("123");
+        assert_next_token_eq(&mut lexer, TokenKind::Integer("123".to_string()));
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
 
