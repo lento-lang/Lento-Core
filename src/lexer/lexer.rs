@@ -71,6 +71,7 @@ where
     pub operators: HashSet<String>,
     pub types: HashSet<String>,
     peeked_tokens: Vec<LexResult>, // Queue of peeked tokens (FIFO)
+    buffer_size: usize,
 }
 
 impl<R: Read> Lexer<R> {
@@ -86,6 +87,7 @@ impl<R: Read> Lexer<R> {
             operators: HashSet::new(),
             types: HashSet::new(),
             peeked_tokens: Vec::new(),
+            buffer_size: 512,
         }
     }
 
@@ -102,7 +104,12 @@ impl<R: Read> Lexer<R> {
             operators: HashSet::new(),
             types: HashSet::new(),
             peeked_tokens: Vec::new(),
+            buffer_size: 512,
         }
+    }
+
+    pub fn set_buffer_size(&mut self, buffer_size: usize) {
+        self.buffer_size = buffer_size;
     }
 
     pub fn get_reader(&mut self) -> &mut R {
@@ -139,8 +146,7 @@ impl<R: Read> Lexer<R> {
     }
 
     pub fn try_read_chunk(&mut self) -> Option<()> {
-        const BUFFER_SIZE: usize = 128;
-        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut buffer = vec![0; self.buffer_size];
         match self.reader.read(&mut buffer) {
             Ok(n) => {
                 if n == 0 {
