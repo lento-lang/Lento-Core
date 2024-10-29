@@ -11,8 +11,16 @@ use crate::type_checker::types::{std_primitive_types, CheckedType, GetType};
 pub trait NumberCasting<T> {
     /// Upcasts the value to the given reference size
     fn upcast(&self, to_size: BitSize) -> T;
-    // fn try_downcast(&self, to_size: BitSize) -> Option<T>;
-    // fn try_cast(&self, to_size: BitSize) -> Option<T>;
+
+    /// Returns the smallest possible type that can hold the current value without loss of precision or overflow.
+    /// Try to downcast the type of the UnsignedInteger to the type of the reference.
+    /// Returns None if the downcast is not possible (value is too large to fit in the reference type)
+    /// Returns Some(UnsignedInteger) if the downcast is possible
+    /// # Arguments
+    /// * `to_size` - The reference type size to cast to
+    /// # Note
+    /// This function does not check if the reference type is smaller or equal to the current type.
+    /// This is the responsibility of the caller.
     fn optimize(self) -> T;
 }
 
@@ -145,197 +153,6 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
         }
     }
 
-    /// Try to downcast the type of the UnsignedInteger to the type of the reference.
-    /// Returns None if the downcast is not possible (value is too large to fit in the reference type)
-    /// Returns Some(UnsignedInteger) if the downcast is possible
-    /// # Arguments
-    /// * `to_size` - The reference type size to cast to
-    /// # Note
-    /// This function does not check if the reference type is smaller or equal to the current type.
-    /// This is the responsibility of the caller.
-    // fn try_downcast(&self, to_size: BitSize) -> Option<UnsignedInteger> {
-    //     match (self, to_size) {
-    //         (UnsignedInteger::UInt8(v), BitSize::Bit1) => {
-    //             if *v <= 1 {
-    //                 Some(UnsignedInteger::UInt1(*v))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt16(v), BitSize::Bit1) => {
-    //             if *v <= 1 {
-    //                 Some(UnsignedInteger::UInt1(*v as u8))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt32(v), BitSize::Bit1) => {
-    //             if *v <= 1 {
-    //                 Some(UnsignedInteger::UInt1(*v as u8))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt64(v), BitSize::Bit1) => {
-    //             if *v <= 1 {
-    //                 Some(UnsignedInteger::UInt1(*v as u8))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt128(v), BitSize::Bit1) => {
-    //             if *v <= 1 {
-    //                 Some(UnsignedInteger::UInt1(*v as u8))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UIntVar(v), BitSize::Bit1) => {
-    //             if v.le(&BigUint::from(1u8)) {
-    //                 Some(UnsignedInteger::UInt1(
-    //                     v.iter_u32_digits().nth(0).unwrap() as u8
-    //                 ))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt16(v), BitSize::Bit8) => {
-    //             if *v <= u8::MAX as u16 {
-    //                 Some(UnsignedInteger::UInt8(*v as u8))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt32(v), BitSize::Bit8) => {
-    //             if *v <= u8::MAX as u32 {
-    //                 Some(UnsignedInteger::UInt8(*v as u8))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt64(v), BitSize::Bit8) => {
-    //             if *v <= u8::MAX as u64 {
-    //                 Some(UnsignedInteger::UInt8(*v as u8))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt128(v), BitSize::Bit8) => {
-    //             if *v <= u8::MAX as u128 {
-    //                 Some(UnsignedInteger::UInt8(*v as u8))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UIntVar(v), BitSize::Bit8) => {
-    //             if v.le(&BigUint::from(u8::MAX)) {
-    //                 Some(UnsignedInteger::UInt8(
-    //                     v.iter_u32_digits().nth(0).unwrap() as u8
-    //                 ))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt32(v), BitSize::Bit16) => {
-    //             if *v <= u16::MAX as u32 {
-    //                 Some(UnsignedInteger::UInt16(*v as u16))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt64(v), BitSize::Bit16) => {
-    //             if *v <= u16::MAX as u64 {
-    //                 Some(UnsignedInteger::UInt16(*v as u16))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt128(v), BitSize::Bit16) => {
-    //             if *v <= u16::MAX as u128 {
-    //                 Some(UnsignedInteger::UInt16(*v as u16))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UIntVar(v), BitSize::Bit16) => {
-    //             if v.le(&BigUint::from(u16::MAX)) {
-    //                 Some(UnsignedInteger::UInt16(
-    //                     v.iter_u32_digits().nth(0).unwrap() as u16
-    //                 ))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt64(v), BitSize::Bit32) => {
-    //             if *v <= u32::MAX as u64 {
-    //                 Some(UnsignedInteger::UInt32(*v as u32))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt128(v), BitSize::Bit32) => {
-    //             if *v <= u32::MAX as u128 {
-    //                 Some(UnsignedInteger::UInt32(*v as u32))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UIntVar(v), BitSize::Bit32) => {
-    //             if v.le(&BigUint::from(u32::MAX)) {
-    //                 Some(UnsignedInteger::UInt32(v.iter_u32_digits().nth(0).unwrap()))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UInt128(v), BitSize::Bit64) => {
-    //             if *v <= u64::MAX as u128 {
-    //                 Some(UnsignedInteger::UInt64(*v as u64))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UIntVar(v), BitSize::Bit64) => {
-    //             if v.le(&BigUint::from(u64::MAX)) {
-    //                 Some(UnsignedInteger::UInt64(
-    //                     v.iter_u32_digits().nth(0).unwrap() as u64
-    //                 ))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (UnsignedInteger::UIntVar(v), BitSize::Bit128) => {
-    //             if v.le(&BigUint::from(u128::MAX)) {
-    //                 Some(UnsignedInteger::UInt128(
-    //                     v.iter_u32_digits().nth(0).unwrap() as u128,
-    //                 ))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         _ => unreachable!(),
-    //     }
-    // }
-
-    /// Casts the current type to the reference type, if possible.
-    /// If the current type is smaller than the reference type, it will be upcasted.
-    /// If the current type is larger than the reference type, it will be downcasted.
-    /// If the current type is equal to the reference type, no casting will be performed.
-    /// If the current type is larger than the reference type and cannot be downcasted, None will be returned.
-    /// # Arguments
-    /// * `to_size` - The reference type size to cast to
-    /// # Returns
-    /// The casted type, if possible
-    /// # Panics
-    /// If the current type is larger than the reference type and cannot be downcasted
-    // fn try_cast(&self, to_size: BitSize) -> Option<UnsignedInteger> {
-    //     match self.get_size().cmp(&to_size) {
-    //         Ordering::Less => Some(self.upcast(to_size)),
-    //         Ordering::Equal => Some(self.clone()),
-    //         Ordering::Greater => self.try_downcast(to_size),
-    //     }
-    // }
-
-    /// Returns the smallest possible type that can hold the current value without loss of precision or overflow.
     fn optimize(self) -> UnsignedInteger {
         match self {
             UnsignedInteger::UInt1(_) => self,
@@ -566,74 +383,63 @@ impl NumberCasting<SignedInteger> for SignedInteger {
         }
     }
 
-    // fn try_downcast(&self, to_size: BitSize) -> Option<SignedInteger> {
-    //     match (self, to_size) {
-    //         (SignedInteger::Int8(v), BitSize::Bit16) => {
-    //             if *v >= i16::MIN as i8 && *v <= i16::MAX as i8 {
-    //                 Some(SignedInteger::Int16(*v as i16))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (SignedInteger::Int8(v), BitSize::Bit32) => {
-    //             if *v >= i32::MIN as i8 && *v <= i32::MAX as i8 {
-    //                 Some(SignedInteger::Int32(*v as i32))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (SignedInteger::Int8(v), BitSize::Bit64) => {
-    //             if *v >= i64::MIN as i8 && *v <= i64::MAX as i8 {
-    //                 Some(SignedInteger::Int64(*v as i64))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (SignedInteger::Int8(v), BitSize::Bit128) => {
-    //             if *v >= i128::MIN as i8 && *v <= i128::MAX as i8 {
-    //                 Some(SignedInteger::Int128(*v as i128))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (SignedInteger::Int8(v), BitSize::BitVar) => {
-    //             Some(SignedInteger::IntVar(BigInt::from(*v)))
-    //         }
-    //         (SignedInteger::Int16(v), BitSize::Bit32) => {
-    //             if *v >= i32::MIN as i16 && *v <= i32::MAX as i16 {
-    //                 Some(SignedInteger::Int32(*v as i32))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (SignedInteger::Int16(v), BitSize::Bit64) => {
-    //             if *v >= i64::MIN as i16 && *v <= i64::MAX as i16 {
-    //                 Some(SignedInteger::Int64(*v as i64))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (SignedInteger::Int16(v), BitSize::Bit128) => {
-    //             if *v >= i128::MIN as i16 && *v <= i128::MAX as i16 {
-    //                 Some(SignedInteger::Int128(*v as i128))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         _ => unreachable!(),
-    //     }
-    // }
-
-    // fn try_cast(&self, to_size: BitSize) -> Option<SignedInteger> {
-    //     match self.get_size().cmp(&to_size) {
-    //         Ordering::Less => Some(self.upcast(to_size)),
-    //         Ordering::Equal => Some(self.clone()),
-    //         Ordering::Greater => self.try_downcast(to_size),
-    //     }
-    // }
-
     fn optimize(self) -> SignedInteger {
-        todo!()
+        match self {
+            SignedInteger::Int8(_) => self,
+            SignedInteger::Int16(v) => {
+                if v >= i8::MIN as i16 && v <= i8::MAX as i16 {
+                    SignedInteger::Int8(v as i8)
+                } else {
+                    self
+                }
+            }
+            SignedInteger::Int32(v) => {
+                if v >= i8::MIN as i32 && v <= i8::MAX as i32 {
+                    SignedInteger::Int8(v as i8)
+                } else if v >= i16::MIN as i32 && v <= i16::MAX as i32 {
+                    SignedInteger::Int16(v as i16)
+                } else {
+                    self
+                }
+            }
+            SignedInteger::Int64(v) => {
+                if v >= i8::MIN as i64 && v <= i8::MAX as i64 {
+                    SignedInteger::Int8(v as i8)
+                } else if v >= i16::MIN as i64 && v <= i16::MAX as i64 {
+                    SignedInteger::Int16(v as i16)
+                } else if v >= i32::MIN as i64 && v <= i32::MAX as i64 {
+                    SignedInteger::Int32(v as i32)
+                } else {
+                    self
+                }
+            }
+            SignedInteger::Int128(v) => {
+                if v >= i8::MIN as i128 && v <= i8::MAX as i128 {
+                    SignedInteger::Int8(v as i8)
+                } else if v >= i16::MIN as i128 && v <= i16::MAX as i128 {
+                    SignedInteger::Int16(v as i16)
+                } else if v >= i32::MIN as i128 && v <= i32::MAX as i128 {
+                    SignedInteger::Int32(v as i32)
+                } else if v >= i64::MIN as i128 && v <= i64::MAX as i128 {
+                    SignedInteger::Int64(v as i64)
+                } else {
+                    self
+                }
+            }
+            SignedInteger::IntVar(ref v) => {
+                if v.ge(&BigInt::from(i8::MIN)) && v.le(&BigInt::from(i8::MAX)) {
+                    SignedInteger::Int8(v.iter_u32_digits().nth(0).unwrap() as i8)
+                } else if v.ge(&BigInt::from(i16::MIN)) && v.le(&BigInt::from(i16::MAX)) {
+                    SignedInteger::Int16(v.iter_u32_digits().nth(0).unwrap() as i16)
+                } else if v.ge(&BigInt::from(i32::MIN)) && v.le(&BigInt::from(i32::MAX)) {
+                    SignedInteger::Int32(v.iter_u32_digits().nth(0).unwrap() as i32)
+                } else if v.ge(&BigInt::from(i64::MIN)) && v.le(&BigInt::from(i64::MAX)) {
+                    SignedInteger::Int64(v.iter_u32_digits().nth(0).unwrap() as i64)
+                } else {
+                    self
+                }
+            }
+        }
     }
 }
 
@@ -755,43 +561,27 @@ impl NumberCasting<FloatingPoint> for FloatingPoint {
         }
     }
 
-    // fn try_downcast(&self, to_size: BitSize) -> Option<FloatingPoint> {
-    //     match (self, to_size) {
-    //         (FloatingPoint::Float64(v), BitSize::Bit32) => {
-    //             if *v >= f32::MIN as f64 && *v <= f32::MAX as f64 {
-    //                 Some(FloatingPoint::Float32(*v as f32))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (FloatingPoint::FloatBig(v), BitSize::Bit32) => {
-    //             if v >= BigFloat::from(f32::MIN) && v <= BigFloat::from(f32::MAX) {
-    //                 Some(FloatingPoint::Float32(v.to_f32().unwrap()))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         (FloatingPoint::FloatBig(v), BitSize::Bit64) => {
-    //             if v >= BigFloat::from(f64::MIN) && v <= BigFloat::from(f64::MAX) {
-    //                 Some(FloatingPoint::Float64(v.to_f64().unwrap()))
-    //             } else {
-    //                 None
-    //             }
-    //         }
-    //         _ => unreachable!(),
-    //     }
-    // }
-
-    // fn try_cast(&self, to_size: BitSize) -> Option<FloatingPoint> {
-    //     match self.get_size().cmp(&to_size) {
-    //         Ordering::Less => Some(self.upcast(to_size)),
-    //         Ordering::Equal => Some(self.clone()),
-    //         Ordering::Greater => self.try_downcast(to_size),
-    //     }
-    // }
-
     fn optimize(self) -> FloatingPoint {
-        todo!()
+        match self {
+            FloatingPoint::Float32(_) => self,
+            FloatingPoint::Float64(v) => {
+                if v >= f32::MIN as f64 && v <= f32::MAX as f64 {
+                    FloatingPoint::Float32(v as f32)
+                } else {
+                    self
+                }
+            }
+            FloatingPoint::FloatBig(v) => {
+                // TODO: Look at resolution of BigFloat to f32/f64, not only max/min values
+                if v >= BigFloat::from(f32::MIN) && v <= BigFloat::from(f32::MAX) {
+                    FloatingPoint::Float32(v.to_f32())
+                } else if v >= BigFloat::from(f64::MIN) && v <= BigFloat::from(f64::MAX) {
+                    FloatingPoint::Float64(v.to_f64())
+                } else {
+                    self
+                }
+            }
+        }
     }
 }
 
