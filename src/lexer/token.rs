@@ -1,12 +1,14 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 // Token structure for the Lento programming language
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
     EndOfFile,
     // Expression terminators
     Newline,
     SemiColon,
+    Colon,
+    Comma,
     // Literals
     Identifier(String),
     Integer(String),
@@ -16,11 +18,11 @@ pub enum TokenKind {
     Boolean(bool),
     TypeIdentifier(String),
     // Grouping and separation tokens
-    LeftParen, // (
-    RightParen, // )
-    LeftBrace, // {
-    RightBrace, // }
-    LeftBracket, // [
+    LeftParen,    // (
+    RightParen,   // )
+    LeftBrace,    // {
+    RightBrace,   // }
+    LeftBracket,  // [
     RightBracket, // ]
     // All other operators will be implemented in a standard library at runtime in the future
     // leaving support for user-defined operators
@@ -86,12 +88,14 @@ impl TokenKind {
     }
 }
 
-impl Debug for TokenKind {
+impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EndOfFile => write!(f, "EndOfFile"),
             Self::Newline => write!(f, "newline"),
             Self::SemiColon => write!(f, ";"),
+            Self::Colon => write!(f, ":"),
+            Self::Comma => write!(f, ","),
             Self::Identifier(s) => write!(f, "{}", s),
             Self::Integer(s) => write!(f, "{}", s),
             Self::Float(s) => write!(f, "{}", s),
@@ -121,7 +125,11 @@ pub struct LineInfo {
 
 impl Debug for LineInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "index: {}, line: {}, column: {}", self.index, self.line, self.column)
+        write!(
+            f,
+            "index: {}, line: {}, column: {}",
+            self.index, self.line, self.column
+        )
     }
 }
 

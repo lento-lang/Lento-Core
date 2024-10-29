@@ -6,7 +6,7 @@ use crate::{
     type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
 };
 
-use super::{error::ParseError, op::{RuntimeOperator}};
+use super::{error::ParseError, op::RuntimeOperator};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordKeyAst {
@@ -55,7 +55,7 @@ pub enum Ast {
     /// A record is a collection of key-value pairs
     /// 1. List of key-value pairs
     /// 2. Type of the record, made up of the types of the keys and values
-    Record(HashMap<RecordKeyAst, Ast>, CheckedType),
+    Record(Vec<(RecordKeyAst, Ast)>, CheckedType),
     /// An identifier is a named reference to a value in the environment
     /// 1. Name of the identifier
     /// 2. Type of the identifier (the type of the value it refers to)

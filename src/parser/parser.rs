@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, fs::File, io::{BufReader, Cursor, Error, Read}, path::Path
+    collections::HashMap,
+    fs::File,
+    io::{BufReader, Cursor, Error, Read},
+    path::Path,
 };
 
 use crate::{
@@ -10,15 +13,19 @@ use crate::{
         token::{TokenInfo, TokenKind},
     },
     stdlib::init::stdlib,
-    type_checker::types::{CheckedType, GetType, Type}, util::failable::Failable,
+    type_checker::types::{CheckedType, GetType, Type},
+    util::failable::Failable,
 };
 
 use crate::lexer::lexer::Lexer;
 
 use super::{
-    ast::{unit, Ast, Module},
+    ast::{unit, Ast, Module, RecordKeyAst},
     error::{OperatorError, ParseError, TypeError},
-    op::{Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorPrecedence, RuntimeOperator, StaticOperatorAst}
+    op::{
+        Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorPrecedence,
+        RuntimeOperator, StaticOperatorAst,
+    },
 };
 
 /// Token predicates for parsing
@@ -73,11 +80,19 @@ where
 
 impl<R: Read> Parser<R> {
     pub fn new(lexer: Lexer<R>) -> Self {
-        Self { lexer, operators: HashMap::new(), types: HashMap::new() }
+        Self {
+            lexer,
+            operators: HashMap::new(),
+            types: HashMap::new(),
+        }
     }
 
     fn index(&self) -> usize {
         self.lexer.current_index()
+    }
+
+    fn reset(&mut self, reader: R) {
+        self.lexer.reset(reader);
     }
 
     /// Define an operator in the parser.
@@ -95,7 +110,10 @@ impl<R: Read> Parser<R> {
             }
         }
         self.lexer.operators.insert(op.symbol.clone());
-        self.operators.entry(op.symbol.clone()).or_default().push(op);
+        self.operators
+            .entry(op.symbol.clone())
+            .or_default()
+            .push(op);
         Ok(())
     }
 
@@ -103,8 +121,13 @@ impl<R: Read> Parser<R> {
         self.operators.get(symbol)
     }
 
-    pub fn find_operator(&self, symbol: &str, pred: impl Fn(&Operator) -> bool) -> Option<&Operator> {
-        self.get_op(symbol).and_then(|ops| ops.iter().find(|op| pred(op)))
+    pub fn find_operator(
+        &self,
+        symbol: &str,
+        pred: impl Fn(&Operator) -> bool,
+    ) -> Option<&Operator> {
+        self.get_op(symbol)
+            .and_then(|ops| ops.iter().find(|op| pred(op)))
     }
 
     pub fn find_operator_pos(&self, symbol: &str, pos: OperatorPosition) -> Option<&Operator> {
@@ -113,7 +136,9 @@ impl<R: Read> Parser<R> {
 
     pub fn define_literal_type(&mut self, ty: Type) -> Failable<TypeError> {
         if let Type::Literal(name) = ty.clone() {
-            if self.types.contains_key(&name.to_string()) { return Err(TypeError::TypeExists); }
+            if self.types.contains_key(&name.to_string()) {
+                return Err(TypeError::TypeExists);
+            }
             self.types.insert(name.to_string(), ty);
             self.lexer.types.insert(name.to_string());
             Ok(())
@@ -123,7 +148,9 @@ impl<R: Read> Parser<R> {
     }
 
     pub fn define_alias_type(&mut self, name: String, ty: Type) -> Failable<TypeError> {
-        if self.types.contains_key(&name) { return Err(TypeError::TypeExists); }
+        if self.types.contains_key(&name) {
+            return Err(TypeError::TypeExists);
+        }
         self.types.insert(name.clone(), ty);
         self.lexer.types.insert(name);
         Ok(())
@@ -253,6 +280,113 @@ impl<R: Read> Parser<R> {
         Ok(Ast::FunctionCall(id, args, CheckedType::Unchecked))
     }
 
+    /// Parses the fields of a record from the lexer.
+    ///
+    /// This function attempts to parse a record by first performing a soft parse to check if the record
+    /// is empty or if it is a block. If a valid key and a colon are found, it continues to parse the
+    /// fields more strictly.
+    ///
+    /// # Returns
+    /// - `Some(Ok(Vec<(RecordKeyAst, Ast)>))` if the record is successfully parsed.
+    /// - `Some(Err(ParseError))` if there is an error during parsing.
+    /// - `None` if the input does not represent a record.
+    ///
+    /// # Errors
+    /// This function returns a `ParseError` if it encounters unexpected tokens or if it fails to parse
+    /// the expected tokens.
+    ///
+    /// # Examples
+    /// ```
+    /// let mut parser = Parser::new(lexer);
+    /// if let Some(result) = parser.parse_record_fields() {
+    ///     match result {
+    ///         Ok(fields) => println!("Parsed fields: {:?}", fields),
+    ///         Err(err) => eprintln!("Parse error: {:?}", err),
+    ///     }
+    /// } else {
+    ///     println!("Not a record.");
+    /// }
+    /// ```
+    fn parse_record_fields(&mut self) -> Option<Result<Vec<(RecordKeyAst, Ast)>, ParseError>> {
+        let mut fields = Vec::new();
+        // Initial soft parse to check if the record is empty
+        // Or if it is a block
+        if let Ok(t) = self.lexer.peek_token(0) {
+            let key = match t.token {
+                TokenKind::RightBrace => {
+                    self.lexer.next_token().unwrap();
+                    return Some(Ok(fields)); // Empty record
+                }
+                TokenKind::Identifier(id) => RecordKeyAst::String(id),
+                TokenKind::Integer(n) => RecordKeyAst::Integer(n),
+                TokenKind::Float(n) => RecordKeyAst::Float(n),
+                TokenKind::String(s) => RecordKeyAst::String(s),
+                TokenKind::Char(c) => RecordKeyAst::Char(c),
+                _ => return None, // Not a record
+            };
+            if let Ok(t) = self.lexer.peek_token(1) {
+                if t.token != TokenKind::Colon {
+                    return None; // Not a record
+                }
+            }
+            // If we found both a valid key and a colon, we found a record!
+            self.lexer.next_token().unwrap();
+            self.parse_expected(TokenKind::Colon, ":").ok()?;
+            let value = self.parse_top_expr().ok()?;
+            fields.push((key, value));
+            if let Ok(t) = self.lexer.next_token() {
+                match t.token {
+                    TokenKind::Comma => (),                           // Continue parsing
+                    TokenKind::RightBrace => return Some(Ok(fields)), // Just a single field
+                    _ => {
+                        return Some(Err(ParseError {
+                            message: format!("Expected ',' or '}}', but found {:?}", t),
+                            span: (t.info.start.index, t.info.end.index),
+                        }))
+                    }
+                }
+            }
+        }
+        // Parse the rest of the fields more strictly
+        while let Ok(t) = self.lexer.next_token() {
+            if t.token == TokenKind::RightBrace {
+                break;
+            }
+            let key = match t.token {
+                TokenKind::Identifier(id) => RecordKeyAst::String(id),
+                TokenKind::Integer(n) => RecordKeyAst::Integer(n),
+                TokenKind::Float(n) => RecordKeyAst::Float(n),
+                TokenKind::String(s) => RecordKeyAst::String(s),
+                TokenKind::Char(c) => RecordKeyAst::Char(c),
+                _ => {
+                    return Some(Err(ParseError {
+                        message: format!("Expected record key, but found {:?}", t.token),
+                        span: (t.info.start.index, t.info.end.index),
+                    }))
+                }
+            };
+            let _ = Some(self.parse_expected(TokenKind::Colon, ":"))?;
+            let value = match self.parse_top_expr() {
+                Ok(value) => value,
+                Err(err) => return Some(Err(err)),
+            };
+            fields.push((key, value));
+            if let Ok(t) = self.lexer.next_token() {
+                match t.token {
+                    TokenKind::Comma => continue,
+                    TokenKind::RightBrace => break,
+                    _ => {
+                        return Some(Err(ParseError {
+                            message: format!("Expected ',' or '}}', but found {:?}", t),
+                            span: (t.info.start.index, t.info.end.index),
+                        }))
+                    }
+                }
+            }
+        }
+        Some(Ok(fields))
+    }
+
     fn parse_primary(&mut self) -> ParseResult {
         let nt = self.lexer.expect_next_token_not(pred::ignored);
         if let Ok(t) = nt {
@@ -275,7 +409,11 @@ impl<R: Read> Parser<R> {
                     Ok(if let OperatorHandler::Static(_, handler) = op.handler {
                         (handler)(StaticOperatorAst::Prefix(rhs))
                     } else {
-                        Ast::Unary(RuntimeOperator::from(op.clone()), Box::new(rhs), CheckedType::Checked(op.signature().returns))
+                        Ast::Unary(
+                            RuntimeOperator::from(op.clone()),
+                            Box::new(rhs),
+                            CheckedType::Checked(op.signature().returns),
+                        )
                     })
                 } else {
                     return Err(ParseError {
@@ -298,28 +436,32 @@ impl<R: Read> Parser<R> {
                         Ok(expr)
                     }
                     TokenKind::LeftBrace => {
-                        let mut exprs = Vec::new();
-                        while let Ok(t) = self.lexer.peek_token(0) {
-                            if t.token == TokenKind::RightBrace { break; }
-                            exprs.push(self.parse_top_expr()?);
-                        }
-                        self.parse_expected(TokenKind::RightBrace, "}")?;
-                        let return_type = if let Some(expr) = exprs.last() {
-                            expr.get_type()
+                        // Try to parse as record
+                        if let Some(res) = self.parse_record_fields() {
+                            Ok(Ast::Record(res?, CheckedType::Unchecked))
                         } else {
-                            CheckedType::Checked(Type::Unit)
-                        };
-                        Ok(Ast::Block(exprs, return_type))
+                            // Parse as block
+                            let mut exprs = Vec::new();
+                            while let Ok(t) = self.lexer.peek_token(0) {
+                                if t.token == TokenKind::RightBrace {
+                                    break;
+                                }
+                                exprs.push(self.parse_top_expr()?);
+                            }
+                            self.parse_expected(TokenKind::RightBrace, "}")?;
+                            let return_type = exprs.last().unwrap().get_type();
+                            Ok(Ast::Block(exprs, return_type))
+                        }
                     }
                     TokenKind::LeftBracket => {
                         let body = self.parse_top_expr()?;
                         self.parse_expected(TokenKind::RightBracket, "]")?;
                         match body {
                             Ast::Tuple(elems, _) => Ok(Ast::List(elems, CheckedType::Unchecked)),
-                            single => Ok(Ast::List(vec![single], CheckedType::Unchecked))
+                            single => Ok(Ast::List(vec![single], CheckedType::Unchecked)),
                         }
                     }
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             } else {
                 Err(ParseError {
@@ -350,11 +492,22 @@ impl<R: Read> Parser<R> {
     ///     - **not an infix operator**
     ///     - its **precedence is lower than** `min_prec`
     ///     - it is a **terminator**
-    fn check_op(&self, nt: &LexResult, min_prec: OperatorPrecedence, allow_eq: bool) -> Option<Operator> {
+    fn check_op(
+        &self,
+        nt: &LexResult,
+        min_prec: OperatorPrecedence,
+        allow_eq: bool,
+    ) -> Option<Operator> {
         let t = nt.as_ref().ok()?;
-        let op = if let TokenKind::Op(op) = &t.token { op } else { return None; };
-        let op = self.find_operator(op, |op|
-            op.position == OperatorPosition::Infix || op.position == OperatorPosition::InfixAccumulate)?;
+        let op = if let TokenKind::Op(op) = &t.token {
+            op
+        } else {
+            return None;
+        };
+        let op = self.find_operator(op, |op| {
+            op.position == OperatorPosition::Infix
+                || op.position == OperatorPosition::InfixAccumulate
+        })?;
         let is_infix = op.position.is_infix();
         let is_greater = op.precedence > min_prec;
         let is_right_assoc = op.associativity == OperatorAssociativity::Right;
@@ -408,7 +561,12 @@ impl<R: Read> Parser<R> {
             expr = if let OperatorHandler::Static(_, handler) = curr_op.handler {
                 (handler)(StaticOperatorAst::Infix(expr, rhs))
             } else {
-                Ast::Binary(Box::new(expr), RuntimeOperator::from(curr_op.clone()), Box::new(rhs), CheckedType::Checked(curr_op.signature().returns))
+                Ast::Binary(
+                    Box::new(expr),
+                    RuntimeOperator::from(curr_op.clone()),
+                    Box::new(rhs),
+                    CheckedType::Checked(curr_op.signature().returns),
+                )
             };
         }
         Ok(expr)
@@ -419,7 +577,9 @@ impl<R: Read> Parser<R> {
     fn parse_expr_accum(&mut self, op: &Operator, first: Ast) -> ParseResult {
         let mut exprs = vec![first];
         while let Ok(t) = self.lexer.peek_token_not(pred::ignored) {
-            if op.allow_trailing && t.token.is_terminator() { break; }
+            if op.allow_trailing && t.token.is_terminator() {
+                break;
+            }
 
             // Parse the next nested expression in the sequence
             let lhs = self.parse_primary()?;
@@ -427,17 +587,20 @@ impl<R: Read> Parser<R> {
 
             // Expect the next token to be the same operator or another expression
             let nt = self.lexer.peek_token_not(pred::ignored);
-            if let Some(next_op) = self.check_op(
-                &nt,
-                op.precedence,
-                true) {
-                if !next_op.eq(op) { break; }
+            if let Some(next_op) = self.check_op(&nt, op.precedence, true) {
+                if !next_op.eq(op) {
+                    break;
+                }
                 self.lexer.read_next_token_not(pred::ignored).unwrap(); // Consume the operator token
-            } else { break; }
+            } else {
+                break;
+            }
         }
         Ok(match &op.handler {
             OperatorHandler::Static(_, handler) => (handler)(StaticOperatorAst::Accumulate(exprs)),
-            OperatorHandler::Runtime(func) => Ast::VariationCall(func.clone(), exprs, CheckedType::Unchecked)
+            OperatorHandler::Runtime(func) => {
+                Ast::VariationCall(func.clone(), exprs, CheckedType::Unchecked)
+            }
         })
     }
 
@@ -454,7 +617,11 @@ impl<R: Read> Parser<R> {
         expr
     }
 
-    fn parse_expected(&mut self, expected_token: TokenKind, symbol: &'static str) -> Result<TokenInfo, ParseError>{
+    fn parse_expected(
+        &mut self,
+        expected_token: TokenKind,
+        symbol: &'static str,
+    ) -> Result<TokenInfo, ParseError> {
         match self.lexer.expect_next_token_not(pred::ignored) {
             Ok(t) if t.token == expected_token => Ok(t),
             Ok(t) => Err(ParseError {
@@ -464,11 +631,10 @@ impl<R: Read> Parser<R> {
             Err(err) => Err(ParseError {
                 message: format!(
                     "Expected '{}', but failed due to: {:?}",
-                    symbol,
-                    err.message
+                    symbol, err.message
                 ),
                 span: (self.index(), self.index()),
-            })
+            }),
         }
     }
 }

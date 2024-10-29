@@ -1,10 +1,13 @@
 use std::{
-    cell::Cell, collections::HashSet, fmt::Display, fs::File, io::{BufReader, Cursor, Error, Read}, path::PathBuf
+    cell::Cell,
+    collections::HashSet,
+    fmt::Display,
+    fs::File,
+    io::{BufReader, Cursor, Error, Read},
+    path::PathBuf,
 };
 
 use lazy_regex::regex_replace_all;
-
-
 
 use super::{
     error::LexerError,
@@ -110,7 +113,12 @@ impl<R: Read> Lexer<R> {
         self.index
     }
 
-    pub fn reset(&mut self) {
+    pub fn set_index(&mut self, index: usize) {
+        self.index = index;
+    }
+
+    pub fn reset(&mut self, reader: R) {
+        self.reader = reader;
         self.content.clear();
         self.index = 0;
         self.line_info = LineInfoSpan::new();
@@ -142,7 +150,7 @@ impl<R: Read> Lexer<R> {
                     Some(()) // Success
                 }
             }
-            Err(_) => None
+            Err(_) => None,
         }
     }
 
@@ -302,6 +310,8 @@ impl<R: Read> Lexer<R> {
                     '[' => TokenKind::LeftBracket,
                     ']' => TokenKind::RightBracket,
                     ';' => TokenKind::SemiColon,
+                    ':' => TokenKind::Colon,
+                    ',' => TokenKind::Comma,
                     '/' if self.peek_char(0) == Some('/') => return self.read_comment(),
                     _ => return self.read_operator(c),
                 })
@@ -454,7 +464,7 @@ impl<R: Read> Lexer<R> {
             sym => match self.operators.get(sym) {
                 Some(op) => TokenKind::Op(op.clone()),
                 None => TokenKind::Identifier(s),
-            }
+            },
         }
     }
 
@@ -489,7 +499,7 @@ impl<R: Read> Lexer<R> {
             .filter(|op| op.starts_with(first))
             .cloned()
             .collect::<HashSet<String>>();
-         if ops.is_empty() {
+        if ops.is_empty() {
             return Err(LexerError::unexpected_character(
                 first,
                 self.line_info.clone(),
@@ -499,7 +509,10 @@ impl<R: Read> Lexer<R> {
         let mut longest_match = first.to_string();
         while let Some(c) = self.peek_char(0) {
             longest_match.push(c);
-            let new_ops = ops.into_iter().filter(|op| op.starts_with(&longest_match)).collect::<HashSet<_>>();
+            let new_ops = ops
+                .into_iter()
+                .filter(|op| op.starts_with(&longest_match))
+                .collect::<HashSet<_>>();
             if new_ops.is_empty() {
                 longest_match.pop();
                 break;

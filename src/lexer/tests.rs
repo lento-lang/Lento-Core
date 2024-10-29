@@ -6,7 +6,8 @@ mod tests {
         lexer::{
             lexer::{from_str, from_string, Lexer},
             token::TokenKind,
-        }, stdlib::init::stdlib
+        },
+        stdlib::init::stdlib,
     };
 
     fn assert_next_token_eq<R: Read + Seek>(lexer: &mut Lexer<R>, token: TokenKind) {
@@ -136,12 +137,79 @@ mod tests {
     fn types() {
         let types = [
             "unit", "str", "char", "bool", "u1", "u8", "u16", "u32", "u64", "u128", "ubig", "i8",
-            "i16", "i32", "i64", "i128", "ibig", "f32", "f64", "fbig"];
+            "i16", "i32", "i64", "i128", "ibig", "f32", "f64", "fbig",
+        ];
         let mut lexer = from_string(types.join(" "));
         stdlib().init_lexer(&mut lexer);
         for ty in types.iter() {
             assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier(ty.to_string()));
         }
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn commas() {
+        let mut lexer = from_str("a, b, c");
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("a".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::Comma);
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("b".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::Comma);
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("c".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn colon() {
+        let mut lexer = from_str("a: b");
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("a".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::Colon);
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("b".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn parens() {
+        let mut lexer = from_str("(a)");
+        assert_next_token_eq(&mut lexer, TokenKind::LeftParen);
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("a".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::RightParen);
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn braces() {
+        let mut lexer = from_str("{a}");
+        assert_next_token_eq(&mut lexer, TokenKind::LeftBrace);
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("a".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::RightBrace);
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn brackets() {
+        let mut lexer = from_str("[a]");
+        assert_next_token_eq(&mut lexer, TokenKind::LeftBracket);
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("a".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::RightBracket);
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn operators() {
+        let mut lexer = from_str("a + b");
+        lexer.operators.insert("+".to_string());
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("a".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::Op("+".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("b".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    }
+
+    #[test]
+    fn semicolon() {
+        let mut lexer = from_str("a; b");
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("a".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::SemiColon);
+        assert_next_token_eq(&mut lexer, TokenKind::Identifier("b".to_string()));
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
 }

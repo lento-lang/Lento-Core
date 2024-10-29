@@ -5,7 +5,7 @@ mod tests {
     use crate::{
         interpreter::value::{Number, UnsignedInteger, Value},
         parser::{
-            ast::Ast,
+            ast::{Ast, RecordKeyAst},
             parser::{parse_path_one, parse_str_all, parse_str_one},
         },
         type_checker::types::CheckedType,
@@ -237,17 +237,19 @@ mod tests {
         assert!(result.expressions[0] == expected);
     }
 
-    // #[test]
-    // fn call_no_paren_apply() {
-    //     let result = parse_str("println \"Hello, World!\"");
-    //     let expected = Ast::FunctionCall(
-    //         "println".to_string(),
-    //         vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
-    //         CheckedType::Unchecked,
-    //     );
-    //     assert!(result.is_ok());
-    //     assert!(result.unwrap() == expected);
-    // }
+    #[test]
+    fn call_no_paren_apply() {
+        let result = parse_str_one("println \"Hello, World!\"");
+        let expected = Ast::FunctionCall(
+            "println".to_string(),
+            vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+            CheckedType::Unchecked,
+        );
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(result.expressions[0] == expected);
+    }
 
     #[test]
     fn call_tuple_apply() {
@@ -324,10 +326,7 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(matches!(
-            result.expressions[0],
-            Ast::Assignment(_, _, _)
-        ));
+        assert!(matches!(result.expressions[0], Ast::Assignment(_, _, _)));
     }
 
     #[test]
@@ -389,4 +388,111 @@ mod tests {
     //         Ast::Binary(_, _, _, CheckedType::Unchecked)
     //     ));
     // }
+
+    #[test]
+    fn record_literal_empty() {
+        let result = parse_str_one("{}");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Record(_, _)));
+        if let Ast::Record(fields, _) = &result.expressions[0] {
+            assert_eq!(fields.len(), 0);
+        }
+    }
+
+    #[test]
+    fn record_literal_one() {
+        let result = parse_str_one("{ x: 1 }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Record(_, _)));
+        if let Ast::Record(fields, _) = &result.expressions[0] {
+            assert_eq!(fields.len(), 1);
+            let fields = fields.iter().collect::<Vec<_>>();
+            assert!(matches!(fields[0].0, RecordKeyAst::String(_)));
+            if let RecordKeyAst::String(key) = &fields[0].0 {
+                assert_eq!(key, "x");
+            }
+            assert!(matches!(fields[0].1, Ast::Literal(_)));
+            assert_eq!(fields[0].1, Ast::Literal(make_u8(1)));
+        }
+    }
+
+    #[test]
+    fn record_literal_two() {
+        let result = parse_str_one("{ x: 1, y: 2 }");
+        dbg!(&result);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Record(_, _)));
+        if let Ast::Record(fields, _) = &result.expressions[0] {
+            assert_eq!(fields.len(), 2);
+            let fields = fields.iter().collect::<Vec<_>>();
+            assert!(matches!(fields[0].0, RecordKeyAst::String(_)));
+            assert!(matches!(fields[1].0, RecordKeyAst::String(_)));
+            if let RecordKeyAst::String(key) = &fields[0].0 {
+                assert_eq!(key, "x");
+            }
+            if let RecordKeyAst::String(key) = &fields[1].0 {
+                assert_eq!(key, "y");
+            }
+            assert!(matches!(fields[0].1, Ast::Literal(_)));
+            assert!(matches!(fields[1].1, Ast::Literal(_)));
+            assert_eq!(fields[0].1, Ast::Literal(make_u8(1)));
+            assert_eq!(fields[1].1, Ast::Literal(make_u8(2)));
+        }
+    }
+
+    #[test]
+    fn record_literal_nested() {
+        let result = parse_str_one("{ x: { y: 1 } }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Record(_, _)));
+        if let Ast::Record(fields, _) = &result.expressions[0] {
+            assert_eq!(fields.len(), 1);
+            let fields = fields.iter().collect::<Vec<_>>();
+            assert!(matches!(fields[0].0, RecordKeyAst::String(_)));
+            if let RecordKeyAst::String(key) = &fields[0].0 {
+                assert_eq!(key, "x");
+            }
+            assert!(matches!(fields[0].1, Ast::Record(_, _)));
+            if let Ast::Record(inner_fields, _) = &fields[0].1 {
+                assert_eq!(inner_fields.len(), 1);
+                let inner_fields = inner_fields.iter().collect::<Vec<_>>();
+                assert!(matches!(inner_fields[0].0, RecordKeyAst::String(_)));
+                if let RecordKeyAst::String(key) = &inner_fields[0].0 {
+                    assert_eq!(key, "y");
+                }
+                assert!(matches!(inner_fields[0].1, Ast::Literal(_)));
+                assert_eq!(inner_fields[0].1, Ast::Literal(make_u8(1)));
+            }
+        }
+    }
+
+    #[test]
+    fn record_nested_block() {
+        let result = parse_str_one("{ x: { 1 + 2 } }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Record(_, _)));
+        if let Ast::Record(fields, _) = &result.expressions[0] {
+            assert_eq!(fields.len(), 1);
+            let fields = fields.iter().collect::<Vec<_>>();
+            assert!(matches!(fields[0].0, RecordKeyAst::String(_)));
+            if let RecordKeyAst::String(key) = &fields[0].0 {
+                assert_eq!(key, "x");
+            }
+            assert!(matches!(fields[0].1, Ast::Block(_, _)));
+            if let Ast::Block(inner, _) = &fields[0].1 {
+                assert_eq!(inner.len(), 1);
+                assert!(matches!(inner[0], Ast::Binary(_, _, _, _)));
+            }
+        }
+    }
 }
