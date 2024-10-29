@@ -56,6 +56,20 @@ pub enum UnsignedInteger {
     UIntVar(BigUint), // Arbitrary sized integers (variable size)
 }
 
+impl GetType for UnsignedInteger {
+    fn get_type(&self) -> CheckedType {
+        CheckedType::Checked(match self {
+            UnsignedInteger::UInt1(_) => std_primitive_types::UINT1,
+            UnsignedInteger::UInt8(_) => std_primitive_types::UINT8,
+            UnsignedInteger::UInt16(_) => std_primitive_types::UINT16,
+            UnsignedInteger::UInt32(_) => std_primitive_types::UINT32,
+            UnsignedInteger::UInt64(_) => std_primitive_types::UINT64,
+            UnsignedInteger::UInt128(_) => std_primitive_types::UINT128,
+            UnsignedInteger::UIntVar(_) => std_primitive_types::UINTBIG,
+        })
+    }
+}
+
 impl NumberMethods<u8, u16, u32, u64, u128, BigUint> for UnsignedInteger {
     fn get_number_value<T>(&self) -> Option<T>
     where
@@ -484,6 +498,19 @@ pub enum SignedInteger {
     IntVar(BigInt), // Arbitrary sized integers (variable size)
 }
 
+impl GetType for SignedInteger {
+    fn get_type(&self) -> CheckedType {
+        CheckedType::Checked(match self {
+            SignedInteger::Int8(_) => std_primitive_types::INT8,
+            SignedInteger::Int16(_) => std_primitive_types::INT16,
+            SignedInteger::Int32(_) => std_primitive_types::INT32,
+            SignedInteger::Int64(_) => std_primitive_types::INT64,
+            SignedInteger::Int128(_) => std_primitive_types::INT128,
+            SignedInteger::IntVar(_) => std_primitive_types::INTBIG,
+        })
+    }
+}
+
 impl NumberMethods<i8, i16, i32, i64, i128, BigInt> for SignedInteger {
     fn get_number_value<T>(&self) -> Option<T>
     where
@@ -668,22 +695,6 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
     }
 }
 
-impl SignedInteger {
-    pub fn get_number_value<T>(&self) -> Option<T>
-    where
-        T: From<i8> + From<i16> + From<i32> + From<i64> + From<i128> + From<f32> + From<f64>,
-    {
-        match self {
-            SignedInteger::Int8(v) => Some(T::from(*v)),
-            SignedInteger::Int16(v) => Some(T::from(*v)),
-            SignedInteger::Int32(v) => Some(T::from(*v)),
-            SignedInteger::Int64(v) => Some(T::from(*v)),
-            SignedInteger::Int128(v) => Some(T::from(*v)),
-            _ => panic!("Cannot convert arbitrary sized integer to a fixed size type"),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum FloatingPoint {
     Float32(f32),
@@ -692,15 +703,33 @@ pub enum FloatingPoint {
                         // Look at https://github.com/stencillogic/astro-float for handling Arbitrary precision floating point numbers (variable size)
 }
 
-impl FloatingPoint {
-    pub fn get_number_value<T>(&self) -> Option<T>
+impl GetType for FloatingPoint {
+    fn get_type(&self) -> CheckedType {
+        CheckedType::Checked(match self {
+            FloatingPoint::Float32(_) => std_primitive_types::FLOAT32,
+            FloatingPoint::Float64(_) => std_primitive_types::FLOAT64,
+            FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG,
+        })
+    }
+}
+
+impl NumberMethods<f32, f32, f32, f64, f64, BigFloat> for FloatingPoint {
+    fn get_number_value<T>(&self) -> Option<T>
     where
-        T: From<f32> + From<f64>,
+        T: From<f32> + From<f64> + From<BigFloat>,
     {
         match self {
             FloatingPoint::Float32(v) => Some(T::from(*v)),
             FloatingPoint::Float64(v) => Some(T::from(*v)),
-            _ => panic!("Cannot convert arbitrary precision floating point to a fixed size type"),
+            FloatingPoint::FloatBig(v) => Some(T::from(*v)),
+        }
+    }
+
+    fn get_size(&self) -> BitSize {
+        match self {
+            FloatingPoint::Float32(_) => BitSize::Bit32,
+            FloatingPoint::Float64(_) => BitSize::Bit64,
+            FloatingPoint::FloatBig(_) => BitSize::BitVar,
         }
     }
 }
@@ -732,30 +761,11 @@ pub enum Number {
 
 impl GetType for Number {
     fn get_type(&self) -> CheckedType {
-        CheckedType::Checked(match self {
-            Number::UnsignedInteger(u) => match u {
-                UnsignedInteger::UInt1(_) => std_primitive_types::UINT1,
-                UnsignedInteger::UInt8(_) => std_primitive_types::UINT8,
-                UnsignedInteger::UInt16(_) => std_primitive_types::UINT16,
-                UnsignedInteger::UInt32(_) => std_primitive_types::UINT32,
-                UnsignedInteger::UInt64(_) => std_primitive_types::UINT64,
-                UnsignedInteger::UInt128(_) => std_primitive_types::UINT128,
-                UnsignedInteger::UIntVar(_) => std_primitive_types::UINTBIG,
-            },
-            Number::SignedInteger(i) => match i {
-                SignedInteger::Int8(_) => std_primitive_types::INT8,
-                SignedInteger::Int16(_) => std_primitive_types::INT16,
-                SignedInteger::Int32(_) => std_primitive_types::INT32,
-                SignedInteger::Int64(_) => std_primitive_types::INT64,
-                SignedInteger::Int128(_) => std_primitive_types::INT128,
-                SignedInteger::IntVar(_) => std_primitive_types::INTBIG,
-            },
-            Number::FloatingPoint(f) => match f {
-                FloatingPoint::Float32(_) => std_primitive_types::FLOAT32,
-                FloatingPoint::Float64(_) => std_primitive_types::FLOAT64,
-                FloatingPoint::FloatBig(_) => std_primitive_types::FLOATBIG,
-            },
-        })
+        match self {
+            Number::UnsignedInteger(u) => u.get_type(),
+            Number::SignedInteger(i) => i.get_type(),
+            Number::FloatingPoint(f) => f.get_type(),
+        }
     }
 }
 
@@ -774,6 +784,7 @@ impl Number {
             + From<i128>
             + From<f32>
             + From<f64>
+            + From<BigFloat>
             + From<BigInt>
             + From<BigUint>,
     {
@@ -835,7 +846,9 @@ impl Number {
                 return Number::parse_big_uint(s);
             }
             let u = u.unwrap();
-            if u >= u8::MIN as u128 && u <= u8::MAX as u128 {
+            if u <= 1 {
+                Number::UnsignedInteger(UnsignedInteger::UInt1(u as u8))
+            } else if u >= u8::MIN as u128 && u <= u8::MAX as u128 {
                 Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
             } else if u >= u16::MIN as u128 && u <= u16::MAX as u128 {
                 Number::UnsignedInteger(UnsignedInteger::UInt16(u as u16))
