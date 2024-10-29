@@ -87,12 +87,8 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn index(&self) -> usize {
-        self.lexer.current_index()
-    }
-
-    pub fn reset(&mut self, reader: R) {
-        self.lexer.reset(reader);
+    pub fn lexer(&mut self) -> &mut Lexer<R> {
+        &mut self.lexer
     }
 
     /// Define an operator in the parser.
@@ -233,7 +229,7 @@ impl<R: Read> Parser<R> {
         if nt.is_err() {
             return Err(ParseError {
                 message: "Expected '('".to_string(),
-                span: (self.index(), self.index()),
+                span: (self.lexer.current_index(), self.lexer.current_index()),
             });
         }
         assert!(nt.unwrap().token == TokenKind::LeftParen);
@@ -247,7 +243,7 @@ impl<R: Read> Parser<R> {
             if nt.is_err() {
                 return Err(ParseError {
                     message: "Expected ')'".to_string(),
-                    span: (self.index(), self.index()),
+                    span: (self.lexer.current_index(), self.lexer.current_index()),
                 });
             }
             let nt = nt.unwrap().token;
@@ -255,7 +251,7 @@ impl<R: Read> Parser<R> {
                 if let Err(err) = self.lexer.next_token() {
                     return Err(ParseError {
                         message: format!("Expected ')' but failed with: {}", err.message),
-                        span: (self.index(), self.index() + 1),
+                        span: (self.lexer.current_index(), self.lexer.current_index() + 1),
                     });
                 }
                 break;
@@ -264,7 +260,7 @@ impl<R: Read> Parser<R> {
             if nt.is_err() {
                 return Err(ParseError {
                     message: "Expected ')'".to_string(),
-                    span: (self.index(), self.index() + 1),
+                    span: (self.lexer.current_index(), self.lexer.current_index() + 1),
                 });
             }
             let nt = nt.unwrap().token;
@@ -273,7 +269,7 @@ impl<R: Read> Parser<R> {
             }
             return Err(ParseError {
                 message: "Expected ')'".to_string(),
-                span: (self.index(), self.index() + 1),
+                span: (self.lexer.current_index(), self.lexer.current_index() + 1),
             });
         }
         // TODO: Extract read_until_terminator() helper method
@@ -475,7 +471,7 @@ impl<R: Read> Parser<R> {
                     "Expected primary expression, but failed due to: {:?}",
                     nt.unwrap_err().message
                 ),
-                span: (self.index(), self.index()),
+                span: (self.lexer.current_index(), self.lexer.current_index()),
             })
         }
     }
@@ -633,7 +629,7 @@ impl<R: Read> Parser<R> {
                     "Expected '{}', but failed due to: {:?}",
                     symbol, err.message
                 ),
-                span: (self.index(), self.index()),
+                span: (self.lexer.current_index(), self.lexer.current_index()),
             }),
         }
     }
