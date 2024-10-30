@@ -10,12 +10,12 @@ use crate::{
 
 pub struct Cranelift {
     isa: Arc<dyn isa::TargetIsa>,
-    flags: settings::Flags,
+    _flags: settings::Flags,
 }
 
 impl Cranelift {
     pub fn new(isa: Arc<dyn isa::TargetIsa>, flags: settings::Flags) -> Self {
-        Self { isa, flags }
+        Self { isa, _flags: flags }
     }
 }
 
@@ -38,7 +38,7 @@ impl Cranelift {
 
 impl<Out: Write> Backend<Out> for Cranelift {
     fn compile_module(&mut self, module: &Module, options: CompileOptions<Out>) -> CompileResult {
-        let mut obj_module = self.make_module(module, &options);
+        let mut _obj_module = self.make_module(module, &options);
         todo!()
     }
 }
