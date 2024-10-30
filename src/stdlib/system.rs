@@ -31,6 +31,24 @@ pub fn print() -> FunctionVariation {
     )
 }
 
+pub fn type_of() -> FunctionVariation {
+    FunctionVariation::new_native(
+        |values| {
+            let values = if let NativeFunctionParameters::Singles(v) = values {
+                v
+            } else {
+                panic!("A native function with Singles function parameter type should not be able to receive a Variadic function parameter type")
+            };
+            if values.len() != 1 {
+                panic!("type_of() expects 1 argument");
+            }
+            Ok(Value::Type(values[0].get_type().clone()))
+        },
+        FunctionParameterType::Singles(vec![("value".to_string(), TY_ANY)]),
+        std_primitive_types::STRING,
+    )
+}
+
 /// ## stdlib `system::exit`
 /// Exit the program with the given exit code.
 pub fn exit() -> FunctionVariation {
