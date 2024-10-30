@@ -1,5 +1,5 @@
 use crate::{
-    interpreter::number::{Number, SignedInteger},
+    interpreter::number::{Integer, Number},
     interpreter::value::{FunctionVariation, NativeFunctionParameters, Value},
     type_checker::types::{std_primitive_types, FunctionParameterType, GetType, Type},
 };
@@ -14,7 +14,7 @@ const TY_UNIT: Type = std_primitive_types::UNIT;
 /// ## stdlib `system::print`
 /// Print the given values to the console with a newline at the end.
 pub fn print() -> FunctionVariation {
-    FunctionVariation::Native(
+    FunctionVariation::new_native(
         |values| {
             let values = if let NativeFunctionParameters::Variadic(_, v) = values {
                 v
@@ -34,7 +34,7 @@ pub fn print() -> FunctionVariation {
 /// ## stdlib `system::exit`
 /// Exit the program with the given exit code.
 pub fn exit() -> FunctionVariation {
-    FunctionVariation::Native(
+    FunctionVariation::new_native(
         |values| {
             let values = if let NativeFunctionParameters::Singles(v) = values {
                 v
@@ -46,7 +46,7 @@ pub fn exit() -> FunctionVariation {
             }
             match &values[0] {
                 Value::Number(n) => {
-                    if let Number::SignedInteger(SignedInteger::Int32(code)) = n {
+                    if let Number::SignedInteger(Integer::Int32(code)) = n {
                         std::process::exit(*code);
                     } else {
                         panic!(

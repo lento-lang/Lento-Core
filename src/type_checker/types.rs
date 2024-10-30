@@ -49,7 +49,17 @@ pub enum CheckedType {
 
 impl CheckedType {
     /// Should always be ok after type checking
-    pub fn unwrap_checked(&self) -> &Type {
+    pub fn unwrap_checked_ref(&self) -> &Type {
+        match self {
+            CheckedType::Checked(t) => t,
+            CheckedType::Unchecked => panic!("Unwrap of unchecked type"),
+        }
+    }
+
+    /// Returns an owned type.
+    /// Should always be ok after type checking
+    /// Panics if the type is unchecked
+    pub fn unwrap_checked(self) -> Type {
         match self {
             CheckedType::Checked(t) => t,
             CheckedType::Unchecked => panic!("Unwrap of unchecked type"),
@@ -99,7 +109,7 @@ impl FunctionParameterType {
                     return false;
                 }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !args[i].get_type().unwrap_checked().subtype(t) {
+                    if !args[i].get_checked_type().unwrap_checked_ref().subtype(t) {
                         return false;
                     }
                 }
@@ -110,12 +120,12 @@ impl FunctionParameterType {
                     return false;
                 }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !t.subtype(args[i].get_type().unwrap_checked()) {
+                    if !t.subtype(args[i].get_checked_type().unwrap_checked_ref()) {
                         return false;
                     }
                 }
                 for arg in &args[types.len()..] {
-                    if !var_type.subtype(arg.get_type().unwrap_checked()) {
+                    if !var_type.subtype(arg.get_checked_type().unwrap_checked_ref()) {
                         return false;
                     }
                 }
@@ -219,6 +229,9 @@ pub enum Type {
 
     /// The unit type.
     Unit,
+
+    /// The top type, supertype of all types and itself.
+    TopType,
 
     /// A literal type (name).
     /// Examples such as `int`, `float`, `string`, `char`, `bool`, `unit`, `any`.
@@ -371,6 +384,7 @@ impl TypeTrait for Type {
             ),
             Type::Any => self,
             Type::Unit => self,
+            Type::TopType => self,
         }
     }
 }
@@ -380,6 +394,7 @@ impl Display for Type {
         match self.clone().simplify() {
             Type::Any => write!(f, "any"),
             Type::Unit => write!(f, "()"),
+            Type::TopType => write!(f, "type"),
             Type::Literal(t) => write!(f, "{}", t),
             Type::Function(t) => {
                 write!(f, "(")?;
@@ -474,6 +489,9 @@ pub mod std_primitive_types {
 
     /// The unit type.
     pub const UNIT: Type = Type::Unit;
+
+    // The top type.
+    pub const TOP: Type = Type::TopType;
 
     /// A string type. (supports unicode)
     pub const STRING: Type = Type::Literal(Str::Str("str"));
@@ -609,5 +627,5 @@ pub mod std_collection_types {
 //--------------------------------------------------------------------------------------//
 
 pub trait GetType {
-    fn get_type(&self) -> CheckedType;
+    fn get_type(&self) -> &Type;
 }

@@ -3,7 +3,7 @@ use std::{cmp::Ordering, collections::HashMap, fmt::Display};
 use crate::{
     parser::ast::Ast,
     type_checker::types::{
-        std_primitive_types, CheckedType, FunctionParameterType, FunctionType, GetType, Type,
+        std_primitive_types, FunctionParameterType, FunctionType, GetType, Type,
     },
 };
 
@@ -35,12 +35,20 @@ pub enum NativeFunctionParameters {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FunctionVariation {
-    User(FunctionParameterType, Ast, Type),
-    Native(
-        fn(NativeFunctionParameters) -> InterpretResult,
-        FunctionParameterType,
-        Type,
-    ), // Built-in functions
+    /// User-defined functions
+    User {
+        params: FunctionParameterType,
+        body: Ast,
+        ret: Type,
+        signature: Type,
+    },
+    /// Built-in functions
+    Native {
+        handler: fn(NativeFunctionParameters) -> InterpretResult,
+        params: FunctionParameterType,
+        ret: Type,
+        signature: Type,
+    },
 }
 
 /// Compares two `FunctionVariation`s by their FunctionParameterType.
@@ -59,48 +67,59 @@ pub fn compare_function_variations(a: &FunctionVariation, b: &FunctionVariation)
 }
 
 impl FunctionVariation {
+    pub fn new_user(params: FunctionParameterType, body: Ast, ret: Type) -> Self {
+        Self::User {
+            signature: Type::Function(Box::new(FunctionType::new(params.clone(), ret.clone()))),
+            params,
+            body,
+            ret,
+        }
+    }
+
+    pub fn new_native(
+        handler: fn(NativeFunctionParameters) -> InterpretResult,
+        params: FunctionParameterType,
+        ret: Type,
+    ) -> Self {
+        Self::Native {
+            signature: Type::Function(Box::new(FunctionType::new(params.clone(), ret.clone()))),
+            handler,
+            params,
+            ret,
+        }
+    }
+
     pub fn get_params(&self) -> &FunctionParameterType {
         match self {
-            FunctionVariation::User(p, _, _) => p,
-            FunctionVariation::Native(_, p, _) => p,
+            FunctionVariation::User { params, .. } => params,
+            FunctionVariation::Native { params, .. } => params,
         }
     }
 
     pub fn get_return_type(&self) -> &Type {
         match self {
-            FunctionVariation::User(_, _, r) => r,
-            FunctionVariation::Native(_, _, r) => r,
+            FunctionVariation::User { ret, .. } => ret,
+            FunctionVariation::Native { ret, .. } => ret,
         }
     }
 }
 
 impl GetType for FunctionVariation {
-    fn get_type(&self) -> CheckedType {
-        CheckedType::Checked(match self {
-            FunctionVariation::User(p, _, r) => {
-                Type::Function(Box::new(FunctionType::new(p.clone(), r.clone())))
-            }
-            FunctionVariation::Native(_, v, r) => {
-                Type::Function(Box::new(FunctionType::new(v.clone(), r.clone())))
-            }
-        })
+    fn get_type(&self) -> &Type {
+        match self {
+            FunctionVariation::User { signature, .. } => signature,
+            FunctionVariation::Native { signature, .. } => signature,
+        }
     }
 }
 
 impl Display for FunctionVariation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(")?;
-        let ret_type = match self {
-            FunctionVariation::User(p, _, r) => {
-                p.fmt(f)?;
-                r
-            }
-            FunctionVariation::Native(_, v, r) => {
-                v.fmt(f)?;
-                r
-            }
+        let (params, ret_type) = match self {
+            FunctionVariation::User { params, ret, .. } => (params, ret),
+            FunctionVariation::Native { params, ret, .. } => (params, ret),
         };
-        write!(f, ") -> {}", ret_type) // TODO: Make this a unicode arrow
+        write!(f, "({}) -> {}", params, ret_type) // TODO: Make this a unicode arrow
     }
 }
 
@@ -132,21 +151,23 @@ pub enum Value {
     List(Vec<Value>, Type),
     Record(HashMap<RecordKey, Value>, Type),
     Function(Function),
+    Type(Type),
 }
 
 impl GetType for Value {
-    fn get_type(&self) -> CheckedType {
-        CheckedType::Checked(match self {
-            Value::Unit => Type::Unit,
-            Value::Number(n) => return n.get_type(),
-            Value::String(_) => std_primitive_types::STRING,
-            Value::Char(_) => std_primitive_types::CHAR,
-            Value::Boolean(_) => std_primitive_types::BOOL,
-            Value::Tuple(_, t) => t.clone(),
-            Value::List(_, t) => t.clone(),
-            Value::Record(_, t) => t.clone(),
+    fn get_type(&self) -> &Type {
+        match self {
+            Value::Unit => &std_primitive_types::UNIT,
+            Value::Number(n) => n.get_type(),
+            Value::String(_) => &std_primitive_types::STRING,
+            Value::Char(_) => &std_primitive_types::CHAR,
+            Value::Boolean(_) => &std_primitive_types::BOOL,
+            Value::Tuple(_, t) => t,
+            Value::List(_, t) => t,
+            Value::Record(_, t) => t,
             Value::Function(_) => panic!("Cannot get type of functions"), // Because functions can have multiple types
-        })
+            Value::Type(_) => &std_primitive_types::TOP,
+        }
     }
 }
 
@@ -195,6 +216,7 @@ impl Display for Value {
                 }
                 write!(f, "}}")
             }
+            Value::Type(ty) => write!(f, "{}", ty),
         }
     }
 }
@@ -251,6 +273,7 @@ impl Value {
                 result.push_str(&"}".green().to_string());
                 result
             }
+            Value::Type(ty) => format!("{}", ty).light_blue().to_string(),
         }
     }
 }

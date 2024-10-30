@@ -112,7 +112,7 @@ pub fn stdlib() -> Initializer {
                     },
                     |op| {
                         if let StaticOperatorAst::Infix(lhs, rhs) = op {
-                            let assign_type = rhs.get_type();
+                            let assign_type = rhs.get_checked_type();
                             Ast::Assignment(Box::new(lhs), Box::new(rhs), assign_type)
                         } else {
                             panic!("assign expects an infix operator");
@@ -138,17 +138,19 @@ pub fn stdlib() -> Initializer {
                     },
                     |op| {
                         if let StaticOperatorAst::Accumulate(elems) = op {
-                            let tuple_type =
-                                if elems.iter().any(|e| e.get_type() == CheckedType::Unchecked) {
-                                    CheckedType::Unchecked
-                                } else {
-                                    CheckedType::Checked(Type::Tuple(
-                                        elems
-                                            .iter()
-                                            .map(|e| e.get_type().unwrap_checked().clone())
-                                            .collect(),
-                                    ))
-                                };
+                            let tuple_type = if elems
+                                .iter()
+                                .any(|e| e.get_checked_type() == CheckedType::Unchecked)
+                            {
+                                CheckedType::Unchecked
+                            } else {
+                                CheckedType::Checked(Type::Tuple(
+                                    elems
+                                        .iter()
+                                        .map(|e| e.get_checked_type().unwrap_checked().clone())
+                                        .collect(),
+                                ))
+                            };
                             Ast::Tuple(elems, tuple_type)
                         } else {
                             panic!("tuple expects an accumulator operator");
@@ -262,6 +264,10 @@ pub fn stdlib() -> Initializer {
             (
                 Str::String("print".to_string()),
                 Function::new("print".to_string(), vec![system::print()]),
+            ),
+            (
+                Str::String("typeof".to_string()),
+                Function::new("typeof".to_string(), vec![system::type_of()]),
             ),
             (
                 Str::String("exit".to_string()),

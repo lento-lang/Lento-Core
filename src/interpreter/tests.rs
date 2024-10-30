@@ -37,7 +37,7 @@ mod tests {
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
+        assert!(result.get_type() == &std_primitive_types::UINT8);
         assert_eq!(result, make_u8(3));
     }
 
@@ -54,9 +54,7 @@ mod tests {
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result
-            .get_type()
-            .is_exact_type(&Type::Tuple(vec![std_primitive_types::UINT8; 3])));
+        assert!(result.get_type() == &Type::Tuple(vec![std_primitive_types::UINT8; 3]));
         assert_eq!(
             result,
             Value::Tuple(
@@ -76,7 +74,7 @@ mod tests {
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
+        assert!(result.get_type() == &std_primitive_types::UINT8);
         assert_eq!(result, make_u8(3));
     }
 
@@ -101,7 +99,7 @@ mod tests {
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
+        assert!(result.get_type() == &std_primitive_types::UINT8);
         assert_eq!(result, make_u8(1));
     }
 
@@ -118,7 +116,7 @@ mod tests {
         let result = interpret_module(&module, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type().is_exact_type(&std_primitive_types::UINT8));
+        assert!(result.get_type() == &std_primitive_types::UINT8);
         assert_eq!(result, make_u8(3));
     }
 

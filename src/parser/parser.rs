@@ -6,8 +6,7 @@ use std::{
 };
 
 use crate::{
-    interpreter::number::Number,
-    interpreter::value::Value,
+    interpreter::{number::Number, value::Value},
     lexer::{
         lexer::{self, InputSource, LexResult},
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
@@ -15,7 +14,7 @@ use crate::{
     },
     stdlib::init::stdlib,
     type_checker::types::{CheckedType, GetType, Type},
-    util::failable::Failable,
+    util::{failable::Failable, str::Str},
 };
 
 use crate::lexer::lexer::Lexer;
@@ -398,7 +397,7 @@ impl<R: Read> Parser<R> {
                 }
                 Ok(Ast::Identifier(id, CheckedType::Unchecked))
             } else if let TokenKind::TypeIdentifier(t) = t.token {
-                Ok(Ast::TypeIdentifier(t, CheckedType::Unchecked))
+                Ok(Ast::Type(Type::Literal(Str::String(t))))
             } else if let TokenKind::Op(op) = t.token {
                 if let Some(op) = self.find_operator_pos(&op, OperatorPosition::Prefix) {
                     let op = op.clone();
@@ -446,7 +445,7 @@ impl<R: Read> Parser<R> {
                                 exprs.push(self.parse_top_expr()?);
                             }
                             self.parse_expected(TokenKind::RightBrace, "}")?;
-                            let return_type = exprs.last().unwrap().get_type();
+                            let return_type = exprs.last().unwrap().get_checked_type();
                             Ok(Ast::Block(exprs, return_type))
                         }
                     }

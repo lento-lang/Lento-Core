@@ -2,35 +2,24 @@ use crate::{
     interpreter::value::{FunctionVariation, Value},
     lexer::lexer::InputSource,
     type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
+    util::str::Str,
 };
 
 use super::{error::ParseError, op::RuntimeOperator};
 
+/// A key in a record can be a string, integer, float, or character.
+/// This is used to represent the key in the AST.
+///
+/// ## Example
+/// ```ignore
+/// record = { "key": 1, 2: 3.0, 'c': "value", 4.0: 'd' }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecordKeyAst {
     String(String),
     Integer(String),
     Float(String),
     Char(char),
-}
-
-/// Module is the root program node of the AST
-/// It contains a list of all the expressions in the program
-#[derive(Debug, Clone, PartialEq)]
-pub struct Module {
-    pub name: String,
-    pub expressions: Vec<Ast>,
-    pub source: InputSource,
-}
-
-impl Module {
-    pub fn new(name: String, expressions: Vec<Ast>, source: InputSource) -> Module {
-        Module {
-            name,
-            expressions,
-            source,
-        }
-    }
 }
 
 /// The AST is a tree of nodes that represent the program.
@@ -61,7 +50,7 @@ pub enum Ast {
     /// A type identifier is a named reference to a type in the environment
     /// 1. Name of the type identifier
     /// 2. Type definition of the type identifier
-    TypeIdentifier(String, CheckedType),
+    Type(Type),
     /// A function call is an invocation of a function with a list of arguments
     /// 1. Name of the function
     /// 2. List of arguments
@@ -123,7 +112,7 @@ impl Ast {
             ),
             Ast::Record(_elements, _) => todo!(),
             Ast::Identifier(name, _) => name.clone(),
-            Ast::TypeIdentifier(name, _) => name.clone(),
+            Ast::Type(ty) => format!("{}", ty),
             Ast::FunctionCall(name, args, _) => format!(
                 "({} {})",
                 name,
@@ -165,17 +154,15 @@ impl Ast {
             ),
         }
     }
-}
 
-impl GetType for Ast {
-    fn get_type(&self) -> CheckedType {
+    pub fn get_checked_type(&self) -> CheckedType {
         CheckedType::Checked(match self {
-            Ast::Literal(value) => return value.get_type(),
+            Ast::Literal(value) => value.get_type().clone(),
             Ast::Tuple(_, CheckedType::Checked(t)) => t.clone(),
             Ast::List(_, CheckedType::Checked(t)) => t.clone(),
             Ast::Record(_, CheckedType::Checked(t)) => t.clone(),
             Ast::Identifier(_, CheckedType::Checked(t)) => t.clone(),
-            Ast::TypeIdentifier(_, CheckedType::Checked(t)) => t.clone(),
+            Ast::Type(_) => Type::Literal(Str::Str("Type")),
             Ast::FunctionCall(_, _, CheckedType::Checked(t)) => t.clone(),
             Ast::Function(_, _, _, CheckedType::Checked(t)) => t.clone(),
             Ast::Binary(_, _, _, CheckedType::Checked(t)) => t.clone(),
@@ -197,4 +184,23 @@ pub fn tuple(elements: Vec<Ast>) -> Ast {
 /// Implemented as a tuple with no elements.
 pub fn unit() -> Ast {
     Ast::Tuple(vec![], CheckedType::Checked(Type::Unit))
+}
+
+/// Module is the root program node of the AST
+/// It contains a list of all the expressions in the program
+#[derive(Debug, Clone, PartialEq)]
+pub struct Module {
+    pub name: String,
+    pub expressions: Vec<Ast>,
+    pub source: InputSource,
+}
+
+impl Module {
+    pub fn new(name: String, expressions: Vec<Ast>, source: InputSource) -> Module {
+        Module {
+            name,
+            expressions,
+            source,
+        }
+    }
 }

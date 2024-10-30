@@ -12,7 +12,7 @@ use crate::{
 //--------------------------------------------------------------------------------------//
 
 pub fn add() -> FunctionVariation {
-    FunctionVariation::Native(
+    FunctionVariation::new_native(
         |values| {
             let ty_num = std_compound_types::any_number();
             let values = if let NativeFunctionParameters::Singles(v) = values {
@@ -25,9 +25,7 @@ pub fn add() -> FunctionVariation {
             }
             let lhs = values[0].clone();
             let rhs = values[1].clone();
-            if lhs.get_type().unwrap_checked().subtype(&ty_num)
-                && rhs.get_type().unwrap_checked().subtype(&ty_num)
-            {
+            if lhs.get_type().subtype(&ty_num) && rhs.get_type().subtype(&ty_num) {
                 match (lhs, rhs) {
                     (Value::Number(l), Value::Number(r)) => Ok(Value::Number(Number::add(&l, &r))),
                     _ => panic!("add expects 2 arguments of type '{}'", ty_num),

@@ -33,7 +33,7 @@ fn eval_function_variation_invocation(
 
     // Evaluate the function body or invoke the native handler
     match variation.clone() {
-        FunctionVariation::User(_, body, _) => {
+        FunctionVariation::User { body, .. } => {
             let name = name.unwrap_or_else(|| "anonymous".to_string());
             let mut new_env = env.new_child(Str::String(format!("Function closure: {}", name)));
             // Zip and add parameters and arguments as constants in the environment
@@ -57,7 +57,7 @@ fn eval_function_variation_invocation(
             };
             interpret_ast(&body, &mut new_env)
         }
-        FunctionVariation::Native(handler, _, _) => {
+        FunctionVariation::Native { handler, .. } => {
             // Setup NativeFunctionParameters and invoke the handler
             let args_native: NativeFunctionParameters = match var_params {
                 FunctionParameterType::Singles(_) => NativeFunctionParameters::Singles(arg_vals),
@@ -114,8 +114,8 @@ fn eval_tuple(elems: Vec<Ast>, env: &mut Environment) -> InterpretResult {
         .iter()
         .map(|e| {
             let value = interpret_ast(e, env)?;
-            let value_type = value.get_type().unwrap_checked().clone();
-            Ok((value, value_type))
+            let ty = value.get_type().clone();
+            Ok((value, ty))
         })
         .collect::<Result<Vec<(Value, Type)>, _>>()?
         .into_iter()
@@ -131,8 +131,9 @@ fn eval_tuple(elems: Vec<Ast>, env: &mut Environment) -> InterpretResult {
 pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
     Ok(match ast.to_owned() {
         Ast::FunctionCall(name, args, _) => eval_function_call(name, args, env)?,
-        Ast::VariationCall(handler, args, _) =>
-            eval_function_variation_invocation(None, *handler, args, env)?,
+        Ast::VariationCall(handler, args, _) => {
+            eval_function_variation_invocation(None, *handler, args, env)?
+        }
         Ast::Tuple(v, _) => {
             if v.is_empty() {
                 Value::Unit
@@ -143,7 +144,7 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
         Ast::Literal(l) => l,
         Ast::Identifier(id, _) => match env.get_value(&id) {
             Some(v) => v,
-            None => return Err(runtime_error(format!("Unknown identifier: '{}'", id))),
+            None => return Err(runtime_error(format!("Unknown identifier '{}'", id))),
         },
         Ast::Binary(lhs, op, rhs, _) => {
             eval_function_variation_invocation(Some(op.name), *op.handler, vec![*lhs, *rhs], env)?
@@ -161,7 +162,13 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
             env.add_value(Str::String(lhs), rhs.clone())?;
             rhs
         }
-        _ => todo!("Implement AST node"),
+        Ast::Type(ty) => Value::Type(ty),
+        Ast::Error(_) => todo!("Implement Error AST node: {:?}", ast),
+        Ast::List(_, _) => todo!("Implement List AST node: {:?}", ast),
+        Ast::Record(_, _) => todo!("Implement Record AST node: {:?}", ast),
+        Ast::Function(_, _, _, _) => todo!("Implement Function AST node: {:?}", ast),
+        Ast::Unary(_, _, _) => todo!("Implement Unary AST node: {:?}", ast),
+        Ast::Block(_, _) => todo!("Implement Block AST node: {:?}", ast),
     })
 }
 
