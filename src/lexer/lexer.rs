@@ -955,10 +955,10 @@ pub fn from_path(path: PathBuf) -> Result<Lexer<BufReader<File>>, Error> {
     ))
 }
 
-pub fn from_stream<R: Read>(reader: R, name: String) -> Lexer<R> {
+pub fn from_stream<R: Read>(reader: R, name: &str) -> Lexer<R> {
     Lexer::new_stream(reader, name)
 }
 
 pub fn from_stdin() -> Lexer<StdinReader> {
-    from_stream(StdinReader::default(), "stdin".to_string())
+    from_stream(StdinReader::default(), "stdin")
 }
