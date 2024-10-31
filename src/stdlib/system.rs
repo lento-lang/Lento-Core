@@ -1,5 +1,5 @@
 use crate::{
-    interpreter::number::{Integer, Number},
+    interpreter::number::{Number, SignedInteger},
     interpreter::value::{FunctionVariation, NativeFunctionParameters, Value},
     type_checker::types::{std_primitive_types, FunctionParameterType, GetType, Type},
 };
@@ -64,7 +64,7 @@ pub fn exit() -> FunctionVariation {
             }
             match &values[0] {
                 Value::Number(n) => {
-                    if let Number::SignedInteger(Integer::Int32(code)) = n {
+                    if let Number::SignedInteger(SignedInteger::Int32(code)) = n {
                         std::process::exit(*code);
                     } else {
                         panic!(

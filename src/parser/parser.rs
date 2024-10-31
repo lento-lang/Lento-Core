@@ -13,7 +13,7 @@ use crate::{
         token::{TokenInfo, TokenKind},
     },
     stdlib::init::stdlib,
-    type_checker::types::{CheckedType, GetType, Type},
+    type_checker::types::{CheckedType, Type},
     util::{failable::Failable, str::Str},
 };
 
@@ -212,13 +212,13 @@ impl<R: Read> Parser<R> {
         self.parse_top_expr()
     }
 
-    fn parse_literal(&mut self, token: TokenKind) -> Option<Value> {
+    fn parse_literal(&mut self, token: &TokenKind) -> Option<Value> {
         Some(match token {
-            TokenKind::Integer(n) => Value::Number(Number::parse(n)),
-            TokenKind::Float(n) => Value::Number(Number::parse(n)),
+            TokenKind::Integer(n) => Value::Number(Number::parse_str(n)?),
+            TokenKind::Float(n) => Value::Number(Number::parse_str(n)?),
             TokenKind::String(s) => Value::String(s.clone()),
-            TokenKind::Char(c) => Value::Char(c),
-            TokenKind::Boolean(b) => Value::Boolean(b),
+            TokenKind::Char(c) => Value::Char(*c),
+            TokenKind::Boolean(b) => Value::Boolean(*b),
             _ => return None,
         })
     }
@@ -387,7 +387,13 @@ impl<R: Read> Parser<R> {
         let nt = self.lexer.expect_next_token_not(pred::ignored);
         if let Ok(t) = nt {
             if t.token.is_literal() {
-                Ok(Ast::Literal(self.parse_literal(t.token).unwrap()))
+                match self.parse_literal(&t.token) {
+                    Some(value) => Ok(Ast::Literal(value)),
+                    None => Err(ParseError {
+                        message: format!("Failed to parse literal: {:?}", t.token),
+                        span: (t.info.start.index, t.info.end.index),
+                    }),
+                }
             } else if let TokenKind::Identifier(id) = t.token {
                 // Check if function call
                 if let Ok(t) = self.lexer.peek_token(0) {

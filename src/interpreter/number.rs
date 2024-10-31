@@ -1,12 +1,15 @@
-use num_bigfloat::BigFloat;
-use num_bigint::{BigInt, BigUint};
-
 use std::{
     cmp::Ordering,
     fmt::{Display, Formatter},
+    str::FromStr,
 };
 
-use crate::type_checker::types::{std_primitive_types, CheckedType, GetType, Type};
+use malachite::{
+    num::conversion::{string::options::ToSciOptions, traits::ToSci},
+    Integer, Natural, Rational,
+};
+
+use crate::type_checker::types::{std_primitive_types, GetType, Type};
 
 pub trait NumberCasting<T> {
     /// Upcasts the value to the given reference size
@@ -46,10 +49,7 @@ pub enum BitSize {
     BitVar = i32::MAX as isize,
 }
 
-trait NumberMethods<BIT8, BIT16, BIT32, BIT64, BIT128, BITVAR> {
-    fn get_number_value<T>(&self) -> Option<T>
-    where
-        T: From<BIT8> + From<BIT16> + From<BIT32> + From<BIT64> + From<BIT128> + From<BITVAR>;
+trait NumberMethods {
     fn get_size(&self) -> BitSize;
 }
 
@@ -62,7 +62,7 @@ pub enum UnsignedInteger {
     UInt32(u32),
     UInt64(u64),
     UInt128(u128),
-    UIntVar(BigUint), // Arbitrary sized integers (variable size)
+    UIntVar(Natural), // Arbitrary sized integers (variable size)
 }
 
 impl GetType for UnsignedInteger {
@@ -79,22 +79,7 @@ impl GetType for UnsignedInteger {
     }
 }
 
-impl NumberMethods<u8, u16, u32, u64, u128, BigUint> for UnsignedInteger {
-    fn get_number_value<T>(&self) -> Option<T>
-    where
-        T: From<u8> + From<u16> + From<u32> + From<u64> + From<u128> + From<BigUint>,
-    {
-        match self {
-            UnsignedInteger::UInt1(v) => Some(T::from(*v)),
-            UnsignedInteger::UInt8(v) => Some(T::from(*v)),
-            UnsignedInteger::UInt16(v) => Some(T::from(*v)),
-            UnsignedInteger::UInt32(v) => Some(T::from(*v)),
-            UnsignedInteger::UInt64(v) => Some(T::from(*v)),
-            UnsignedInteger::UInt128(v) => Some(T::from(*v)),
-            UnsignedInteger::UIntVar(v) => Some(T::from(v.clone())),
-        }
-    }
-
+impl NumberMethods for UnsignedInteger {
     fn get_size(&self) -> BitSize {
         match self {
             UnsignedInteger::UInt1(_) => BitSize::Bit1,
@@ -123,32 +108,32 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
             (UnsignedInteger::UInt1(v), BitSize::Bit64) => UnsignedInteger::UInt64(*v as u64),
             (UnsignedInteger::UInt1(v), BitSize::Bit128) => UnsignedInteger::UInt128(*v as u128),
             (UnsignedInteger::UInt1(v), BitSize::BitVar) => {
-                UnsignedInteger::UIntVar(BigUint::from(*v))
+                UnsignedInteger::UIntVar(Natural::from(*v))
             }
             (UnsignedInteger::UInt8(v), BitSize::Bit16) => UnsignedInteger::UInt16(*v as u16),
             (UnsignedInteger::UInt8(v), BitSize::Bit32) => UnsignedInteger::UInt32(*v as u32),
             (UnsignedInteger::UInt8(v), BitSize::Bit64) => UnsignedInteger::UInt64(*v as u64),
             (UnsignedInteger::UInt8(v), BitSize::Bit128) => UnsignedInteger::UInt128(*v as u128),
             (UnsignedInteger::UInt8(v), BitSize::BitVar) => {
-                UnsignedInteger::UIntVar(BigUint::from(*v))
+                UnsignedInteger::UIntVar(Natural::from(*v))
             }
             (UnsignedInteger::UInt16(v), BitSize::Bit32) => UnsignedInteger::UInt32(*v as u32),
             (UnsignedInteger::UInt16(v), BitSize::Bit64) => UnsignedInteger::UInt64(*v as u64),
             (UnsignedInteger::UInt16(v), BitSize::Bit128) => UnsignedInteger::UInt128(*v as u128),
             (UnsignedInteger::UInt16(v), BitSize::BitVar) => {
-                UnsignedInteger::UIntVar(BigUint::from(*v))
+                UnsignedInteger::UIntVar(Natural::from(*v))
             }
             (UnsignedInteger::UInt32(v), BitSize::Bit64) => UnsignedInteger::UInt64(*v as u64),
             (UnsignedInteger::UInt32(v), BitSize::Bit128) => UnsignedInteger::UInt128(*v as u128),
             (UnsignedInteger::UInt32(v), BitSize::BitVar) => {
-                UnsignedInteger::UIntVar(BigUint::from(*v))
+                UnsignedInteger::UIntVar(Natural::from(*v))
             }
             (UnsignedInteger::UInt64(v), BitSize::Bit128) => UnsignedInteger::UInt128(*v as u128),
             (UnsignedInteger::UInt64(v), BitSize::BitVar) => {
-                UnsignedInteger::UIntVar(BigUint::from(*v))
+                UnsignedInteger::UIntVar(Natural::from(*v))
             }
             (UnsignedInteger::UInt128(v), BitSize::BitVar) => {
-                UnsignedInteger::UIntVar(BigUint::from(*v))
+                UnsignedInteger::UIntVar(Natural::from(*v))
             }
             _ => unreachable!(),
         }
@@ -213,18 +198,21 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
                 }
             }
             UnsignedInteger::UIntVar(ref v) => {
-                if v.le(&BigUint::from(1u8)) {
-                    UnsignedInteger::UInt1(v.iter_u32_digits().nth(0).unwrap() as u8)
-                } else if v.le(&BigUint::from(u8::MAX)) {
-                    UnsignedInteger::UInt8(v.iter_u32_digits().nth(0).unwrap() as u8)
-                } else if v.le(&BigUint::from(u16::MAX)) {
-                    UnsignedInteger::UInt16(v.iter_u32_digits().nth(0).unwrap() as u16)
-                } else if v.le(&BigUint::from(u32::MAX)) {
-                    UnsignedInteger::UInt32(v.iter_u32_digits().nth(0).unwrap())
-                } else if v.le(&BigUint::from(u64::MAX)) {
-                    UnsignedInteger::UInt64(v.iter_u32_digits().nth(0).unwrap() as u64)
-                } else if v.le(&BigUint::from(u128::MAX)) {
-                    UnsignedInteger::UInt128(v.iter_u32_digits().nth(0).unwrap() as u128)
+                if v < &Natural::from(1u8) {
+                    if let Ok(v) = u8::try_from(v) {
+                        return UnsignedInteger::UInt1(v);
+                    }
+                }
+                if let Ok(v) = u8::try_from(v) {
+                    UnsignedInteger::UInt8(v)
+                } else if let Ok(v) = u16::try_from(v) {
+                    UnsignedInteger::UInt16(v)
+                } else if let Ok(v) = u32::try_from(v) {
+                    UnsignedInteger::UInt32(v)
+                } else if let Ok(v) = u64::try_from(v) {
+                    UnsignedInteger::UInt64(v)
+                } else if let Ok(v) = u128::try_from(v) {
+                    UnsignedInteger::UInt128(v)
                 } else {
                     self
                 }
@@ -234,15 +222,15 @@ impl NumberCasting<UnsignedInteger> for UnsignedInteger {
 }
 
 impl UnsignedInteger {
-    pub fn to_signed(&self) -> Integer {
+    pub fn to_signed(&self) -> SignedInteger {
         match self {
-            UnsignedInteger::UInt1(v) => Integer::Int8(*v as i8),
-            UnsignedInteger::UInt8(v) => Integer::Int8(*v as i8),
-            UnsignedInteger::UInt16(v) => Integer::Int16(*v as i16),
-            UnsignedInteger::UInt32(v) => Integer::Int32(*v as i32),
-            UnsignedInteger::UInt64(v) => Integer::Int64(*v as i64),
-            UnsignedInteger::UInt128(v) => Integer::Int128(*v as i128),
-            UnsignedInteger::UIntVar(v) => Integer::IntVar(BigInt::from(v.clone())),
+            UnsignedInteger::UInt1(v) => SignedInteger::Int8(*v as i8),
+            UnsignedInteger::UInt8(v) => SignedInteger::Int8(*v as i8),
+            UnsignedInteger::UInt16(v) => SignedInteger::Int16(*v as i16),
+            UnsignedInteger::UInt32(v) => SignedInteger::Int32(*v as i32),
+            UnsignedInteger::UInt64(v) => SignedInteger::Int64(*v as i64),
+            UnsignedInteger::UInt128(v) => SignedInteger::Int128(*v as i128),
+            UnsignedInteger::UIntVar(v) => SignedInteger::IntVar(Integer::from(v.clone())),
         }
     }
 
@@ -254,14 +242,7 @@ impl UnsignedInteger {
             UnsignedInteger::UInt32(v) => FloatingPoint::Float32(*v as f32),
             UnsignedInteger::UInt64(v) => FloatingPoint::Float64(*v as f64),
             UnsignedInteger::UInt128(v) => FloatingPoint::Float64(*v as f64),
-            UnsignedInteger::UIntVar(v) => {
-                let mut f = BigFloat::new();
-                for d in v.iter_u32_digits().rev() {
-                    println!("d: {}", d);
-                    f = f.mul(&BigFloat::from(2u32.pow(32))).add(&BigFloat::from(d));
-                }
-                FloatingPoint::FloatBig(f)
-            }
+            UnsignedInteger::UIntVar(v) => FloatingPoint::FloatBig(Rational::from(v.clone())),
         }
     }
 }
@@ -301,21 +282,21 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
                     if let Some(res) = lhs.checked_add(*rhs) {
                         UnsignedInteger::UInt32(res)
                     } else {
-                        UnsignedInteger::UIntVar(BigUint::from(*lhs) + BigUint::from(*rhs))
+                        UnsignedInteger::UIntVar(Natural::from(*lhs) + Natural::from(*rhs))
                     }
                 }
                 (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
                         UnsignedInteger::UInt64(res)
                     } else {
-                        UnsignedInteger::UIntVar(BigUint::from(*lhs) + BigUint::from(*rhs))
+                        UnsignedInteger::UIntVar(Natural::from(*lhs) + Natural::from(*rhs))
                     }
                 }
                 (UnsignedInteger::UInt128(lhs), UnsignedInteger::UInt128(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
                         UnsignedInteger::UInt128(res)
                     } else {
-                        UnsignedInteger::UIntVar(BigUint::from(*lhs) + BigUint::from(*rhs))
+                        UnsignedInteger::UIntVar(Natural::from(*lhs) + Natural::from(*rhs))
                     }
                 }
                 (UnsignedInteger::UIntVar(lhs), UnsignedInteger::UIntVar(rhs)) => {
@@ -341,135 +322,123 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
 
 /// A signed integer number type that can be represented in 8, 16, 32, 64, 128 bits or arbitrary precision.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Integer {
+pub enum SignedInteger {
     Int8(i8),
     Int16(i16),
     Int32(i32),
     Int64(i64),
     Int128(i128),
-    IntVar(BigInt), // Arbitrary sized integers (variable size)
+    IntVar(Integer), // Arbitrary sized integers (variable size)
 }
 
-impl GetType for Integer {
+impl GetType for SignedInteger {
     fn get_type(&self) -> &Type {
         match self {
-            Integer::Int8(_) => &std_primitive_types::INT8,
-            Integer::Int16(_) => &std_primitive_types::INT16,
-            Integer::Int32(_) => &std_primitive_types::INT32,
-            Integer::Int64(_) => &std_primitive_types::INT64,
-            Integer::Int128(_) => &std_primitive_types::INT128,
-            Integer::IntVar(_) => &std_primitive_types::INTBIG,
+            SignedInteger::Int8(_) => &std_primitive_types::INT8,
+            SignedInteger::Int16(_) => &std_primitive_types::INT16,
+            SignedInteger::Int32(_) => &std_primitive_types::INT32,
+            SignedInteger::Int64(_) => &std_primitive_types::INT64,
+            SignedInteger::Int128(_) => &std_primitive_types::INT128,
+            SignedInteger::IntVar(_) => &std_primitive_types::INTBIG,
         }
     }
 }
 
-impl NumberMethods<i8, i16, i32, i64, i128, BigInt> for Integer {
-    fn get_number_value<T>(&self) -> Option<T>
-    where
-        T: From<i8> + From<i16> + From<i32> + From<i64> + From<i128> + From<BigInt>,
-    {
-        match self {
-            Integer::Int8(v) => Some(T::from(*v)),
-            Integer::Int16(v) => Some(T::from(*v)),
-            Integer::Int32(v) => Some(T::from(*v)),
-            Integer::Int64(v) => Some(T::from(*v)),
-            Integer::Int128(v) => Some(T::from(*v)),
-            Integer::IntVar(v) => Some(T::from(v.clone())),
-        }
-    }
-
+impl NumberMethods for SignedInteger {
     fn get_size(&self) -> BitSize {
         match self {
-            Integer::Int8(_) => BitSize::Bit8,
-            Integer::Int16(_) => BitSize::Bit16,
-            Integer::Int32(_) => BitSize::Bit32,
-            Integer::Int64(_) => BitSize::Bit64,
-            Integer::Int128(_) => BitSize::Bit128,
-            Integer::IntVar(_) => BitSize::BitVar,
+            SignedInteger::Int8(_) => BitSize::Bit8,
+            SignedInteger::Int16(_) => BitSize::Bit16,
+            SignedInteger::Int32(_) => BitSize::Bit32,
+            SignedInteger::Int64(_) => BitSize::Bit64,
+            SignedInteger::Int128(_) => BitSize::Bit128,
+            SignedInteger::IntVar(_) => BitSize::BitVar,
         }
     }
 }
 
-impl NumberCasting<Integer> for Integer {
+impl NumberCasting<SignedInteger> for SignedInteger {
     /// Upcasts the value to the given reference size
     /// # Arguments
     /// * `to_size` - The reference type size to cast to
     /// # Note
     /// This function does not check if the reference size is smaller or equal to the current size
     /// This is the responsibility of the caller
-    fn upcast(&self, to_size: BitSize) -> Integer {
+    fn upcast(&self, to_size: BitSize) -> SignedInteger {
         match (self, to_size) {
-            (Integer::Int8(v), BitSize::Bit16) => Integer::Int16(*v as i16),
-            (Integer::Int8(v), BitSize::Bit32) => Integer::Int32(*v as i32),
-            (Integer::Int8(v), BitSize::Bit64) => Integer::Int64(*v as i64),
-            (Integer::Int8(v), BitSize::Bit128) => Integer::Int128(*v as i128),
-            (Integer::Int8(v), BitSize::BitVar) => Integer::IntVar(BigInt::from(*v)),
-            (Integer::Int16(v), BitSize::Bit32) => Integer::Int32(*v as i32),
-            (Integer::Int16(v), BitSize::Bit64) => Integer::Int64(*v as i64),
-            (Integer::Int16(v), BitSize::Bit128) => Integer::Int128(*v as i128),
-            (Integer::Int16(v), BitSize::BitVar) => Integer::IntVar(BigInt::from(*v)),
-            (Integer::Int32(v), BitSize::Bit64) => Integer::Int64(*v as i64),
-            (Integer::Int32(v), BitSize::Bit128) => Integer::Int128(*v as i128),
-            (Integer::Int32(v), BitSize::BitVar) => Integer::IntVar(BigInt::from(*v)),
-            (Integer::Int64(v), BitSize::Bit128) => Integer::Int128(*v as i128),
-            (Integer::Int64(v), BitSize::BitVar) => Integer::IntVar(BigInt::from(*v)),
-            (Integer::Int128(v), BitSize::BitVar) => Integer::IntVar(BigInt::from(*v)),
+            (SignedInteger::Int8(v), BitSize::Bit16) => SignedInteger::Int16(*v as i16),
+            (SignedInteger::Int8(v), BitSize::Bit32) => SignedInteger::Int32(*v as i32),
+            (SignedInteger::Int8(v), BitSize::Bit64) => SignedInteger::Int64(*v as i64),
+            (SignedInteger::Int8(v), BitSize::Bit128) => SignedInteger::Int128(*v as i128),
+            (SignedInteger::Int8(v), BitSize::BitVar) => SignedInteger::IntVar(Integer::from(*v)),
+            (SignedInteger::Int16(v), BitSize::Bit32) => SignedInteger::Int32(*v as i32),
+            (SignedInteger::Int16(v), BitSize::Bit64) => SignedInteger::Int64(*v as i64),
+            (SignedInteger::Int16(v), BitSize::Bit128) => SignedInteger::Int128(*v as i128),
+            (SignedInteger::Int16(v), BitSize::BitVar) => SignedInteger::IntVar(Integer::from(*v)),
+            (SignedInteger::Int32(v), BitSize::Bit64) => SignedInteger::Int64(*v as i64),
+            (SignedInteger::Int32(v), BitSize::Bit128) => SignedInteger::Int128(*v as i128),
+            (SignedInteger::Int32(v), BitSize::BitVar) => SignedInteger::IntVar(Integer::from(*v)),
+            (SignedInteger::Int64(v), BitSize::Bit128) => SignedInteger::Int128(*v as i128),
+            (SignedInteger::Int64(v), BitSize::BitVar) => SignedInteger::IntVar(Integer::from(*v)),
+            (SignedInteger::Int128(v), BitSize::BitVar) => SignedInteger::IntVar(Integer::from(*v)),
             _ => unreachable!(),
         }
     }
 
-    fn optimize(self) -> Integer {
+    fn optimize(self) -> SignedInteger {
         match self {
-            Integer::Int8(_) => self,
-            Integer::Int16(v) => {
+            SignedInteger::Int8(_) => self,
+            SignedInteger::Int16(v) => {
                 if v >= i8::MIN as i16 && v <= i8::MAX as i16 {
-                    Integer::Int8(v as i8)
+                    SignedInteger::Int8(v as i8)
                 } else {
                     self
                 }
             }
-            Integer::Int32(v) => {
+            SignedInteger::Int32(v) => {
                 if v >= i8::MIN as i32 && v <= i8::MAX as i32 {
-                    Integer::Int8(v as i8)
+                    SignedInteger::Int8(v as i8)
                 } else if v >= i16::MIN as i32 && v <= i16::MAX as i32 {
-                    Integer::Int16(v as i16)
+                    SignedInteger::Int16(v as i16)
                 } else {
                     self
                 }
             }
-            Integer::Int64(v) => {
+            SignedInteger::Int64(v) => {
                 if v >= i8::MIN as i64 && v <= i8::MAX as i64 {
-                    Integer::Int8(v as i8)
+                    SignedInteger::Int8(v as i8)
                 } else if v >= i16::MIN as i64 && v <= i16::MAX as i64 {
-                    Integer::Int16(v as i16)
+                    SignedInteger::Int16(v as i16)
                 } else if v >= i32::MIN as i64 && v <= i32::MAX as i64 {
-                    Integer::Int32(v as i32)
+                    SignedInteger::Int32(v as i32)
                 } else {
                     self
                 }
             }
-            Integer::Int128(v) => {
+            SignedInteger::Int128(v) => {
                 if v >= i8::MIN as i128 && v <= i8::MAX as i128 {
-                    Integer::Int8(v as i8)
+                    SignedInteger::Int8(v as i8)
                 } else if v >= i16::MIN as i128 && v <= i16::MAX as i128 {
-                    Integer::Int16(v as i16)
+                    SignedInteger::Int16(v as i16)
                 } else if v >= i32::MIN as i128 && v <= i32::MAX as i128 {
-                    Integer::Int32(v as i32)
+                    SignedInteger::Int32(v as i32)
                 } else if v >= i64::MIN as i128 && v <= i64::MAX as i128 {
-                    Integer::Int64(v as i64)
+                    SignedInteger::Int64(v as i64)
                 } else {
                     self
                 }
             }
-            Integer::IntVar(ref v) => {
-                if v.ge(&BigInt::from(i8::MIN)) && v.le(&BigInt::from(i8::MAX)) {
-                    Integer::Int8(v.iter_u32_digits().nth(0).unwrap() as i8)
-                } else if v.ge(&BigInt::from(i16::MIN)) && v.le(&BigInt::from(i16::MAX)) {
-                    Integer::Int16(v.iter_u32_digits().nth(0).unwrap() as i16)
-                } else if v.ge(&BigInt::from(i32::MIN)) && v.le(&BigInt::from(i32::MAX)) {
-                    Integer::Int32(v.iter_u32_digits().nth(0).unwrap() as i32)
-                } else if v.ge(&BigInt::from(i64::MIN)) && v.le(&BigInt::from(i64::MAX)) {
-                    Integer::Int64(v.iter_u32_digits().nth(0).unwrap() as i64)
+            SignedInteger::IntVar(ref v) => {
+                if let Ok(v) = i8::try_from(v) {
+                    SignedInteger::Int8(v)
+                } else if let Ok(v) = i16::try_from(v) {
+                    SignedInteger::Int16(v)
+                } else if let Ok(v) = i32::try_from(v) {
+                    SignedInteger::Int32(v)
+                } else if let Ok(v) = i64::try_from(v) {
+                    SignedInteger::Int64(v)
+                } else if let Ok(v) = i128::try_from(v) {
+                    SignedInteger::Int128(v)
                 } else {
                     self
                 }
@@ -478,84 +447,80 @@ impl NumberCasting<Integer> for Integer {
     }
 }
 
-impl Integer {
+impl SignedInteger {
     pub fn to_float(&self) -> FloatingPoint {
         match self {
-            Integer::Int8(v) => FloatingPoint::Float32(*v as f32),
-            Integer::Int16(v) => FloatingPoint::Float32(*v as f32),
-            Integer::Int32(v) => FloatingPoint::Float32(*v as f32),
-            Integer::Int64(v) => FloatingPoint::Float64(*v as f64),
-            Integer::Int128(v) => FloatingPoint::Float64(*v as f64),
-            Integer::IntVar(v) => {
-                let mut f = BigFloat::new();
-                for d in v.iter_u32_digits().rev() {
-                    f = f.mul(&BigFloat::from(2u32.pow(32))).add(&BigFloat::from(d));
-                }
-                FloatingPoint::FloatBig(f)
-            }
+            SignedInteger::Int8(v) => FloatingPoint::Float32(*v as f32),
+            SignedInteger::Int16(v) => FloatingPoint::Float32(*v as f32),
+            SignedInteger::Int32(v) => FloatingPoint::Float32(*v as f32),
+            SignedInteger::Int64(v) => FloatingPoint::Float64(*v as f64),
+            SignedInteger::Int128(v) => FloatingPoint::Float64(*v as f64),
+            SignedInteger::IntVar(v) => FloatingPoint::FloatBig(Rational::from(v.clone())),
         }
     }
 }
 
-impl ArithmeticOperations<Integer> for Integer {
-    fn add(lhs: &Integer, rhs: &Integer) -> Integer {
+impl ArithmeticOperations<SignedInteger> for SignedInteger {
+    fn add(lhs: &SignedInteger, rhs: &SignedInteger) -> SignedInteger {
         match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => Integer::add(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => SignedInteger::add(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => Integer::add(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => SignedInteger::add(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the addition
             Ordering::Equal => match (lhs, rhs) {
-                (Integer::Int8(lhs), Integer::Int8(rhs)) => {
+                (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
-                        Integer::Int8(res)
+                        SignedInteger::Int8(res)
                     } else {
-                        Integer::Int16(i16::from(*lhs) + i16::from(*rhs))
+                        SignedInteger::Int16(i16::from(*lhs) + i16::from(*rhs))
                     }
                 }
-                (Integer::Int16(lhs), Integer::Int16(rhs)) => {
+                (SignedInteger::Int16(lhs), SignedInteger::Int16(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
-                        Integer::Int16(res)
+                        SignedInteger::Int16(res)
                     } else {
-                        Integer::Int32(i32::from(*lhs) + i32::from(*rhs))
+                        SignedInteger::Int32(i32::from(*lhs) + i32::from(*rhs))
                     }
                 }
-                (Integer::Int32(lhs), Integer::Int32(rhs)) => {
+                (SignedInteger::Int32(lhs), SignedInteger::Int32(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
-                        Integer::Int32(res)
+                        SignedInteger::Int32(res)
                     } else {
-                        Integer::IntVar(BigInt::from(*lhs) + BigInt::from(*rhs))
+                        SignedInteger::IntVar(Integer::from(*lhs) + Integer::from(*rhs))
                     }
                 }
-                (Integer::Int64(lhs), Integer::Int64(rhs)) => {
+                (SignedInteger::Int64(lhs), SignedInteger::Int64(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
-                        Integer::Int64(res)
+                        SignedInteger::Int64(res)
                     } else {
-                        Integer::IntVar(BigInt::from(*lhs) + BigInt::from(*rhs))
+                        SignedInteger::IntVar(Integer::from(*lhs) + Integer::from(*rhs))
                     }
                 }
-                (Integer::Int128(lhs), Integer::Int128(rhs)) => {
+                (SignedInteger::Int128(lhs), SignedInteger::Int128(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
-                        Integer::Int128(res)
+                        SignedInteger::Int128(res)
                     } else {
-                        Integer::IntVar(BigInt::from(*lhs) + BigInt::from(*rhs))
+                        SignedInteger::IntVar(Integer::from(*lhs) + Integer::from(*rhs))
                     }
                 }
-                (Integer::IntVar(lhs), Integer::IntVar(rhs)) => Integer::IntVar(lhs + rhs),
+                (SignedInteger::IntVar(lhs), SignedInteger::IntVar(rhs)) => {
+                    SignedInteger::IntVar(lhs + rhs)
+                }
                 _ => panic!("Cannot add signed integers of different sizes"),
             },
         }
     }
 
-    fn sub(_lhs: &Integer, _rhs: &Integer) -> Integer {
+    fn sub(_lhs: &SignedInteger, _rhs: &SignedInteger) -> SignedInteger {
         todo!()
     }
 
-    fn mul(_lhs: &Integer, _rhs: &Integer) -> Integer {
+    fn mul(_lhs: &SignedInteger, _rhs: &SignedInteger) -> SignedInteger {
         todo!()
     }
 
-    fn div(_lhs: &Integer, _rhs: &Integer) -> Integer {
+    fn div(_lhs: &SignedInteger, _rhs: &SignedInteger) -> SignedInteger {
         todo!()
     }
 }
@@ -564,7 +529,7 @@ impl ArithmeticOperations<Integer> for Integer {
 pub enum FloatingPoint {
     Float32(f32),
     Float64(f64),
-    FloatBig(BigFloat), // Increased precision floating point numbers (fixed but large size)
+    FloatBig(Rational), // Increased precision floating point numbers (fixed but large size)
                         // Look at https://github.com/stencillogic/astro-float for handling Arbitrary precision floating point numbers (variable size)
 }
 
@@ -578,18 +543,7 @@ impl GetType for FloatingPoint {
     }
 }
 
-impl NumberMethods<f32, f32, f32, f64, f64, BigFloat> for FloatingPoint {
-    fn get_number_value<T>(&self) -> Option<T>
-    where
-        T: From<f32> + From<f64> + From<BigFloat>,
-    {
-        match self {
-            FloatingPoint::Float32(v) => Some(T::from(*v)),
-            FloatingPoint::Float64(v) => Some(T::from(*v)),
-            FloatingPoint::FloatBig(v) => Some(T::from(*v)),
-        }
-    }
-
+impl NumberMethods for FloatingPoint {
     fn get_size(&self) -> BitSize {
         match self {
             FloatingPoint::Float32(_) => BitSize::Bit32,
@@ -604,10 +558,12 @@ impl NumberCasting<FloatingPoint> for FloatingPoint {
         match (self, to_size) {
             (FloatingPoint::Float32(v), BitSize::Bit64) => FloatingPoint::Float64(*v as f64),
             (FloatingPoint::Float32(v), BitSize::BitVar) => {
-                FloatingPoint::FloatBig(BigFloat::from(*v))
+                // TODO: Do not unwrap here
+                FloatingPoint::FloatBig(Rational::try_from_float_simplest(*v).unwrap())
             }
             (FloatingPoint::Float64(v), BitSize::BitVar) => {
-                FloatingPoint::FloatBig(BigFloat::from(*v))
+                // TODO: Do not unwrap here
+                FloatingPoint::FloatBig(Rational::try_from_float_simplest(*v).unwrap())
             }
             _ => unreachable!(),
         }
@@ -617,18 +573,18 @@ impl NumberCasting<FloatingPoint> for FloatingPoint {
         match self {
             FloatingPoint::Float32(_) => self,
             FloatingPoint::Float64(v) => {
+                // TODO: Look at resolution of Rational to f32/f64, not only max/min values
                 if v >= f32::MIN as f64 && v <= f32::MAX as f64 {
                     FloatingPoint::Float32(v as f32)
                 } else {
                     self
                 }
             }
-            FloatingPoint::FloatBig(v) => {
-                // TODO: Look at resolution of BigFloat to f32/f64, not only max/min values
-                if v >= BigFloat::from(f32::MIN) && v <= BigFloat::from(f32::MAX) {
-                    FloatingPoint::Float32(v.to_f32())
-                } else if v >= BigFloat::from(f64::MIN) && v <= BigFloat::from(f64::MAX) {
-                    FloatingPoint::Float64(v.to_f64())
+            FloatingPoint::FloatBig(ref v) => {
+                if let Ok(v) = f32::try_from(v) {
+                    FloatingPoint::Float32(v)
+                } else if let Ok(v) = f64::try_from(v) {
+                    FloatingPoint::Float64(v)
                 } else {
                     self
                 }
@@ -653,7 +609,7 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
                     FloatingPoint::Float64(lhs + rhs)
                 }
                 (FloatingPoint::FloatBig(lhs), FloatingPoint::FloatBig(rhs)) => {
-                    FloatingPoint::FloatBig(lhs.add(rhs))
+                    FloatingPoint::FloatBig(lhs + rhs)
                 }
                 _ => panic!("Cannot add floating point numbers of different sizes"),
             },
@@ -676,7 +632,7 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Number {
     UnsignedInteger(UnsignedInteger),
-    SignedInteger(Integer),
+    SignedInteger(SignedInteger),
     FloatingPoint(FloatingPoint),
 }
 
@@ -691,83 +647,61 @@ impl GetType for Number {
 }
 
 impl Number {
-    pub fn get_number_value<T>(&self) -> Option<T>
-    where
-        T: From<u8>
-            + From<u16>
-            + From<u32>
-            + From<u64>
-            + From<u128>
-            + From<i8>
-            + From<i16>
-            + From<i32>
-            + From<i64>
-            + From<i128>
-            + From<f32>
-            + From<f64>
-            + From<BigFloat>
-            + From<BigInt>
-            + From<BigUint>,
-    {
-        match self {
-            Number::UnsignedInteger(u) => u.get_number_value(),
-            Number::SignedInteger(i) => i.get_number_value(),
-            Number::FloatingPoint(f) => f.get_number_value(),
-        }
+    fn parse_big_int(s: &str) -> Result<Number, ()> {
+        Ok(Number::SignedInteger(SignedInteger::IntVar(
+            Integer::from_str(s)?,
+        )))
     }
 
-    fn parse_big_int(s: String) -> Number {
-        let i = BigInt::parse_bytes(s.as_bytes(), 10).unwrap();
-        Number::SignedInteger(Integer::IntVar(i))
+    fn parse_big_uint(s: &str) -> Result<Number, ()> {
+        Ok(Number::UnsignedInteger(UnsignedInteger::UIntVar(
+            Natural::from_str(s)?,
+        )))
     }
 
-    fn parse_big_uint(s: String) -> Number {
-        let u = BigUint::parse_bytes(s.as_bytes(), 10).unwrap();
-        Number::UnsignedInteger(UnsignedInteger::UIntVar(u))
+    fn parse_big_float(s: &str) -> Result<Number, ()> {
+        Ok(Number::FloatingPoint(FloatingPoint::FloatBig(
+            Rational::from_str(s)?,
+        )))
     }
 
-    fn parse_big_float(s: String) -> Number {
-        let f = BigFloat::parse(&s).unwrap();
-        Number::FloatingPoint(FloatingPoint::FloatBig(f))
-    }
-
-    pub fn parse(s: String) -> Number {
+    pub fn parse_str(s: &str) -> Option<Number> {
         if s.contains('.') {
             // Floating point number (Only signed floating point numbers are supported)
             let f = s.parse::<f64>();
             if f.is_err() {
-                return Number::parse_big_float(s);
+                return Number::parse_big_float(s).ok();
             }
             let f = f.unwrap();
-            if f >= f32::MIN as f64 && f <= f32::MAX as f64 {
+            Some(if f >= f32::MIN as f64 && f <= f32::MAX as f64 {
                 Number::FloatingPoint(FloatingPoint::Float32(f as f32))
             } else {
                 Number::FloatingPoint(FloatingPoint::Float64(f))
-            }
+            })
         } else if let Some(s) = s.strip_prefix('-') {
             let i = s.parse::<i128>();
             if i.is_err() {
-                return Number::parse_big_int(s.to_string());
+                return Number::parse_big_int(s).ok();
             }
             let i = i.unwrap();
-            if i >= i8::MIN as i128 && i <= i8::MAX as i128 {
-                Number::SignedInteger(Integer::Int8(i as i8))
+            Some(if i >= i8::MIN as i128 && i <= i8::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int8(i as i8))
             } else if i >= i16::MIN as i128 && i <= i16::MAX as i128 {
-                Number::SignedInteger(Integer::Int16(i as i16))
+                Number::SignedInteger(SignedInteger::Int16(i as i16))
             } else if i >= i32::MIN as i128 && i <= i32::MAX as i128 {
-                Number::SignedInteger(Integer::Int32(i as i32))
+                Number::SignedInteger(SignedInteger::Int32(i as i32))
             } else if i >= i64::MIN as i128 && i <= i64::MAX as i128 {
-                Number::SignedInteger(Integer::Int64(i as i64))
+                Number::SignedInteger(SignedInteger::Int64(i as i64))
             } else {
-                Number::SignedInteger(Integer::Int128(i))
-            }
+                Number::SignedInteger(SignedInteger::Int128(i))
+            })
         } else {
             let u = s.parse::<u128>();
             if u.is_err() {
-                return Number::parse_big_uint(s);
+                return Number::parse_big_uint(s).ok();
             }
             let u = u.unwrap();
-            if u <= 1 {
+            Some(if u <= 1 {
                 Number::UnsignedInteger(UnsignedInteger::UInt1(u as u8))
             } else if u >= u8::MIN as u128 && u <= u8::MAX as u128 {
                 Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
@@ -779,7 +713,7 @@ impl Number {
                 Number::UnsignedInteger(UnsignedInteger::UInt64(u as u64))
             } else {
                 Number::UnsignedInteger(UnsignedInteger::UInt128(u))
-            }
+            })
         }
     }
 }
@@ -791,16 +725,16 @@ impl ArithmeticOperations<Number> for Number {
                 Number::UnsignedInteger(UnsignedInteger::add(lhs, rhs))
             }
             (Number::SignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(Integer::add(lhs, rhs))
+                Number::SignedInteger(SignedInteger::add(lhs, rhs))
             }
             (Number::FloatingPoint(lhs), Number::FloatingPoint(rhs)) => {
                 Number::FloatingPoint(FloatingPoint::add(lhs, rhs))
             }
             (Number::UnsignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(Integer::add(&lhs.to_signed(), rhs))
+                Number::SignedInteger(SignedInteger::add(&lhs.to_signed(), rhs))
             }
             (Number::SignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::SignedInteger(Integer::add(lhs, &rhs.to_signed()))
+                Number::SignedInteger(SignedInteger::add(lhs, &rhs.to_signed()))
             }
             (Number::UnsignedInteger(lhs), Number::FloatingPoint(rhs)) => {
                 Number::FloatingPoint(FloatingPoint::add(&lhs.to_float(), rhs))
@@ -843,17 +777,22 @@ impl Display for Number {
                 UnsignedInteger::UIntVar(i) => write!(f, "{}", i),
             },
             Number::SignedInteger(s) => match s {
-                Integer::Int8(b) => write!(f, "{}", b),
-                Integer::Int16(s) => write!(f, "{}", s),
-                Integer::Int32(i) => write!(f, "{}", i),
-                Integer::Int64(i) => write!(f, "{}", i),
-                Integer::Int128(i) => write!(f, "{}", i),
-                Integer::IntVar(i) => write!(f, "{}", i),
+                SignedInteger::Int8(b) => write!(f, "{}", b),
+                SignedInteger::Int16(s) => write!(f, "{}", s),
+                SignedInteger::Int32(i) => write!(f, "{}", i),
+                SignedInteger::Int64(i) => write!(f, "{}", i),
+                SignedInteger::Int128(i) => write!(f, "{}", i),
+                SignedInteger::IntVar(i) => write!(f, "{}", i),
             },
             Number::FloatingPoint(fl) => match fl {
                 FloatingPoint::Float32(fl) => write!(f, "{}", fl),
                 FloatingPoint::Float64(fl) => write!(f, "{}", fl),
-                FloatingPoint::FloatBig(fl) => write!(f, "{}", fl),
+                FloatingPoint::FloatBig(fl) => {
+                    let mut sci_opts: ToSciOptions = ToSciOptions::default();
+                    sci_opts.set_precision(50);
+                    sci_opts.set_scale(15);
+                    write!(f, "{}", fl.to_sci_with_options(sci_opts))
+                }
             },
         }
     }

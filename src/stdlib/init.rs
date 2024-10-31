@@ -16,7 +16,7 @@ use crate::{
         parser::Parser,
     },
     stdlib::arithmetic,
-    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, GetType, Type},
+    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, Type},
     util::str::Str,
 };
 
