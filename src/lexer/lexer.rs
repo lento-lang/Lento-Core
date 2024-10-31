@@ -361,25 +361,18 @@ impl<R: Read> Lexer<R> {
         init: Option<String>,
         cond: impl Fn(&mut Self, char) -> bool,
         allow_eof_before_cond_false: bool,
-        mut build_token: impl FnMut(&mut Self, String) -> LexResult,
-        mut post: impl FnMut(&mut Self, &LexResult),
-    ) -> LexResult {
+    ) -> Result<String, LexerError> {
         let mut result = init.unwrap_or_default();
-        let mut done = |this: &mut Self, result: String| {
-            let token = build_token(this, result);
-            post(this, &token);
-            token
-        };
         while let Some(c) = self.peek_char(0) {
             if cond(self, c) {
                 self.next_char();
                 result.push(c);
             } else {
-                return done(self, result);
+                return Ok(result);
             }
         }
         if allow_eof_before_cond_false {
-            done(self, result)
+            Ok(result)
         } else {
             Err(LexerError::unexpected_end_of_file(
                 self.line_info.clone(),
@@ -394,7 +387,7 @@ impl<R: Read> Lexer<R> {
         mut build_token: impl FnMut(&mut Self, String) -> LexResult,
     ) -> LexResult {
         let escape = Cell::new(false);
-        self.read_while(
+        let s = self.read_while(
             None,
             move |_, c| {
                 if escape.get() {
@@ -408,11 +401,10 @@ impl<R: Read> Lexer<R> {
                 }
             },
             false,
-            |this, s| build_token(this, Lexer::<R>::resolve_escape_sequence(s)),
-            |this, _| {
-                this.next_char();
-            }, // Eat the last quote
-        )
+        )?;
+        let t = build_token(self, Lexer::<R>::resolve_escape_sequence(s));
+        self.next_char(); // Eat the last quote
+        t
     }
 
     /// Read a string from the source code.
@@ -845,7 +837,7 @@ impl<R: Read> Lexer<R> {
     fn read_number(&mut self, c: char) -> LexResult {
         let has_dot = Cell::new(false);
         let into_ty = RefCell::new(None);
-        self.read_while(
+        let s = self.read_while(
             Some(c.to_string()),
             |this, c| match c {
                 '.' => {
@@ -863,17 +855,14 @@ impl<R: Read> Lexer<R> {
                 _ => c.is_numeric(),
             },
             true,
-            |this, s| {
-                this.new_token_info(TokenKind::Number(if let Some(ty) = into_ty.take() {
-                    this.parse_number_type(&s, &ty)?
-                } else if has_dot.get() {
-                    this.parse_number_float(&s)?
-                } else {
-                    this.parse_number_int(&s)?
-                }))
-            },
-            |_, _| (),
-        )
+        )?;
+        self.new_token_info(TokenKind::Number(if let Some(ty) = into_ty.take() {
+            self.parse_number_type(&s, &ty)?
+        } else if has_dot.get() {
+            self.parse_number_float(&s)?
+        } else {
+            self.parse_number_int(&s)?
+        }))
     }
 
     fn is_identifier_head_char(c: char) -> bool {
@@ -898,25 +887,19 @@ impl<R: Read> Lexer<R> {
 
     /// Read an identifier from the source code.
     fn read_identifier(&mut self, c: char) -> LexResult {
-        self.read_while(
+        let s = self.read_while(
             Some(c.to_string()),
             |_, c| Self::is_identifier_body_char(c),
             true,
-            |this, s| this.new_token_info(this.create_identifier_type_or_keyword(s)),
-            |_, _| (),
-        )
+        )?;
+        self.new_token_info(self.create_identifier_type_or_keyword(s))
     }
 
     /// Read a comment from the source code.
     fn read_comment(&mut self) -> LexResult {
         self.next_char(); // Eat the first '/'
-        self.read_while(
-            None,
-            |_, c| c != '\n',
-            true,
-            |this, s| this.new_token_info(TokenKind::Comment(s)),
-            |_, _| (),
-        )
+        let s = self.read_while(None, |_, c| c != '\n', true)?;
+        self.new_token_info(TokenKind::Comment(s))
     }
 
     fn read_operator(&mut self, first: char) -> LexResult {
