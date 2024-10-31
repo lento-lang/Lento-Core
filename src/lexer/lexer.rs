@@ -9,7 +9,7 @@ use std::{
 };
 
 use lazy_regex::regex_replace_all;
-use malachite::{Integer, Natural, Rational};
+use malachite::{num::conversion::traits::FromSciString, Integer, Natural, Rational};
 
 use crate::{
     interpreter::number::{FloatingPoint, Number, SignedInteger, UnsignedInteger},
@@ -744,7 +744,7 @@ impl<R: Read> Lexer<R> {
                 }
             }
             std_primitive_types::FLOATBIG => {
-                if let Ok(f) = Rational::from_str(s) {
+                if let Some(f) = Rational::from_sci_string(s) {
                     Ok(Number::FloatingPoint(FloatingPoint::FloatBig(f)))
                 } else {
                     Err(LexerError::invalid_number_type(
