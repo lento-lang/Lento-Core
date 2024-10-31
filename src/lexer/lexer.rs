@@ -230,7 +230,7 @@ impl<R: Read> Lexer<R> {
         if peek_index >= self.content.len() {
             self.try_read_chunk()?; // If fail, return None
         }
-        let c = self.content[peek_index];
+        let c = *self.content.get(peek_index)?;
         if c == 0 {
             None
         } else {
@@ -243,7 +243,7 @@ impl<R: Read> Lexer<R> {
         if self.index >= self.content.len() {
             self.try_read_chunk()?; // If fail, return None
         }
-        let c = self.content[self.index];
+        let c = *self.content.get(self.index)?;
         if c == 0 {
             return None;
         }
