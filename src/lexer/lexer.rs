@@ -1,13 +1,21 @@
 use std::{
-    cell::Cell,
+    borrow::Borrow,
+    cell::{Cell, RefCell},
     collections::HashSet,
     fmt::Display,
     fs::File,
     io::{BufReader, Cursor, Error, Read},
     path::PathBuf,
+    str::FromStr,
 };
 
 use lazy_regex::regex_replace_all;
+use malachite::{Integer, Natural, Rational};
+
+use crate::{
+    interpreter::number::{FloatingPoint, Number, SignedInteger, UnsignedInteger},
+    type_checker::types::{std_primitive_types, Type},
+};
 
 use super::{
     error::LexerError,
@@ -352,7 +360,7 @@ impl<R: Read> Lexer<R> {
     fn read_while(
         &mut self,
         init: Option<String>,
-        mut cond: impl FnMut(char) -> bool,
+        cond: impl Fn(&mut Self, char) -> bool,
         allow_eof_before_cond_false: bool,
         mut build_token: impl FnMut(&mut Self, String) -> LexResult,
         mut post: impl FnMut(&mut Self, &LexResult),
@@ -364,7 +372,7 @@ impl<R: Read> Lexer<R> {
             token
         };
         while let Some(c) = self.peek_char(0) {
-            if cond(c) {
+            if cond(self, c) {
                 self.next_char();
                 result.push(c);
             } else {
@@ -389,7 +397,7 @@ impl<R: Read> Lexer<R> {
         let escape = Cell::new(false);
         self.read_while(
             None,
-            move |c| {
+            move |_, c| {
                 if escape.get() {
                     escape.set(false);
                     true
@@ -428,27 +436,442 @@ impl<R: Read> Lexer<R> {
         })
     }
 
+    /// Parse the float number suffix 0.3f32, 0.3f64 or 0.3fbig
+    fn read_number_suffix_float(&mut self, into_ty: &RefCell<Option<Type>>) -> bool {
+        match (self.peek_char(0), self.peek_char(1)) {
+            // f32
+            (Some('3'), Some('2')) => {
+                self.next_char();
+                self.next_char();
+                into_ty.replace(Some(std_primitive_types::FLOAT32));
+            }
+            // f64
+            (Some('6'), Some('4')) => {
+                self.next_char();
+                self.next_char();
+                into_ty.replace(Some(std_primitive_types::FLOAT64));
+            }
+            // fbig
+            (Some('b'), Some('i')) => {
+                if self.peek_char(2) == Some('g') {
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
+                    into_ty.replace(Some(std_primitive_types::FLOATBIG));
+                }
+            }
+            _ => (),
+        }
+        false
+    }
+
+    /// Parse the integer number suffix 42i8, 42i16, 42i32, 42i64, 42i128 or 42ibig
+    fn read_number_suffix_int(&mut self, into_ty: &RefCell<Option<Type>>) -> bool {
+        match self.peek_char(0) {
+            // i8
+            Some('8') => {
+                self.next_char();
+                into_ty.replace(Some(std_primitive_types::INT8));
+            }
+            // i16 or i128
+            Some('1') => {
+                self.next_char();
+                match self.peek_char(0) {
+                    Some('6') => {
+                        self.next_char();
+                        into_ty.replace(Some(std_primitive_types::INT16));
+                    }
+                    Some('2') => {
+                        self.next_char();
+                        if self.peek_char(0) == Some('8') {
+                            self.next_char();
+                            into_ty.replace(Some(std_primitive_types::INT32));
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            // i32
+            Some('3') => {
+                self.next_char();
+                if self.peek_char(0) == Some('2') {
+                    self.next_char();
+                    into_ty.replace(Some(std_primitive_types::INT32));
+                }
+            }
+            // i64
+            Some('6') => {
+                self.next_char();
+                if self.peek_char(0) == Some('4') {
+                    self.next_char();
+                    into_ty.replace(Some(std_primitive_types::INT64));
+                }
+            }
+            _ => (),
+        }
+        false
+    }
+
+    /// Parse the unsigned integer number suffix 1u1, 42u8, 42u16, 42u32, 42u64, 42u128 or 42ubig
+    fn read_number_suffix_uint(&mut self, into_ty: &RefCell<Option<Type>>) -> bool {
+        match self.peek_char(0) {
+            // u1, u16 or u128
+            Some('1') => {
+                self.next_char();
+                match self.peek_char(0) {
+                    Some('6') => {
+                        self.next_char();
+                        into_ty.replace(Some(std_primitive_types::UINT16));
+                    }
+                    Some('2') => {
+                        self.next_char();
+                        if self.peek_char(0) == Some('8') {
+                            self.next_char();
+                            into_ty.replace(Some(std_primitive_types::UINT32));
+                        }
+                    }
+                    _ => {
+                        into_ty.replace(Some(std_primitive_types::UINT1));
+                    }
+                }
+            }
+            // u8
+            Some('8') => {
+                self.next_char();
+                into_ty.replace(Some(std_primitive_types::UINT8));
+            }
+            // u32
+            Some('3') => {
+                self.next_char();
+                if self.peek_char(0) == Some('2') {
+                    self.next_char();
+                    into_ty.replace(Some(std_primitive_types::UINT32));
+                }
+            }
+            // u64
+            Some('6') => {
+                self.next_char();
+                if self.peek_char(0) == Some('4') {
+                    self.next_char();
+                    into_ty.replace(Some(std_primitive_types::UINT64));
+                }
+            }
+            _ => (),
+        }
+        false
+    }
+
+    fn parse_number_type(&self, s: &str, ty: &Type) -> Result<Number, LexerError> {
+        match *ty {
+            std_primitive_types::UINT1 => {
+                if let Ok(i) = s.parse::<u8>() {
+                    if i > 1 {
+                        Err(LexerError::invalid_number_type(
+                            s,
+                            ty,
+                            self.line_info.clone(),
+                            self.input_source.clone(),
+                        ))
+                    } else {
+                        Ok(Number::UnsignedInteger(UnsignedInteger::UInt1(i)))
+                    }
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::UINT8 => {
+                if let Ok(i) = s.parse::<u8>() {
+                    Ok(Number::UnsignedInteger(UnsignedInteger::UInt8(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::UINT16 => {
+                if let Ok(i) = s.parse::<u16>() {
+                    Ok(Number::UnsignedInteger(UnsignedInteger::UInt16(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::UINT32 => {
+                if let Ok(i) = s.parse::<u32>() {
+                    Ok(Number::UnsignedInteger(UnsignedInteger::UInt32(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::UINT64 => {
+                if let Ok(i) = s.parse::<u64>() {
+                    Ok(Number::UnsignedInteger(UnsignedInteger::UInt64(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::UINT128 => {
+                if let Ok(i) = s.parse::<u128>() {
+                    Ok(Number::UnsignedInteger(UnsignedInteger::UInt128(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::UINTBIG => {
+                if let Ok(i) = Natural::from_str(s) {
+                    Ok(Number::UnsignedInteger(UnsignedInteger::UIntVar(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::INT8 => {
+                if let Ok(i) = s.parse::<i8>() {
+                    Ok(Number::SignedInteger(SignedInteger::Int8(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::INT16 => {
+                if let Ok(i) = s.parse::<i16>() {
+                    Ok(Number::SignedInteger(SignedInteger::Int16(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::INT32 => {
+                if let Ok(i) = s.parse::<i32>() {
+                    Ok(Number::SignedInteger(SignedInteger::Int32(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::INT64 => {
+                if let Ok(i) = s.parse::<i64>() {
+                    Ok(Number::SignedInteger(SignedInteger::Int64(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::INT128 => {
+                if let Ok(i) = s.parse::<i128>() {
+                    Ok(Number::SignedInteger(SignedInteger::Int128(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::INTBIG => {
+                if let Ok(i) = Integer::from_str(s) {
+                    Ok(Number::SignedInteger(SignedInteger::IntVar(i)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::FLOAT32 => {
+                if let Ok(f) = s.parse::<f32>() {
+                    Ok(Number::FloatingPoint(FloatingPoint::Float32(f)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::FLOAT64 => {
+                if let Ok(f) = s.parse::<f64>() {
+                    Ok(Number::FloatingPoint(FloatingPoint::Float64(f)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            std_primitive_types::FLOATBIG => {
+                if let Ok(f) = Rational::from_str(s) {
+                    Ok(Number::FloatingPoint(FloatingPoint::FloatBig(f)))
+                } else {
+                    Err(LexerError::invalid_number_type(
+                        s,
+                        ty,
+                        self.line_info.clone(),
+                        self.input_source.clone(),
+                    ))
+                }
+            }
+            _ => Err(LexerError::invalid_number_type(
+                s,
+                ty,
+                self.line_info.clone(),
+                self.input_source.clone(),
+            )),
+        }
+    }
+
+    /// Default to `f32` if no suffix is provided
+    fn parse_number_float(&self, s: &str) -> Result<Number, LexerError> {
+        if let Ok(f) = s.parse::<f32>() {
+            Ok(Number::FloatingPoint(FloatingPoint::Float32(f)))
+        } else {
+            Err(LexerError::invalid_number(
+                s,
+                self.line_info.clone(),
+                self.input_source.clone(),
+            ))
+        }
+    }
+
+    // Fit the number into the smallest possible unsigned or signed integer
+    fn parse_number_int(&self, s: &str) -> Result<Number, LexerError> {
+        if let Some(s) = s.strip_prefix('-') {
+            let i = s.parse::<i128>();
+            if i.is_err() {
+                if let Ok(i) = Integer::from_str(s) {
+                    return Ok(Number::SignedInteger(SignedInteger::IntVar(i)));
+                }
+                return Err(LexerError::invalid_number(
+                    s,
+                    self.line_info.clone(),
+                    self.input_source.clone(),
+                ));
+            }
+            let i = i.unwrap();
+            Ok(if i >= i8::MIN as i128 && i <= i8::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int8(i as i8))
+            } else if i >= i16::MIN as i128 && i <= i16::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int16(i as i16))
+            } else if i >= i32::MIN as i128 && i <= i32::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int32(i as i32))
+            } else if i >= i64::MIN as i128 && i <= i64::MAX as i128 {
+                Number::SignedInteger(SignedInteger::Int64(i as i64))
+            } else {
+                Number::SignedInteger(SignedInteger::Int128(i))
+            })
+        } else {
+            let u = s.parse::<u128>();
+            if u.is_err() {
+                if let Ok(u) = Natural::from_str(s) {
+                    return Ok(Number::UnsignedInteger(UnsignedInteger::UIntVar(u)));
+                }
+                return Err(LexerError::invalid_number(
+                    s,
+                    self.line_info.clone(),
+                    self.input_source.clone(),
+                ));
+            }
+            let u = u.unwrap();
+            Ok(if u <= 1 {
+                Number::UnsignedInteger(UnsignedInteger::UInt1(u as u8))
+            } else if u >= u8::MIN as u128 && u <= u8::MAX as u128 {
+                Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
+            } else if u >= u16::MIN as u128 && u <= u16::MAX as u128 {
+                Number::UnsignedInteger(UnsignedInteger::UInt16(u as u16))
+            } else if u >= u32::MIN as u128 && u <= u32::MAX as u128 {
+                Number::UnsignedInteger(UnsignedInteger::UInt32(u as u32))
+            } else if u >= u64::MIN as u128 && u <= u64::MAX as u128 {
+                Number::UnsignedInteger(UnsignedInteger::UInt64(u as u64))
+            } else {
+                Number::UnsignedInteger(UnsignedInteger::UInt128(u))
+            })
+        }
+    }
+
     /// Read a number from the source code.
     /// Can be an integer or a float (casted at runtime).
     fn read_number(&mut self, c: char) -> LexResult {
         let has_dot = Cell::new(false);
+        let into_ty = RefCell::new(None);
         self.read_while(
             Some(c.to_string()),
-            |c| {
-                if c == '.' && !has_dot.get() {
-                    has_dot.set(true);
-                    true
-                } else {
-                    c.is_numeric()
+            |this, c| match c {
+                '.' => {
+                    // Parse the float number suffix 0.3
+                    if has_dot.get() {
+                        false
+                    } else {
+                        has_dot.set(true);
+                        true
+                    }
                 }
+                'f' => this.read_number_suffix_float(&into_ty),
+                'i' => this.read_number_suffix_int(&into_ty),
+                'u' => this.read_number_suffix_uint(&into_ty),
+                _ => c.is_numeric(),
             },
             true,
             |this, s| {
-                this.new_token_info(if has_dot.get() {
-                    TokenKind::Float(s)
+                this.new_token_info(TokenKind::Number(if let Some(ty) = into_ty.take() {
+                    this.parse_number_type(&s, &ty)?
+                } else if has_dot.get() {
+                    this.parse_number_float(&s)?
                 } else {
-                    TokenKind::Integer(s)
-                })
+                    this.parse_number_int(&s)?
+                }))
             },
             |_, _| (),
         )
@@ -478,7 +901,7 @@ impl<R: Read> Lexer<R> {
     fn read_identifier(&mut self, c: char) -> LexResult {
         self.read_while(
             Some(c.to_string()),
-            Self::is_identifier_body_char,
+            |_, c| Self::is_identifier_body_char(c),
             true,
             |this, s| this.new_token_info(this.create_identifier_type_or_keyword(s)),
             |_, _| (),
@@ -490,7 +913,7 @@ impl<R: Read> Lexer<R> {
         self.next_char(); // Eat the first '/'
         self.read_while(
             None,
-            |c| c != '\n',
+            |_, c| c != '\n',
             true,
             |this, s| this.new_token_info(TokenKind::Comment(s)),
             |_, _| (),

@@ -214,8 +214,7 @@ impl<R: Read> Parser<R> {
 
     fn parse_literal(&mut self, token: &TokenKind) -> Option<Value> {
         Some(match token {
-            TokenKind::Integer(n) => Value::Number(Number::parse_str(n)?),
-            TokenKind::Float(n) => Value::Number(Number::parse_str(n)?),
+            TokenKind::Number(n) => Value::Number(n.clone()),
             TokenKind::String(s) => Value::String(s.clone()),
             TokenKind::Char(c) => Value::Char(*c),
             TokenKind::Boolean(b) => Value::Boolean(*b),
@@ -314,8 +313,7 @@ impl<R: Read> Parser<R> {
                     return Some(Ok(fields)); // Empty record
                 }
                 TokenKind::Identifier(id) => RecordKeyAst::String(id),
-                TokenKind::Integer(n) => RecordKeyAst::Integer(n),
-                TokenKind::Float(n) => RecordKeyAst::Float(n),
+                TokenKind::Number(n) => RecordKeyAst::Number(n),
                 TokenKind::String(s) => RecordKeyAst::String(s),
                 TokenKind::Char(c) => RecordKeyAst::Char(c),
                 _ => return None, // Not a record
@@ -350,8 +348,7 @@ impl<R: Read> Parser<R> {
             }
             let key = match t.token {
                 TokenKind::Identifier(id) => RecordKeyAst::String(id),
-                TokenKind::Integer(n) => RecordKeyAst::Integer(n),
-                TokenKind::Float(n) => RecordKeyAst::Float(n),
+                TokenKind::Number(n) => RecordKeyAst::Number(n),
                 TokenKind::String(s) => RecordKeyAst::String(s),
                 TokenKind::Char(c) => RecordKeyAst::Char(c),
                 _ => {

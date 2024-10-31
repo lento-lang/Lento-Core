@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn float() {
         let mut lexer = from_str("123.456");
-        assert_next_token_eq(&mut lexer, TokenKind::Float("123.456".to_string()));
+        assert_next_token_eq(&mut lexer, TokenKind::Number("123.456".to_string()));
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
 

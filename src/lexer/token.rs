@@ -1,7 +1,9 @@
 use std::fmt::{Debug, Display};
 
+use crate::interpreter::number::Number;
+
 // Token structure for the Lento programming language
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     EndOfFile,
     // Expression terminators
@@ -11,8 +13,7 @@ pub enum TokenKind {
     Comma,
     // Literals
     Identifier(String),
-    Integer(String),
-    Float(String),
+    Number(Number),
     String(String),
     Char(char),
     Boolean(bool),
@@ -37,8 +38,7 @@ impl TokenKind {
     pub fn is_literal(&self) -> bool {
         matches!(
             self,
-            TokenKind::Integer(_)
-                | TokenKind::Float(_)
+            TokenKind::Number(_)
                 | TokenKind::String(_)
                 | TokenKind::Char(_)
                 | TokenKind::Boolean(_)
@@ -97,8 +97,7 @@ impl Display for TokenKind {
             Self::Colon => write!(f, ":"),
             Self::Comma => write!(f, ","),
             Self::Identifier(s) => write!(f, "{}", s),
-            Self::Integer(s) => write!(f, "{}", s),
-            Self::Float(s) => write!(f, "{}", s),
+            Self::Number(s) => write!(f, "{}", s),
             Self::String(s) => write!(f, "\"{}\"", s),
             Self::Char(c) => write!(f, "'{}'", c),
             Self::Boolean(b) => write!(f, "{}", b),

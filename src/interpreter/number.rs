@@ -1,7 +1,6 @@
 use std::{
     cmp::Ordering,
     fmt::{Display, Formatter},
-    str::FromStr,
 };
 
 use malachite::{
@@ -646,77 +645,77 @@ impl GetType for Number {
     }
 }
 
-impl Number {
-    fn parse_big_int(s: &str) -> Result<Number, ()> {
-        Ok(Number::SignedInteger(SignedInteger::IntVar(
-            Integer::from_str(s)?,
-        )))
-    }
+// impl Number {
+//     fn parse_big_int(s: &str) -> Result<Number, ()> {
+//         Ok(Number::SignedInteger(SignedInteger::IntVar(
+//             Integer::from_str(s)?,
+//         )))
+//     }
 
-    fn parse_big_uint(s: &str) -> Result<Number, ()> {
-        Ok(Number::UnsignedInteger(UnsignedInteger::UIntVar(
-            Natural::from_str(s)?,
-        )))
-    }
+//     fn parse_big_uint(s: &str) -> Result<Number, ()> {
+//         Ok(Number::UnsignedInteger(UnsignedInteger::UIntVar(
+//             Natural::from_str(s)?,
+//         )))
+//     }
 
-    fn parse_big_float(s: &str) -> Result<Number, ()> {
-        Ok(Number::FloatingPoint(FloatingPoint::FloatBig(
-            Rational::from_str(s)?,
-        )))
-    }
+//     fn parse_big_float(s: &str) -> Result<Number, ()> {
+//         Ok(Number::FloatingPoint(FloatingPoint::FloatBig(
+//             Rational::from_str(s)?,
+//         )))
+//     }
 
-    pub fn parse_str(s: &str) -> Option<Number> {
-        if s.contains('.') {
-            // Floating point number (Only signed floating point numbers are supported)
-            let f = s.parse::<f64>();
-            if f.is_err() {
-                return Number::parse_big_float(s).ok();
-            }
-            let f = f.unwrap();
-            Some(if f >= f32::MIN as f64 && f <= f32::MAX as f64 {
-                Number::FloatingPoint(FloatingPoint::Float32(f as f32))
-            } else {
-                Number::FloatingPoint(FloatingPoint::Float64(f))
-            })
-        } else if let Some(s) = s.strip_prefix('-') {
-            let i = s.parse::<i128>();
-            if i.is_err() {
-                return Number::parse_big_int(s).ok();
-            }
-            let i = i.unwrap();
-            Some(if i >= i8::MIN as i128 && i <= i8::MAX as i128 {
-                Number::SignedInteger(SignedInteger::Int8(i as i8))
-            } else if i >= i16::MIN as i128 && i <= i16::MAX as i128 {
-                Number::SignedInteger(SignedInteger::Int16(i as i16))
-            } else if i >= i32::MIN as i128 && i <= i32::MAX as i128 {
-                Number::SignedInteger(SignedInteger::Int32(i as i32))
-            } else if i >= i64::MIN as i128 && i <= i64::MAX as i128 {
-                Number::SignedInteger(SignedInteger::Int64(i as i64))
-            } else {
-                Number::SignedInteger(SignedInteger::Int128(i))
-            })
-        } else {
-            let u = s.parse::<u128>();
-            if u.is_err() {
-                return Number::parse_big_uint(s).ok();
-            }
-            let u = u.unwrap();
-            Some(if u <= 1 {
-                Number::UnsignedInteger(UnsignedInteger::UInt1(u as u8))
-            } else if u >= u8::MIN as u128 && u <= u8::MAX as u128 {
-                Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
-            } else if u >= u16::MIN as u128 && u <= u16::MAX as u128 {
-                Number::UnsignedInteger(UnsignedInteger::UInt16(u as u16))
-            } else if u >= u32::MIN as u128 && u <= u32::MAX as u128 {
-                Number::UnsignedInteger(UnsignedInteger::UInt32(u as u32))
-            } else if u >= u64::MIN as u128 && u <= u64::MAX as u128 {
-                Number::UnsignedInteger(UnsignedInteger::UInt64(u as u64))
-            } else {
-                Number::UnsignedInteger(UnsignedInteger::UInt128(u))
-            })
-        }
-    }
-}
+//     pub fn parse_str(s: &str) -> Option<Number> {
+//         if s.contains('.') {
+//             // Floating point number (Only signed floating point numbers are supported)
+//             let f = s.parse::<f64>();
+//             if f.is_err() {
+//                 return Number::parse_big_float(s).ok();
+//             }
+//             let f = f.unwrap();
+//             Some(if f >= f32::MIN as f64 && f <= f32::MAX as f64 {
+//                 Number::FloatingPoint(FloatingPoint::Float32(f as f32))
+//             } else {
+//                 Number::FloatingPoint(FloatingPoint::Float64(f))
+//             })
+//         } else if let Some(s) = s.strip_prefix('-') {
+//             let i = s.parse::<i128>();
+//             if i.is_err() {
+//                 return Number::parse_big_int(s).ok();
+//             }
+//             let i = i.unwrap();
+//             Some(if i >= i8::MIN as i128 && i <= i8::MAX as i128 {
+//                 Number::SignedInteger(SignedInteger::Int8(i as i8))
+//             } else if i >= i16::MIN as i128 && i <= i16::MAX as i128 {
+//                 Number::SignedInteger(SignedInteger::Int16(i as i16))
+//             } else if i >= i32::MIN as i128 && i <= i32::MAX as i128 {
+//                 Number::SignedInteger(SignedInteger::Int32(i as i32))
+//             } else if i >= i64::MIN as i128 && i <= i64::MAX as i128 {
+//                 Number::SignedInteger(SignedInteger::Int64(i as i64))
+//             } else {
+//                 Number::SignedInteger(SignedInteger::Int128(i))
+//             })
+//         } else {
+//             let u = s.parse::<u128>();
+//             if u.is_err() {
+//                 return Number::parse_big_uint(s).ok();
+//             }
+//             let u = u.unwrap();
+//             Some(if u <= 1 {
+//                 Number::UnsignedInteger(UnsignedInteger::UInt1(u as u8))
+//             } else if u >= u8::MIN as u128 && u <= u8::MAX as u128 {
+//                 Number::UnsignedInteger(UnsignedInteger::UInt8(u as u8))
+//             } else if u >= u16::MIN as u128 && u <= u16::MAX as u128 {
+//                 Number::UnsignedInteger(UnsignedInteger::UInt16(u as u16))
+//             } else if u >= u32::MIN as u128 && u <= u32::MAX as u128 {
+//                 Number::UnsignedInteger(UnsignedInteger::UInt32(u as u32))
+//             } else if u >= u64::MIN as u128 && u <= u64::MAX as u128 {
+//                 Number::UnsignedInteger(UnsignedInteger::UInt64(u as u64))
+//             } else {
+//                 Number::UnsignedInteger(UnsignedInteger::UInt128(u))
+//             })
+//         }
+//     }
+// }
 
 impl ArithmeticOperations<Number> for Number {
     fn add(lhs: &Number, rhs: &Number) -> Number {

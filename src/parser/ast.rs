@@ -1,5 +1,8 @@
 use crate::{
-    interpreter::value::{FunctionVariation, Value},
+    interpreter::{
+        number::Number,
+        value::{FunctionVariation, Value},
+    },
     lexer::lexer::InputSource,
     type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
     util::str::Str,
@@ -14,11 +17,10 @@ use super::{error::ParseError, op::RuntimeOperator};
 /// ```ignore
 /// record = { "key": 1, 2: 3.0, 'c': "value", 4.0: 'd' }
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RecordKeyAst {
     String(String),
-    Integer(String),
-    Float(String),
+    Number(Number),
     Char(char),
 }
 
