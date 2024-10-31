@@ -101,9 +101,9 @@ impl<R: Read> Lexer<R> {
     /// Create a new lexer from a reader.
     /// The lexer will read from the reader until it reaches the end of the stream, then the parser must call `refill_on_read` to refill the buffer.
     /// If the reader is a stream, the lexer will be able to refill the buffer with new data from the reader on the next read (at any time)
-    pub fn new_stream(reader: R, stream_name: String) -> Self {
+    pub fn new_stream(reader: R, stream_name: &str) -> Self {
         Self {
-            input_source: InputSource::Stream(stream_name),
+            input_source: InputSource::Stream(stream_name.to_string()),
             reader,
             content: Vec::new(),
             index: 0,
@@ -355,16 +355,22 @@ impl<R: Read> Lexer<R> {
         s.to_string()
     }
 
-    /// Helper function to read a token from the source code using a predicates and lambdas or function composition.
+    /// Helper function to read a string from the source code using a predicate to continue reading.
+    ///
+    /// # Arguments
+    /// * `init` - The initial value of the token.
+    /// * `cond` - The condition to continue reading the token, taking the current lexer and the currently peeked character.
+    ///   If the condition is false, the token is returned.
+    /// * `allow_eof_before_cond_false` - If true, the function will return the token even if the end of the file is reached before the condition is false.
     fn read_while(
         &mut self,
         init: Option<String>,
-        cond: impl Fn(&mut Self, char) -> bool,
+        cond: impl Fn(&mut Self, char) -> Result<bool, LexerError>,
         allow_eof_before_cond_false: bool,
     ) -> Result<String, LexerError> {
         let mut result = init.unwrap_or_default();
         while let Some(c) = self.peek_char(0) {
-            if cond(self, c) {
+            if cond(self, c)? {
                 self.next_char();
                 result.push(c);
             } else {
@@ -392,12 +398,12 @@ impl<R: Read> Lexer<R> {
             move |_, c| {
                 if escape.get() {
                     escape.set(false);
-                    true
+                    Ok(true)
                 } else {
                     if c == '\\' {
                         escape.set(true);
                     }
-                    c != quote
+                    Ok(c != quote)
                 }
             },
             false,
@@ -427,129 +433,160 @@ impl<R: Read> Lexer<R> {
         })
     }
 
-    /// Parse the float number suffix 0.3f32, 0.3f64 or 0.3fbig
-    fn read_number_suffix_float(&mut self, into_ty: &RefCell<Option<Type>>) -> bool {
-        match (self.peek_char(0), self.peek_char(1)) {
+    /// Parse the float number suffix: `0.3f32`, `0.3f64` or `0.3fbig`
+    fn read_number_suffix_float(&mut self, ty: &RefCell<Option<Type>>) -> Result<bool, LexerError> {
+        match (self.peek_char(1), self.peek_char(2)) {
             // f32
             (Some('3'), Some('2')) => {
                 self.next_char();
                 self.next_char();
-                into_ty.replace(Some(std_primitive_types::FLOAT32));
+                self.set_number_ty(ty, std_primitive_types::FLOAT32)?;
             }
             // f64
             (Some('6'), Some('4')) => {
                 self.next_char();
                 self.next_char();
-                into_ty.replace(Some(std_primitive_types::FLOAT64));
+                self.set_number_ty(ty, std_primitive_types::FLOAT64)?;
             }
             // fbig
             (Some('b'), Some('i')) => {
-                if self.peek_char(2) == Some('g') {
+                if self.peek_char(3) == Some('g') {
                     self.next_char();
                     self.next_char();
                     self.next_char();
-                    into_ty.replace(Some(std_primitive_types::FLOATBIG));
+                    self.set_number_ty(ty, std_primitive_types::FLOATBIG)?;
                 }
             }
             _ => (),
         }
-        false
+        Ok(false)
     }
 
-    /// Parse the integer number suffix 42i8, 42i16, 42i32, 42i64, 42i128 or 42ibig
-    fn read_number_suffix_int(&mut self, into_ty: &RefCell<Option<Type>>) -> bool {
-        match self.peek_char(0) {
+    /// Parse the integer number suffix: `42i8`, `42i16`, `42i32`, `42i64`, `42i128` or `42ibig`
+    fn read_number_suffix_int(&mut self, ty: &RefCell<Option<Type>>) -> Result<bool, LexerError> {
+        match self.peek_char(1) {
             // i8
             Some('8') => {
-                self.next_char();
-                into_ty.replace(Some(std_primitive_types::INT8));
+                self.next_char(); // Eat the 'i'
+                self.next_char(); // Eat the '8'
+                self.set_number_ty(ty, std_primitive_types::INT8)?;
             }
             // i16 or i128
-            Some('1') => {
-                self.next_char();
-                match self.peek_char(0) {
-                    Some('6') => {
-                        self.next_char();
-                        into_ty.replace(Some(std_primitive_types::INT16));
-                    }
-                    Some('2') => {
-                        self.next_char();
-                        if self.peek_char(0) == Some('8') {
-                            self.next_char();
-                            into_ty.replace(Some(std_primitive_types::INT32));
-                        }
-                    }
-                    _ => (),
+            Some('1') => match self.peek_char(2) {
+                Some('6') => {
+                    self.next_char(); // Eat the 'i'
+                    self.next_char(); // Eat the '1'
+                    self.next_char(); // Eat the '6'
+                    self.set_number_ty(ty, std_primitive_types::INT16)?;
                 }
-            }
+                Some('2') => {
+                    if self.peek_char(3) == Some('8') {
+                        self.next_char(); // Eat the 'i'
+                        self.next_char(); // Eat the '1'
+                        self.next_char(); // Eat the '2'
+                        self.next_char(); // Eat the '8'
+                        self.set_number_ty(ty, std_primitive_types::INT128)?;
+                    }
+                }
+                _ => (),
+            },
             // i32
             Some('3') => {
-                self.next_char();
-                if self.peek_char(0) == Some('2') {
-                    self.next_char();
-                    into_ty.replace(Some(std_primitive_types::INT32));
+                if self.peek_char(2) == Some('2') {
+                    self.next_char(); // Eat the 'i'
+                    self.next_char(); // Eat the '3'
+                    self.next_char(); // Eat the '2'
+                    self.set_number_ty(ty, std_primitive_types::INT32)?;
                 }
             }
             // i64
             Some('6') => {
-                self.next_char();
-                if self.peek_char(0) == Some('4') {
-                    self.next_char();
-                    into_ty.replace(Some(std_primitive_types::INT64));
+                if self.peek_char(2) == Some('4') {
+                    self.next_char(); // Eat the 'i'
+                    self.next_char(); // Eat the '6'
+                    self.next_char(); // Eat the '4'
+                    self.set_number_ty(ty, std_primitive_types::INT64)?;
+                }
+            }
+            // ibig
+            Some('b') => {
+                if self.peek_char(2) == Some('i') && self.peek_char(3) == Some('g') {
+                    self.next_char(); // Eat the 'i'
+                    self.next_char(); // Eat the 'b'
+                    self.next_char(); // Eat the 'i'
+                    self.next_char(); // Eat the 'g'
+                    self.set_number_ty(ty, std_primitive_types::INTBIG)?;
                 }
             }
             _ => (),
         }
-        false
+        Ok(false)
     }
 
-    /// Parse the unsigned integer number suffix 1u1, 42u8, 42u16, 42u32, 42u64, 42u128 or 42ubig
-    fn read_number_suffix_uint(&mut self, into_ty: &RefCell<Option<Type>>) -> bool {
-        match self.peek_char(0) {
+    /// Parse the unsigned integer number suffix `1u1`, `42u8`, `42u16`, `42u32`, `42u64`, `42u128` or `42ubig`
+    fn read_number_suffix_uint(&mut self, ty: &RefCell<Option<Type>>) -> Result<bool, LexerError> {
+        match self.peek_char(1) {
             // u1, u16 or u128
-            Some('1') => {
-                self.next_char();
-                match self.peek_char(0) {
-                    Some('6') => {
-                        self.next_char();
-                        into_ty.replace(Some(std_primitive_types::UINT16));
-                    }
-                    Some('2') => {
-                        self.next_char();
-                        if self.peek_char(0) == Some('8') {
-                            self.next_char();
-                            into_ty.replace(Some(std_primitive_types::UINT32));
-                        }
-                    }
-                    _ => {
-                        into_ty.replace(Some(std_primitive_types::UINT1));
+            Some('1') => match self.peek_char(2) {
+                Some('6') => {
+                    self.next_char(); // Eat the 'u'
+                    self.next_char(); // Eat the '1'
+                    self.next_char(); // Eat the '6'
+                    self.set_number_ty(ty, std_primitive_types::UINT16)?;
+                }
+                Some('2') => {
+                    if self.peek_char(2) == Some('8') {
+                        self.next_char(); // Eat the 'u'
+                        self.next_char(); // Eat the '1'
+                        self.next_char(); // Eat the '2'
+                        self.next_char(); // Eat the '8'
+                        self.set_number_ty(ty, std_primitive_types::UINT128)?;
                     }
                 }
-            }
+                _ => {
+                    self.next_char(); // Eat the 'u'
+                    self.next_char(); // Eat the '1'
+                    self.set_number_ty(ty, std_primitive_types::UINT1)?;
+                }
+            },
+
             // u8
             Some('8') => {
-                self.next_char();
-                into_ty.replace(Some(std_primitive_types::UINT8));
+                self.next_char(); // Eat the 'u'
+                self.next_char(); // Eat the '8'
+                self.set_number_ty(ty, std_primitive_types::UINT8)?;
             }
             // u32
             Some('3') => {
-                self.next_char();
-                if self.peek_char(0) == Some('2') {
-                    self.next_char();
-                    into_ty.replace(Some(std_primitive_types::UINT32));
+                if self.peek_char(2) == Some('2') {
+                    self.next_char(); // Eat the 'u'
+                    self.next_char(); // Eat the '3'
+                    self.next_char(); // Eat the '2'
+                    self.set_number_ty(ty, std_primitive_types::UINT32)?;
                 }
             }
             // u64
             Some('6') => {
-                self.next_char();
-                if self.peek_char(0) == Some('4') {
-                    self.next_char();
-                    into_ty.replace(Some(std_primitive_types::UINT64));
+                if self.peek_char(2) == Some('4') {
+                    self.next_char(); // Eat the 'u'
+                    self.next_char(); // Eat the '6'
+                    self.next_char(); // Eat the '4'
+                    self.set_number_ty(ty, std_primitive_types::UINT64)?;
+                }
+            }
+            // ubig
+            Some('b') => {
+                if self.peek_char(2) == Some('i') && self.peek_char(3) == Some('g') {
+                    self.next_char(); // Eat the 'u'
+                    self.next_char(); // Eat the 'b'
+                    self.next_char(); // Eat the 'i'
+                    self.next_char(); // Eat the 'g'
+                    self.set_number_ty(ty, std_primitive_types::UINTBIG)?;
                 }
             }
             _ => (),
         }
-        false
+        Ok(false)
     }
 
     fn parse_number_type(&self, s: &str, ty: &Type) -> Result<Number, LexerError> {
@@ -832,31 +869,57 @@ impl<R: Read> Lexer<R> {
         }
     }
 
+    fn set_number_ty(&self, rc: &RefCell<Option<Type>>, ty: Type) -> Result<(), LexerError> {
+        if let Some(ty) = rc.replace(Some(ty)) {
+            Err(LexerError {
+                message: format!("Type already set to {}", ty),
+                info: self.line_info.clone(),
+                input_source: self.input_source.clone(),
+            })
+        } else {
+            Ok(())
+        }
+    }
+
     /// Read a number from the source code.
     /// Can be an integer or a float (casted at runtime).
     fn read_number(&mut self, c: char) -> LexResult {
         let has_dot = Cell::new(false);
-        let into_ty = RefCell::new(None);
+        let ty: RefCell<Option<Type>> = RefCell::new(None);
+        // Set the type of the number and crash if a type is already set
         let s = self.read_while(
             Some(c.to_string()),
             |this, c| match c {
                 '.' => {
                     // Parse the float number suffix 0.3
-                    if has_dot.get() {
+                    Ok(if has_dot.get() {
                         false
                     } else {
                         has_dot.set(true);
                         true
-                    }
+                    })
                 }
-                'f' => this.read_number_suffix_float(&into_ty),
-                'i' => this.read_number_suffix_int(&into_ty),
-                'u' => this.read_number_suffix_uint(&into_ty),
-                _ => c.is_numeric(),
+                'f' => this.read_number_suffix_float(&ty), // Always return false
+                'i' => this.read_number_suffix_int(&ty),   // Always return false
+                'u' => this.read_number_suffix_uint(&ty),  // Always return false
+                'e' => {
+                    // Allow scientific notation: `1.0e-2`
+                    this.set_number_ty(&ty, std_primitive_types::FLOATBIG)?;
+                    Ok(true) // Always return true to allow the exponent after the 'e'
+                }
+                '+' | '-' => {
+                    // If still parsing after `ty = FLOATBIG`, then it's an exponent
+                    Ok(if let Some(ty) = ty.borrow().as_ref() {
+                        ty == &std_primitive_types::FLOATBIG
+                    } else {
+                        false // Otherwise, it's something else
+                    })
+                }
+                _ => Ok(c.is_numeric()),
             },
             true,
         )?;
-        self.new_token_info(TokenKind::Number(if let Some(ty) = into_ty.take() {
+        self.new_token_info(TokenKind::Number(if let Some(ty) = ty.take() {
             self.parse_number_type(&s, &ty)?
         } else if has_dot.get() {
             self.parse_number_float(&s)?
@@ -889,7 +952,7 @@ impl<R: Read> Lexer<R> {
     fn read_identifier(&mut self, c: char) -> LexResult {
         let s = self.read_while(
             Some(c.to_string()),
-            |_, c| Self::is_identifier_body_char(c),
+            |_, c| Ok(Self::is_identifier_body_char(c)),
             true,
         )?;
         self.new_token_info(self.create_identifier_type_or_keyword(s))
@@ -898,7 +961,7 @@ impl<R: Read> Lexer<R> {
     /// Read a comment from the source code.
     fn read_comment(&mut self) -> LexResult {
         self.next_char(); // Eat the first '/'
-        let s = self.read_while(None, |_, c| c != '\n', true)?;
+        let s = self.read_while(None, |_, c| Ok(c != '\n'), true)?;
         self.new_token_info(TokenKind::Comment(s))
     }
 
