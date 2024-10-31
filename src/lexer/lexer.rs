@@ -3,7 +3,7 @@ use std::{
     collections::HashSet,
     fmt::Display,
     fs::File,
-    io::{BufReader, Cursor, Error, Read},
+    io::{BufReader, Cursor, Error, ErrorKind, Read},
     path::PathBuf,
     str::FromStr,
 };
@@ -78,7 +78,16 @@ where
     pub operators: HashSet<String>,
     pub types: HashSet<String>,
     peeked_tokens: Vec<LexResult>, // Queue of peeked tokens (FIFO)
+    /// The buffer size of the lexer. \
+    /// This is the size of the buffer used to read from the source code.
     buffer_size: usize,
+    /// If true, the lexer will try to read from the source code after reaching the end of the file.
+    /// This is useful for streams where even if EOF is reached, **more data might be available later**.
+    try_read_after_eof: bool,
+    eof: bool,
+    /// If true, the lexer will only read from the source code once.
+    read_only_once: bool,
+    has_read_once: bool,
 }
 
 impl<R: Read> Lexer<R> {
@@ -95,6 +104,10 @@ impl<R: Read> Lexer<R> {
             types: HashSet::new(),
             peeked_tokens: Vec::new(),
             buffer_size: 512,
+            try_read_after_eof: false,
+            eof: false,
+            read_only_once: false,
+            has_read_once: false,
         }
     }
 
@@ -112,11 +125,23 @@ impl<R: Read> Lexer<R> {
             types: HashSet::new(),
             peeked_tokens: Vec::new(),
             buffer_size: 512,
+            try_read_after_eof: true,
+            eof: false,
+            read_only_once: false,
+            has_read_once: false,
         }
     }
 
     pub fn set_buffer_size(&mut self, buffer_size: usize) {
         self.buffer_size = buffer_size;
+    }
+
+    pub fn set_try_read_after_eof(&mut self, try_read_after_eof: bool) {
+        self.try_read_after_eof = try_read_after_eof;
+    }
+
+    pub fn set_read_only_once(&mut self, read_only_once: bool) {
+        self.read_only_once = read_only_once;
     }
 
     pub fn get_reader(&mut self) -> &mut R {
@@ -131,12 +156,23 @@ impl<R: Read> Lexer<R> {
         self.index = index;
     }
 
-    pub fn reset(&mut self, reader: R) {
+    /// Reset the lexer to its initial state with a new reader.
+    /// In contrast to `reset`, this function will **also reset the reader**.
+    pub fn reset_with_reader(&mut self, reader: R) {
         self.reader = reader;
+        self.reset();
+    }
+
+    /// Reset the lexer to its initial state.
+    /// This will clear the content, index, line info, peeked tokens, and EOF flag.
+    /// This will **not reset the reader**.
+    pub fn reset(&mut self) {
         self.content.clear();
         self.index = 0;
         self.line_info = LineInfoSpan::new();
         self.peeked_tokens.clear();
+        self.eof = false;
+        self.has_read_once = false;
     }
 
     fn new_token_info(&self, token: TokenKind) -> LexResult {
@@ -152,18 +188,40 @@ impl<R: Read> Lexer<R> {
         self.line_info.start = self.line_info.end.clone();
     }
 
+    /// This is the main function that reads from the source code.
     pub fn try_read_chunk(&mut self) -> Option<()> {
+        // If EOF is reached and the lexer is not allowed to read after EOF, return None
+        if self.eof && !self.try_read_after_eof {
+            return None;
+        }
+        // Is the lexer allowed is only allowed to read once?
+        if self.read_only_once && self.has_read_once {
+            return None;
+        }
+        self.has_read_once = true;
+        // Create a buffer to read from the source code
         let mut buffer = vec![0; self.buffer_size];
         match self.reader.read(&mut buffer) {
             Ok(n) => {
                 if n == 0 {
+                    self.eof = true;
                     None
                 } else {
                     self.content.extend_from_slice(&buffer[..n]);
+                    self.eof = false; // Reset EOF flag if new data is available
                     Some(()) // Success
                 }
             }
-            Err(_) => None,
+            Err(e) => {
+                match e.kind() {
+                    ErrorKind::WouldBlock | ErrorKind::Interrupted => Some(()), // Success
+                    _ => {
+                        eprintln!("Error reading from the source: {}", e);
+                        self.eof = true;
+                        None
+                    }
+                }
+            }
         }
     }
 
