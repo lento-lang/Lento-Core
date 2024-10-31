@@ -670,6 +670,10 @@ pub fn from_stdin() -> Parser<StdinReader> {
     parser_with_stdlib(lexer::from_stdin())
 }
 
+pub fn from_stream<R: Read>(reader: R, name: &str) -> Parser<R> {
+    parser_with_stdlib(lexer::from_stream(reader, name))
+}
+
 //--------------------------------------------------------------------------------------//
 //                           Direct Parsing Helper Functions                            //
 //--------------------------------------------------------------------------------------//
