@@ -10,7 +10,7 @@ use crate::{
     lexer::{
         lexer::{self, InputSource, LexResult},
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
-        token::{TokenInfo, TokenKind},
+        token::{LineInfoSpan, TokenInfo, TokenKind},
     },
     stdlib::init::stdlib,
     type_checker::types::{CheckedType, Type},
@@ -212,14 +212,19 @@ impl<R: Read> Parser<R> {
         self.parse_top_expr()
     }
 
-    fn parse_literal(&mut self, token: &TokenKind) -> Option<Value> {
-        Some(match token {
+    fn parse_literal(&mut self, token: &TokenKind, info: LineInfoSpan) -> ParseResult {
+        Ok(Ast::Literal(match token {
             TokenKind::Number(n) => Value::Number(n.clone()),
             TokenKind::String(s) => Value::String(s.clone()),
             TokenKind::Char(c) => Value::Char(*c),
             TokenKind::Boolean(b) => Value::Boolean(*b),
-            _ => return None,
-        })
+            _ => {
+                return Err(ParseError {
+                    message: format!("Expected literal, but found {:?}", token),
+                    span: (info.start.index, info.end.index),
+                })
+            }
+        }))
     }
 
     fn parse_call(&mut self, id: String) -> ParseResult {
@@ -384,15 +389,7 @@ impl<R: Read> Parser<R> {
         match self.lexer.expect_next_token_not(pred::ignored) {
             Ok(t) => {
                 Ok(match t.token {
-                    lit if lit.is_literal() => match self.parse_literal(&lit) {
-                        Some(value) => Ast::Literal(value),
-                        None => {
-                            return Err(ParseError {
-                                message: format!("Failed to parse literal: {:?}", lit),
-                                span: (t.info.start.index, t.info.end.index),
-                            })
-                        }
-                    },
+                    lit if lit.is_literal() => self.parse_literal(&lit, t.info)?,
                     TokenKind::Identifier(id) => {
                         // Check if function call
                         if let Ok(t) = self.lexer.peek_token(0) {
