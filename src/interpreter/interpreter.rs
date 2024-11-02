@@ -19,17 +19,11 @@ pub type InterpretResult = Result<Value, RuntimeError>;
 fn eval_function_variation_invocation(
     name: Option<&str>,
     variation: &FunctionVariation,
-    arg_asts: &[&Ast],
+    args: &[Value],
     env: &mut Environment,
 ) -> InterpretResult {
     // Bind the arguments to the parameters of the function variation
     let variation_params = variation.get_params();
-
-    // Evaluate the arguments
-    let mut arg_vals: Vec<Value> = vec![];
-    for a in arg_asts {
-        arg_vals.push(interpret_ast(a, env)?);
-    }
 
     // Evaluate the function body or invoke the native handler
     match variation {
@@ -40,15 +34,15 @@ fn eval_function_variation_invocation(
             match variation_params {
                 FunctionParameterType::Singles(params) => {
                     for (i, (name, _)) in params.iter().enumerate() {
-                        new_env.add_value(Str::String(name.to_string()), arg_vals[i].clone())?;
+                        new_env.add_value(Str::String(name.to_string()), args[i].clone())?;
                     }
                 }
                 FunctionParameterType::Variadic(params, (var_name, var_type)) => {
                     for (i, (name, _)) in params.iter().enumerate() {
-                        new_env.add_value(Str::String(name.to_string()), arg_vals[i].clone())?;
+                        new_env.add_value(Str::String(name.to_string()), args[i].clone())?;
                     }
                     // Collect rest of the arguments into a list and bind it to the variadic parameter
-                    let rest = arg_vals[params.len()..].to_vec();
+                    let rest = args[params.len()..].to_vec();
                     new_env.add_value(
                         Str::String(var_name.to_string()),
                         Value::List(rest, Type::List(Box::new(var_type.clone()))),
@@ -60,13 +54,15 @@ fn eval_function_variation_invocation(
         FunctionVariation::Native { handler, .. } => {
             // Setup NativeFunctionParameters and invoke the handler
             let args_native: NativeFunctionParameters = match variation_params {
-                FunctionParameterType::Singles(_) => NativeFunctionParameters::Singles(arg_vals),
+                FunctionParameterType::Singles(_) => {
+                    NativeFunctionParameters::Singles(args.to_vec())
+                }
                 FunctionParameterType::Variadic(params, _) => {
                     // Create a new vec to store the same number of arguments as the params length
                     // Then place the rest of the arguments into the variadic parameter
                     // Assume that the type checker has already checked that the variadic parameter is a list
-                    let singles = arg_vals[0..params.len()].to_vec();
-                    let variadic = arg_vals[params.len()..].to_vec();
+                    let singles = args[0..params.len()].to_vec();
+                    let variadic = args[params.len()..].to_vec();
                     NativeFunctionParameters::Variadic(singles, variadic)
                 }
             };
@@ -75,7 +71,12 @@ fn eval_function_variation_invocation(
     }
 }
 
-fn eval_function_call(name: &str, arg_asts: &[&Ast], env: &mut Environment) -> InterpretResult {
+// Evaluate the arguments
+fn eval_arguments(args: &[Ast], env: &mut Environment) -> Result<Vec<Value>, RuntimeError> {
+    args.iter().map(|a| interpret_ast(a, env)).collect()
+}
+
+fn eval_function_call(name: &str, args: &[Value], env: &mut Environment) -> InterpretResult {
     // Look for the name in the environment
     match env.get_value(name) {
         Some(Value::Function(f)) => {
@@ -86,7 +87,7 @@ fn eval_function_call(name: &str, arg_asts: &[&Ast], env: &mut Environment) -> I
 
             let mut found: Option<&FunctionVariation> = None;
             for variation in f.get_variations() {
-                if !variation.get_params().match_args(arg_asts) {
+                if !variation.get_params().match_args(args) {
                     continue;
                 }
                 found = Some(variation);
@@ -94,7 +95,7 @@ fn eval_function_call(name: &str, arg_asts: &[&Ast], env: &mut Environment) -> I
             }
             // Bind the arguments to the parameters
             if let Some(found) = found {
-                eval_function_variation_invocation(Some(name), found, arg_asts, env)
+                eval_function_variation_invocation(Some(name), found, args, env)
             } else {
                 Err(runtime_error(format!(
                     "No matching function variation for {}",
@@ -130,14 +131,11 @@ fn eval_tuple(elems: &[Ast], env: &mut Environment) -> InterpretResult {
 pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
     Ok(match ast {
         Ast::FunctionCall(name, args, _) => {
-            eval_function_call(name, &args.iter().collect::<Vec<_>>(), env)?
+            eval_function_call(name, &eval_arguments(args, env)?, env)?
         }
-        Ast::VariationCall(variation, args, _) => eval_function_variation_invocation(
-            None,
-            variation,
-            &args.iter().collect::<Vec<_>>(),
-            env,
-        )?,
+        Ast::VariationCall(variation, args, _) => {
+            eval_function_variation_invocation(None, variation, &eval_arguments(args, env)?, env)?
+        }
         Ast::Tuple(v, _) => {
             if v.is_empty() {
                 Value::Unit
@@ -151,6 +149,8 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
             None => return Err(runtime_error(format!("Unknown identifier '{}'", id))),
         },
         Ast::Binary(lhs, op, rhs, _) => {
+            let lhs = interpret_ast(lhs, env)?;
+            let rhs = interpret_ast(rhs, env)?;
             eval_function_variation_invocation(Some(&op.name), &op.handler, &[lhs, rhs], env)?
         }
         Ast::Assignment(lhs, rhs, _) => {
