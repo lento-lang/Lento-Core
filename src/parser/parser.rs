@@ -381,101 +381,111 @@ impl<R: Read> Parser<R> {
     }
 
     fn parse_primary(&mut self) -> ParseResult {
-        let nt = self.lexer.expect_next_token_not(pred::ignored);
-        if let Ok(t) = nt {
-            if t.token.is_literal() {
-                match self.parse_literal(&t.token) {
-                    Some(value) => Ok(Ast::Literal(value)),
-                    None => Err(ParseError {
-                        message: format!("Failed to parse literal: {:?}", t.token),
-                        span: (t.info.start.index, t.info.end.index),
-                    }),
-                }
-            } else if let TokenKind::Identifier(id) = t.token {
-                // Check if function call
-                if let Ok(t) = self.lexer.peek_token(0) {
-                    if t.token == TokenKind::LeftParen {
-                        return self.parse_call(id);
-                    }
-                }
-                Ok(Ast::Identifier(id, CheckedType::Unchecked))
-            } else if let TokenKind::TypeIdentifier(t) = t.token {
-                Ok(Ast::Type(Type::Literal(Str::String(t))))
-            } else if let TokenKind::Op(op) = t.token {
-                if let Some(op) = self.find_operator_pos(&op, OperatorPosition::Prefix) {
-                    let op = op.clone();
-                    let rhs = self.parse_primary()?;
-                    Ok(if let OperatorHandler::Static(_, handler) = op.handler {
-                        (handler)(StaticOperatorAst::Prefix(rhs))
-                    } else {
-                        Ast::Unary(
-                            RuntimeOperator::from(op.clone()),
-                            Box::new(rhs),
-                            CheckedType::Checked(op.signature().returns),
-                        )
-                    })
-                } else {
-                    return Err(ParseError {
-                        message: format!("Expected prefix operator, but found {:?}", op),
-                        span: (t.info.start.index, t.info.end.index),
-                    });
-                }
-            } else if t.token.is_grouping_start() {
-                match t.token {
-                    TokenKind::LeftParen => {
+        match self.lexer.expect_next_token_not(pred::ignored) {
+            Ok(t) => {
+                Ok(match t.token {
+                    lit if lit.is_literal() => match self.parse_literal(&lit) {
+                        Some(value) => Ast::Literal(value),
+                        None => {
+                            return Err(ParseError {
+                                message: format!("Failed to parse literal: {:?}", lit),
+                                span: (t.info.start.index, t.info.end.index),
+                            })
+                        }
+                    },
+                    TokenKind::Identifier(id) => {
+                        // Check if function call
                         if let Ok(t) = self.lexer.peek_token(0) {
-                            if t.token == TokenKind::RightParen {
-                                self.lexer.next_token().unwrap();
-                                return Ok(Ast::Tuple(vec![], CheckedType::Checked(Type::Unit)));
+                            if t.token == TokenKind::LeftParen {
+                                return self.parse_call(id);
                             }
                         }
-                        // Tuples are defined by a comma-separated list of expressions
-                        let expr = self.parse_top_expr()?;
-                        self.parse_expected(TokenKind::RightParen, ")")?;
-                        Ok(expr)
+                        Ast::Identifier(id, CheckedType::Unchecked)
                     }
-                    TokenKind::LeftBrace => {
-                        // Try to parse as record
-                        if let Some(res) = self.parse_record_fields() {
-                            Ok(Ast::Record(res?, CheckedType::Unchecked))
+                    TokenKind::TypeIdentifier(t) => Ast::Type(Type::Literal(Str::String(t))),
+                    TokenKind::Op(op) => {
+                        if let Some(op) = self.find_operator_pos(&op, OperatorPosition::Prefix) {
+                            let op = op.clone();
+                            let rhs = self.parse_primary()?;
+                            if let OperatorHandler::Static(_, handler) = op.handler {
+                                (handler)(StaticOperatorAst::Prefix(rhs))
+                            } else {
+                                Ast::Unary(
+                                    RuntimeOperator::from(op.clone()),
+                                    Box::new(rhs),
+                                    CheckedType::Checked(op.signature().returns),
+                                )
+                            }
                         } else {
-                            // Parse as block
-                            let mut exprs = Vec::new();
-                            while let Ok(t) = self.lexer.peek_token(0) {
-                                if t.token == TokenKind::RightBrace {
-                                    break;
+                            return Err(ParseError {
+                                message: format!("Expected prefix operator, but found {:?}", op),
+                                span: (t.info.start.index, t.info.end.index),
+                            });
+                        }
+                    }
+                    start if start.is_grouping_start() => {
+                        match start {
+                            TokenKind::LeftParen => {
+                                if let Ok(end) = self.lexer.peek_token(0) {
+                                    if end.token == TokenKind::RightParen {
+                                        self.lexer.next_token().unwrap();
+                                        return Ok(Ast::Tuple(
+                                            vec![],
+                                            CheckedType::Checked(Type::Unit),
+                                        ));
+                                    }
                                 }
-                                exprs.push(self.parse_top_expr()?);
+                                // Tuples are defined by a comma-separated list of expressions
+                                let expr = self.parse_top_expr()?;
+                                self.parse_expected(TokenKind::RightParen, ")")?;
+                                expr
                             }
-                            self.parse_expected(TokenKind::RightBrace, "}")?;
-                            let return_type = exprs.last().unwrap().get_checked_type();
-                            Ok(Ast::Block(exprs, return_type))
+                            TokenKind::LeftBrace => {
+                                // Try to parse as record
+                                if let Some(res) = self.parse_record_fields() {
+                                    Ast::Record(res?, CheckedType::Unchecked)
+                                } else {
+                                    // Parse as block
+                                    let mut exprs = Vec::new();
+                                    while let Ok(end) = self.lexer.peek_token(0) {
+                                        if end.token == TokenKind::RightBrace {
+                                            break;
+                                        }
+                                        exprs.push(self.parse_top_expr()?);
+                                    }
+                                    self.parse_expected(TokenKind::RightBrace, "}")?;
+                                    let return_type = exprs.last().unwrap().get_checked_type();
+                                    Ast::Block(exprs, return_type)
+                                }
+                            }
+                            TokenKind::LeftBracket => {
+                                let body = self.parse_top_expr()?;
+                                self.parse_expected(TokenKind::RightBracket, "]")?;
+                                match body {
+                                    Ast::Tuple(elems, _) => {
+                                        Ast::List(elems, CheckedType::Unchecked)
+                                    }
+                                    single => Ast::List(vec![single], CheckedType::Unchecked),
+                                }
+                            }
+                            _ => unreachable!(),
                         }
                     }
-                    TokenKind::LeftBracket => {
-                        let body = self.parse_top_expr()?;
-                        self.parse_expected(TokenKind::RightBracket, "]")?;
-                        match body {
-                            Ast::Tuple(elems, _) => Ok(Ast::List(elems, CheckedType::Unchecked)),
-                            single => Ok(Ast::List(vec![single], CheckedType::Unchecked)),
-                        }
+                    _ => {
+                        return Err(ParseError {
+                            message: format!(
+                                "Expected primary expression, but found {:?}",
+                                t.token
+                            ),
+                            span: (t.info.start.index, t.info.end.index),
+                        })
                     }
-                    _ => unreachable!(),
-                }
-            } else {
-                Err(ParseError {
-                    message: format!("Expected primary expression, but found {:?}", t.token),
-                    span: (t.info.start.index, t.info.end.index),
                 })
             }
-        } else {
-            Err(ParseError {
-                message: format!(
-                    "Expected primary expression, but failed due to: {:?}",
-                    nt.unwrap_err().message
-                ),
+            Err(err) => Err(ParseError {
+                message: format!("Expected primary expression, but failed due to: {:?}", err),
                 span: (self.lexer.current_index(), self.lexer.current_index()),
-            })
+            }),
         }
     }
 
