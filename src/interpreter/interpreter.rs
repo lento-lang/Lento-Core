@@ -1,6 +1,6 @@
 use crate::{
     parser::ast::{Ast, Module},
-    type_checker::types::{FunctionParameterType, GetType, Type},
+    type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
     util::str::Str,
 };
 
@@ -129,6 +129,12 @@ fn eval_tuple(elems: &[Ast], env: &mut Environment) -> InterpretResult {
 /// ## Note
 /// ! All nodes in the AST are assumed to be type-checked before being interpreted!
 pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
+    // Assert that the type is checked!
+    debug_assert!(
+        matches!(ast.get_checked_type(), CheckedType::Checked(_)),
+        "Type is not checked! {:?}",
+        ast
+    );
     Ok(match ast {
         Ast::FunctionCall(name, args, _) => {
             eval_function_call(name, &eval_arguments(args, env)?, env)?
