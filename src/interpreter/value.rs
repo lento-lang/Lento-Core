@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display};
 
 use crate::{
     parser::ast::Ast,
@@ -49,21 +49,6 @@ pub enum FunctionVariation {
         ret: Type,
         signature: Type,
     },
-}
-
-/// Compares two `FunctionVariation`s by their FunctionParameterType.
-/// Used as compare function in the sort_by function.
-/// This function will sort single functions before variadic functions.
-pub fn compare_function_variations(a: &FunctionVariation, b: &FunctionVariation) -> Ordering {
-    match (a.get_params(), b.get_params()) {
-        (FunctionParameterType::Singles(_), FunctionParameterType::Variadic(_, _)) => {
-            Ordering::Less
-        }
-        (FunctionParameterType::Variadic(_, _), FunctionParameterType::Singles(_)) => {
-            Ordering::Greater
-        }
-        _ => Ordering::Equal,
-    }
 }
 
 impl FunctionVariation {
@@ -125,14 +110,60 @@ impl Display for FunctionVariation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Function {
-    pub name: String,
-    pub variations: Vec<FunctionVariation>, // Function types are inferred from variations
-                                            // TODO: Add an environment for the function
+    name: String,
+    singles: Vec<FunctionVariation>,
+    variadics: Vec<FunctionVariation>,
+    // TODO: Add an environment for each function variation
+    signature: Type,
 }
 
 impl Function {
     pub fn new(name: String, variations: Vec<FunctionVariation>) -> Self {
-        Self { name, variations }
+        let signature = Function::signature_from(&variations);
+        let (singles, variadics) = Self::split_variations(variations);
+        Self {
+            signature,
+            name,
+            singles,
+            variadics,
+        }
+    }
+
+    fn split_variations(
+        variations: Vec<FunctionVariation>,
+    ) -> (Vec<FunctionVariation>, Vec<FunctionVariation>) {
+        let mut singles = vec![];
+        let mut variadics = vec![];
+        for v in variations {
+            match v.get_params() {
+                FunctionParameterType::Singles(_) => singles.push(v),
+                FunctionParameterType::Variadic(_, _) => variadics.push(v),
+            }
+        }
+        (singles, variadics)
+    }
+
+    /// A sum type of all the function variation signatures
+    pub fn signature_from(variations: &[FunctionVariation]) -> Type {
+        let mut variations = variations
+            .iter()
+            .map(|v| v.get_type().clone())
+            .collect::<Vec<Type>>();
+        variations.dedup();
+        Type::Sum(variations)
+    }
+
+    /// Get the function variations with **singles first** and **then variadics**.
+    pub fn get_variations(&self) -> Vec<&FunctionVariation> {
+        let mut variations = self.singles.iter().collect::<Vec<&FunctionVariation>>();
+        variations.extend(self.variadics.iter());
+        variations
+    }
+}
+
+impl GetType for Function {
+    fn get_type(&self) -> &Type {
+        &self.signature
     }
 }
 
@@ -165,7 +196,7 @@ impl GetType for Value {
             Value::Tuple(_, t) => t,
             Value::List(_, t) => t,
             Value::Record(_, t) => t,
-            Value::Function(_) => panic!("Cannot get type of functions"), // Because functions can have multiple types
+            Value::Function(f) => f.get_type(),
             Value::Type(_) => &std_primitive_types::TOP,
         }
     }
@@ -211,7 +242,7 @@ impl Display for Value {
             }
             Value::Function(fun) => {
                 writeln!(f, "function[{}] {{", fun.name)?;
-                for v in fun.variations.iter() {
+                for v in fun.singles.iter() {
                     writeln!(f, "\t{}", v)?;
                 }
                 write!(f, "}}")
@@ -267,7 +298,7 @@ impl Value {
             }
             Value::Function(fun) => {
                 let mut result = format!("function[{}] {{\n", fun.name).green().to_string();
-                for v in fun.variations.iter() {
+                for v in fun.singles.iter() {
                     result.push_str(&format!("\t{}\n", v));
                 }
                 result.push_str(&"}".green().to_string());

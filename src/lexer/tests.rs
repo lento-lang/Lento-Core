@@ -3,6 +3,7 @@ mod tests {
     use std::io::{Read, Seek};
 
     use crate::{
+        interpreter::number::{FloatingPoint, Number, UnsignedInteger},
         lexer::{
             lexer::{from_str, from_string, Lexer},
             token::TokenKind,
@@ -34,7 +35,10 @@ mod tests {
         stdlib().init_lexer(&mut lexer);
         assert_next_token_eq(&mut lexer, TokenKind::Identifier("x".to_string()));
         assert_next_token_eq(&mut lexer, TokenKind::Op("=".to_string()));
-        assert_next_token_eq(&mut lexer, TokenKind::Integer("1".to_string()));
+        assert_next_token_eq(
+            &mut lexer,
+            TokenKind::Number(Number::UnsignedInteger(UnsignedInteger::UInt1(1))),
+        );
         assert_next_token_eq(&mut lexer, TokenKind::SemiColon);
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
@@ -99,14 +103,20 @@ mod tests {
     #[test]
     fn float() {
         let mut lexer = from_str("123.456");
-        assert_next_token_eq(&mut lexer, TokenKind::Number("123.456".to_string()));
+        assert_next_token_eq(
+            &mut lexer,
+            TokenKind::Number(Number::FloatingPoint(FloatingPoint::Float32(123.456))),
+        );
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
 
     #[test]
     fn integer() {
         let mut lexer = from_str("123");
-        assert_next_token_eq(&mut lexer, TokenKind::Integer("123".to_string()));
+        assert_next_token_eq(
+            &mut lexer,
+            TokenKind::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(123))),
+        );
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
 
