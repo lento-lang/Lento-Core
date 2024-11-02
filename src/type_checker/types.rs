@@ -83,6 +83,12 @@ impl Display for CheckedType {
     }
 }
 
+/// TODO: Reimplement function parameter types
+/// TODO: So that it allows multiple variadic parameters mixed with single parameters
+/// TODO: while they do not have ambiguities, conflicts, or overlaps.
+/// TODO: Eg. `(a: int, b: int, ...c: int, d: bool, ...e: bool, f: string)`
+/// TODO: BUT NOT: `(a: int, b: int, ...c: int, d: int, ...e: int, f: string)`
+/// TODO: because `c`, `d`, and `e` are ambiguous.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FunctionParameterType {
     Singles(Vec<NamedType>),
@@ -172,18 +178,18 @@ impl Display for FunctionParameterType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FunctionType {
+pub struct FunctionVariationType {
     params: FunctionParameterType,
     ret: Type,
 }
 
-impl FunctionType {
+impl FunctionVariationType {
     pub fn new(params: FunctionParameterType, ret: Type) -> Self {
-        FunctionType { params, ret }
+        FunctionVariationType { params, ret }
     }
 }
 
-impl TypeTrait for FunctionType {
+impl TypeTrait for FunctionVariationType {
     fn subtype(&self, other: &Self) -> bool {
         match (self.params.is_variadic(), other.params.is_variadic()) {
             (true, true) => {
@@ -213,8 +219,18 @@ impl TypeTrait for FunctionType {
     }
 
     fn simplify(self) -> Self {
-        FunctionType {
-            params: self.params,
+        FunctionVariationType {
+            params: match self.params {
+                FunctionParameterType::Singles(types) => FunctionParameterType::Singles(
+                    types.into_iter().map(|(n, t)| (n, t.simplify())).collect(),
+                ),
+                FunctionParameterType::Variadic(types, variadic) => {
+                    FunctionParameterType::Variadic(
+                        types.into_iter().map(|(n, t)| (n, t.simplify())).collect(),
+                        (variadic.0, variadic.1.simplify()),
+                    )
+                }
+            },
             ret: self.ret.simplify(),
         }
     }
@@ -241,7 +257,7 @@ pub enum Type {
     /// A function type.
     /// The first argument is the list of parameter types.
     /// The second argument is the return type.
-    Function(Box<FunctionType>),
+    Function(Vec<FunctionVariationType>),
 
     /// A tuple type.
     /// The first argument is the list of element types.
@@ -305,7 +321,9 @@ impl TypeTrait for Type {
                     && params1.len() == params2.len()
                     && params1.iter().zip(params2).all(|(p1, p2)| p1.subtype(p2))
             }
-            (Type::Function(ty1), Type::Function(ty2)) => ty1.subtype(ty2),
+            (Type::Function(ty1), Type::Function(ty2)) => {
+                ty1.len() == ty2.len() && ty1.iter().zip(ty2).all(|(t1, t2)| t1.subtype(t2))
+            }
             (Type::Tuple(types1), Type::Tuple(types2)) => {
                 types1.len() == types2.len()
                     && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
@@ -352,7 +370,11 @@ impl TypeTrait for Type {
                 params.into_iter().map(Type::simplify).collect(),
                 Box::new(body.simplify()),
             ),
-            Type::Function(ty) => Type::Function(Box::new(ty.simplify())),
+            Type::Function(ty) => Type::Function(
+                ty.into_iter()
+                    .map(FunctionVariationType::simplify)
+                    .collect(),
+            ),
             Type::Tuple(types) => Type::Tuple(types.into_iter().map(Type::simplify).collect()),
             Type::List(t) => Type::List(Box::new(t.simplify())),
             Type::Record(fields) => {
@@ -396,28 +418,41 @@ impl Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Type => write!(f, "type"),
             Type::Literal(t) => write!(f, "{}", t),
-            Type::Function(t) => {
-                write!(f, "(")?;
-                let mut print_params = |p: &Vec<NamedType>| -> std::fmt::Result {
-                    for (i, (_, t)) in p.iter().enumerate() {
-                        if i > 0 {
-                            write!(f, ", ")?;
+            Type::Function(variations) => {
+                let print_params =
+                    |f: &mut std::fmt::Formatter<'_>, p: &Vec<NamedType>| -> std::fmt::Result {
+                        if p.len() != 1 {
+                            write!(f, "(")?;
                         }
-                        write!(f, "{}", t)?;
-                    }
-                    Ok(())
-                };
-                match t.params {
-                    FunctionParameterType::Singles(s) => print_params(&s)?,
-                    FunctionParameterType::Variadic(s, v) => {
-                        print_params(&s)?;
-                        if !s.is_empty() {
-                            write!(f, ", ")?;
+                        for (i, (_, t)) in p.iter().enumerate() {
+                            if i > 0 {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "{}", t)?;
                         }
-                        write!(f, "...{}", v.1)?;
+                        if p.len() != 1 {
+                            write!(f, ")")
+                        } else {
+                            Ok(())
+                        }
+                    };
+                for (i, variation) in variations.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, " | ")?;
                     }
-                };
-                write!(f, ") -> {}", t.ret)
+                    match &variation.params {
+                        FunctionParameterType::Singles(s) => print_params(f, s)?,
+                        FunctionParameterType::Variadic(s, v) => {
+                            print_params(f, s)?;
+                            if !s.is_empty() {
+                                write!(f, ", ")?;
+                            }
+                            write!(f, "...{}", v.1)?;
+                        }
+                    };
+                    write!(f, " -> {}", variation.ret)?;
+                }
+                Ok(())
             }
             Type::Tuple(types) => {
                 write!(f, "(")?;

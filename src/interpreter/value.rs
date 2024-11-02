@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Display};
 use crate::{
     parser::ast::Ast,
     type_checker::types::{
-        std_primitive_types, FunctionParameterType, FunctionType, GetType, Type,
+        std_primitive_types, FunctionParameterType, FunctionVariationType, GetType, Type,
     },
 };
 
@@ -40,25 +40,18 @@ pub enum FunctionVariation {
         params: FunctionParameterType,
         body: Ast,
         ret: Type,
-        signature: Type,
     },
     /// Built-in functions
     Native {
         handler: fn(NativeFunctionParameters) -> InterpretResult,
         params: FunctionParameterType,
         ret: Type,
-        signature: Type,
     },
 }
 
 impl FunctionVariation {
     pub fn new_user(params: FunctionParameterType, body: Ast, ret: Type) -> Self {
-        Self::User {
-            signature: Type::Function(Box::new(FunctionType::new(params.clone(), ret.clone()))),
-            params,
-            body,
-            ret,
-        }
+        Self::User { params, body, ret }
     }
 
     pub fn new_native(
@@ -67,7 +60,6 @@ impl FunctionVariation {
         ret: Type,
     ) -> Self {
         Self::Native {
-            signature: Type::Function(Box::new(FunctionType::new(params.clone(), ret.clone()))),
             handler,
             params,
             ret,
@@ -87,13 +79,15 @@ impl FunctionVariation {
             FunctionVariation::Native { ret, .. } => ret,
         }
     }
-}
 
-impl GetType for FunctionVariation {
-    fn get_type(&self) -> &Type {
+    pub fn get_type(&self) -> FunctionVariationType {
         match self {
-            FunctionVariation::User { signature, .. } => signature,
-            FunctionVariation::Native { signature, .. } => signature,
+            FunctionVariation::User { params, ret, .. } => {
+                FunctionVariationType::new(params.clone(), ret.clone())
+            }
+            FunctionVariation::Native { params, ret, .. } => {
+                FunctionVariationType::new(params.clone(), ret.clone())
+            }
         }
     }
 }
@@ -145,12 +139,12 @@ impl Function {
 
     /// A sum type of all the function variation signatures
     pub fn signature_from(variations: &[FunctionVariation]) -> Type {
-        let mut variations = variations
-            .iter()
-            .map(|v| v.get_type().clone())
-            .collect::<Vec<Type>>();
-        variations.dedup();
-        Type::Sum(variations)
+        Type::Function(
+            variations
+                .iter()
+                .map(|v| v.get_type().clone())
+                .collect::<Vec<_>>(),
+        )
     }
 
     /// Get the function variations with **singles first** and **then variadics**.
