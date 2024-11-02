@@ -425,6 +425,7 @@ impl<R: Read> Parser<R> {
                     }
                     start if start.is_grouping_start() => {
                         match start {
+                            // Tuples, Units and Parentheses
                             TokenKind::LeftParen => {
                                 if let Ok(end) = self.lexer.peek_token(0) {
                                     if end.token == TokenKind::RightParen {
@@ -440,6 +441,7 @@ impl<R: Read> Parser<R> {
                                 self.parse_expected(TokenKind::RightParen, ")")?;
                                 expr
                             }
+                            // Records and Blocks
                             TokenKind::LeftBrace => {
                                 // Try to parse as record
                                 if let Some(res) = self.parse_record_fields() {
@@ -458,10 +460,12 @@ impl<R: Read> Parser<R> {
                                     Ast::Block(exprs, return_type)
                                 }
                             }
+                            // Lists
                             TokenKind::LeftBracket => {
                                 let body = self.parse_top_expr()?;
                                 self.parse_expected(TokenKind::RightBracket, "]")?;
                                 match body {
+                                    // TODO: Add custom parsing for list elements instead of unwrapping a tuple
                                     Ast::Tuple(elems, _) => {
                                         Ast::List(elems, CheckedType::Unchecked)
                                     }
