@@ -253,7 +253,59 @@ impl Display for Value {
 }
 
 impl Value {
-    pub fn print_color(&self) -> String {
+    pub fn pretty_print(&self) -> String {
+        match self {
+            Value::Unit => "()".to_string(),
+            Value::Number(n) => n.to_string(),
+            Value::String(s) => format!("\"{}\"", s),
+            Value::Char(c) => format!("'{}'", c),
+            Value::Boolean(b) => b.to_string(),
+            Value::Tuple(t, _) => {
+                let mut result = "(".to_string();
+                for (i, v) in t.iter().enumerate() {
+                    result.push_str(&v.pretty_print());
+                    if i < t.len() - 1 {
+                        result.push_str(", ");
+                    }
+                }
+                result.push(')');
+                result
+            }
+            Value::List(l, _) => {
+                let mut result = "[".to_string();
+                for (i, v) in l.iter().enumerate() {
+                    result.push_str(&v.pretty_print());
+                    if i < l.len() - 1 {
+                        result.push_str(", ");
+                    }
+                }
+                result.push(']');
+                result
+            }
+            Value::Record(r, _) => {
+                let mut result = "{ ".to_string();
+                for (i, (k, v)) in r.iter().enumerate() {
+                    result.push_str(&format!("{}: {}", k, v.pretty_print()));
+                    if i < r.len() - 1 {
+                        result.push_str(", ");
+                    }
+                }
+                result.push_str(" }");
+                result
+            }
+            Value::Function(fun) => {
+                let mut result = format!("function[{}] {{\n", fun.name);
+                for v in fun.singles.iter() {
+                    result.push_str(&format!("\t{}\n", v));
+                }
+                result.push('}');
+                result
+            }
+            Value::Type(ty) => ty.to_string(),
+        }
+    }
+
+    pub fn pretty_print_color(&self) -> String {
         use colorful::Colorful;
 
         match self {
