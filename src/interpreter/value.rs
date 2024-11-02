@@ -258,50 +258,52 @@ impl Value {
 
         match self {
             Value::Unit => format!("{}", "()".light_gray()),
-            Value::Number(_) => format!("{}", format!("{}", self).yellow()),
-            Value::String(s) => format!("{}", s.clone().light_green()),
-            Value::Char(c) => format!("{}", c.to_string().light_green()),
+            Value::Number(_) => format!("{}", self).yellow().to_string(),
+            Value::String(s) => format!("\"{}\"", s).light_yellow().to_string(),
+            Value::Char(c) => format!("'{}'", c).light_green().to_string(),
             Value::Boolean(b) => format!("{}", b.to_string().magenta()),
             Value::Tuple(t, _) => {
-                let mut result = "(".green().to_string();
+                let mut result = "(".light_gray().to_string();
                 for (i, v) in t.iter().enumerate() {
-                    result.push_str(&v.print_color());
+                    result.push_str(&v.pretty_print_color());
                     if i < t.len() - 1 {
-                        result.push_str(&", ".green().to_string());
+                        result.push_str(&", ".light_gray().to_string());
                     }
                 }
-                result.push_str(&")".green().to_string());
+                result.push_str(&")".light_gray().to_string());
                 result
             }
             Value::List(l, _) => {
-                let mut result = "[".green().to_string();
+                let mut result = "[".light_gray().to_string();
                 for (i, v) in l.iter().enumerate() {
-                    result.push_str(&v.print_color());
+                    result.push_str(&v.pretty_print_color());
                     if i < l.len() - 1 {
-                        result.push_str(&", ".green().to_string());
+                        result.push_str(&", ".light_gray().to_string());
                     }
                 }
-                result.push_str(&"]".green().to_string());
+                result.push_str(&"]".light_gray().to_string());
                 result
             }
             Value::Record(r, _) => {
-                let mut result = "{ ".green().to_string();
+                let mut result = "{ ".light_gray().to_string();
                 for (i, (k, v)) in r.iter().enumerate() {
                     result.push_str(&format!("{}: ", k));
-                    result.push_str(&v.print_color());
+                    result.push_str(&v.pretty_print_color());
                     if i < r.len() - 1 {
-                        result.push_str(&", ".green().to_string());
+                        result.push_str(&", ".light_gray().to_string());
                     }
                 }
-                result.push_str(&" }".green().to_string());
+                result.push_str(&" }".light_gray().to_string());
                 result
             }
             Value::Function(fun) => {
-                let mut result = format!("function[{}] {{\n", fun.name).green().to_string();
+                let mut result = format!("function[{}] {{\n", fun.name)
+                    .light_gray()
+                    .to_string();
                 for v in fun.singles.iter() {
                     result.push_str(&format!("\t{}\n", v));
                 }
-                result.push_str(&"}".green().to_string());
+                result.push_str(&"}".light_gray().to_string());
                 result
             }
             Value::Type(ty) => format!("{}", ty).light_blue().to_string(),
