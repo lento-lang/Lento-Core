@@ -45,7 +45,7 @@ pub fn type_of() -> FunctionVariation {
             Ok(Value::Type(values[0].get_type().clone()))
         },
         FunctionParameterType::Singles(vec![("value".to_string(), TY_ANY)]),
-        std_primitive_types::STRING,
+        std_primitive_types::TYPE,
     )
 }
 
