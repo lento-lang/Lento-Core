@@ -167,7 +167,6 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
             rhs
         }
         Ast::Type(ty) => Value::Type(ty.clone()),
-        Ast::Error(_) => todo!("Implement Error AST node: {:?}", ast),
         Ast::List(_, _) => todo!("Implement List AST node: {:?}", ast),
         Ast::Record(_, _) => todo!("Implement Record AST node: {:?}", ast),
         Ast::Function(_, _, _, _) => todo!("Implement Function AST node: {:?}", ast),
