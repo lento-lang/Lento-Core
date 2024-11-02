@@ -173,7 +173,13 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
             rhs
         }
         Ast::Type(ty) => Value::Type(ty.clone()),
-        Ast::List(_, _) => todo!("Implement List AST node: {:?}", ast),
+        Ast::List(elems, ty) => {
+            let values = elems
+                .iter()
+                .map(|e| interpret_ast(e, env))
+                .collect::<Result<Vec<Value>, _>>()?;
+            Value::List(values, ty.unwrap_checked_ref().clone())
+        }
         Ast::Record(_, _) => todo!("Implement Record AST node: {:?}", ast),
         Ast::Function(_, _, _, _) => todo!("Implement Function AST node: {:?}", ast),
         Ast::Unary(_, _, _) => todo!("Implement Unary AST node: {:?}", ast),
