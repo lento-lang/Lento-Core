@@ -1,4 +1,4 @@
-use crate::{parser::ast::Ast, util::str::Str};
+use crate::{interpreter::value::Value, util::str::Str};
 use std::fmt::{Debug, Display};
 
 //--------------------------------------------------------------------------------------//
@@ -102,14 +102,14 @@ impl FunctionParameterType {
 
     /// Match the given arguments to the function parameters.
     /// Return true if the arguments suffice the parameter types.
-    pub fn match_args(&self, args: &[&Ast]) -> bool {
+    pub fn match_args(&self, args: &[Value]) -> bool {
         match self {
             FunctionParameterType::Singles(types) => {
                 if types.len() != args.len() {
                     return false;
                 }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !args[i].get_checked_type().unwrap_checked_ref().subtype(t) {
+                    if !args[i].get_type().subtype(t) {
                         return false;
                     }
                 }
@@ -120,12 +120,12 @@ impl FunctionParameterType {
                     return false;
                 }
                 for (i, (_, t)) in types.iter().enumerate() {
-                    if !t.subtype(args[i].get_checked_type().unwrap_checked_ref()) {
+                    if !t.subtype(args[i].get_type()) {
                         return false;
                     }
                 }
                 for arg in &args[types.len()..] {
-                    if !var_type.subtype(arg.get_checked_type().unwrap_checked_ref()) {
+                    if !var_type.subtype(arg.get_type()) {
                         return false;
                     }
                 }
