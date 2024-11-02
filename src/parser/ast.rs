@@ -8,7 +8,7 @@ use crate::{
     util::str::Str,
 };
 
-use super::{error::ParseError, op::RuntimeOperator};
+use super::op::RuntimeOperator;
 
 /// A key in a record can be a string, integer, float, or character.
 /// This is used to represent the key in the AST.
