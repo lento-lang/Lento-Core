@@ -21,7 +21,7 @@ use crate::lexer::lexer::Lexer;
 
 use super::{
     ast::{unit, Ast, Module, RecordKeyAst},
-    error::{OperatorError, ParseError, TypeError},
+    error::{ParseError, ParseOperatorError, ParseTypeError},
     op::{
         Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorPrecedence,
         RuntimeOperator, StaticOperatorAst,
@@ -93,16 +93,16 @@ impl<R: Read> Parser<R> {
 
     /// Define an operator in the parser.
     /// If the operator already exists with the same signature,
-    pub fn define_op(&mut self, op: Operator) -> Failable<OperatorError> {
+    pub fn define_op(&mut self, op: Operator) -> Failable<ParseOperatorError> {
         if let Some(existing) = self.get_op(&op.symbol) {
             if existing.iter().any(|e| e.signature() == op.signature()) {
-                return Err(OperatorError::SignatureForSymbolExists);
+                return Err(ParseOperatorError::SignatureForSymbolExists);
             }
             if existing.iter().any(|e| e.position == op.position) {
-                return Err(OperatorError::PositionForSymbolExists);
+                return Err(ParseOperatorError::PositionForSymbolExists);
             }
             if !op.overloadable && existing.iter().any(|e| !e.overloadable) {
-                return Err(OperatorError::SymbolNotOverloadable);
+                return Err(ParseOperatorError::SymbolNotOverloadable);
             }
         }
         self.lexer.operators.insert(op.symbol.clone());
@@ -130,22 +130,22 @@ impl<R: Read> Parser<R> {
         self.find_operator(symbol, |op| op.position == pos)
     }
 
-    pub fn define_literal_type(&mut self, ty: Type) -> Failable<TypeError> {
+    pub fn define_literal_type(&mut self, ty: Type) -> Failable<ParseTypeError> {
         if let Type::Literal(name) = ty.clone() {
             if self.types.contains_key(&name.to_string()) {
-                return Err(TypeError::TypeExists);
+                return Err(ParseTypeError::TypeExists);
             }
             self.types.insert(name.to_string(), ty);
             self.lexer.types.insert(name.to_string());
             Ok(())
         } else {
-            Err(TypeError::NonLiteralType)
+            Err(ParseTypeError::NonLiteralType)
         }
     }
 
-    pub fn define_alias_type(&mut self, name: String, ty: Type) -> Failable<TypeError> {
+    pub fn define_alias_type(&mut self, name: String, ty: Type) -> Failable<ParseTypeError> {
         if self.types.contains_key(&name) {
-            return Err(TypeError::TypeExists);
+            return Err(ParseTypeError::TypeExists);
         }
         self.types.insert(name.clone(), ty);
         self.lexer.types.insert(name);

@@ -21,7 +21,7 @@ impl Debug for ParseError {
 /// Errors for when an operator is inserted into the parser
 /// operator table.
 #[derive(Debug, PartialEq)]
-pub enum OperatorError {
+pub enum ParseOperatorError {
     SignatureForSymbolExists,
     SymbolNotOverloadable,
     PositionForSymbolExists,
@@ -30,7 +30,7 @@ pub enum OperatorError {
 /// Errors for when a type is inserted into the parser
 /// type table.
 #[derive(Debug, PartialEq)]
-pub enum TypeError {
+pub enum ParseTypeError {
     TypeExists,
     NonLiteralType,
 }
