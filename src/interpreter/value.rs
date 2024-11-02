@@ -197,7 +197,7 @@ impl GetType for Value {
             Value::List(_, t) => t,
             Value::Record(_, t) => t,
             Value::Function(f) => f.get_type(),
-            Value::Type(_) => &std_primitive_types::TOP,
+            Value::Type(_) => &std_primitive_types::TYPE,
         }
     }
 }

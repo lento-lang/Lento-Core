@@ -231,7 +231,7 @@ pub enum Type {
     Unit,
 
     /// The top type, supertype of all types and itself.
-    TopType,
+    Type,
 
     /// A literal type (name).
     /// Examples such as `int`, `float`, `string`, `char`, `bool`, `unit`, `any`.
@@ -384,7 +384,7 @@ impl TypeTrait for Type {
             ),
             Type::Any => self,
             Type::Unit => self,
-            Type::TopType => self,
+            Type::Type => self,
         }
     }
 }
@@ -394,7 +394,7 @@ impl Display for Type {
         match self.clone().simplify() {
             Type::Any => write!(f, "any"),
             Type::Unit => write!(f, "()"),
-            Type::TopType => write!(f, "type"),
+            Type::Type => write!(f, "type"),
             Type::Literal(t) => write!(f, "{}", t),
             Type::Function(t) => {
                 write!(f, "(")?;
@@ -491,7 +491,7 @@ pub mod std_primitive_types {
     pub const UNIT: Type = Type::Unit;
 
     // The top type.
-    pub const TOP: Type = Type::TopType;
+    pub const TYPE: Type = Type::Type;
 
     /// A string type. (supports unicode)
     pub const STRING: Type = Type::Literal(Str::Str("str"));
