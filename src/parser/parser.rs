@@ -462,6 +462,12 @@ impl<R: Read> Parser<R> {
                             }
                             // Lists
                             TokenKind::LeftBracket => {
+                                if let Ok(end) = self.lexer.peek_token(0) {
+                                    if end.token == TokenKind::RightBracket {
+                                        self.lexer.next_token().unwrap();
+                                        return Ok(Ast::List(vec![], CheckedType::Unchecked));
+                                    }
+                                }
                                 let body = self.parse_top_expr()?;
                                 self.parse_expected(TokenKind::RightBracket, "]")?;
                                 match body {
