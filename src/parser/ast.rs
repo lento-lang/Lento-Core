@@ -10,6 +10,15 @@ use crate::{
 
 use super::op::RuntimeOperator;
 
+/// A function definition is a named function with a list of parameters and a body expression
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionAst {
+    pub name: String,
+    pub params: FunctionParameterType,
+    pub body: Box<Ast>,
+    pub return_type: CheckedType,
+}
+
 /// A key in a record can be a string, integer, float, or character.
 /// This is used to represent the key in the AST.
 ///
@@ -63,11 +72,7 @@ pub enum Ast {
     /// 3. Type of the return value of the function
     VariationCall(Box<FunctionVariation>, Vec<Ast>, CheckedType),
     /// A function definition is a named function with a list of parameters and a body expression
-    /// 1. Name of the function
-    /// 2. List of parameters
-    /// 3. Body expression
-    /// 4. Type of the return value of the function
-    Function(String, FunctionParameterType, Box<Ast>, CheckedType),
+    Function(FunctionAst),
     /// A binary expression is an operation with two operands
     /// 1. Left operand
     /// 2. Operator
@@ -129,7 +134,9 @@ impl Ast {
                     .collect::<Vec<String>>()
                     .join(" ")
             ),
-            Ast::Function(name, params, body, _) => {
+            Ast::Function(FunctionAst {
+                name, params, body, ..
+            }) => {
                 format!("(fn {} {} {})", name, params, body.print_sexpr())
             }
             Ast::Binary(lhs, op, rhs, _) => format!(
@@ -164,7 +171,10 @@ impl Ast {
             Ast::Identifier(_, CheckedType::Checked(t)) => t.clone(),
             Ast::Type(_) => Type::Literal(Str::Str("Type")),
             Ast::FunctionCall(_, _, CheckedType::Checked(t)) => t.clone(),
-            Ast::Function(_, _, _, CheckedType::Checked(t)) => t.clone(),
+            Ast::Function(FunctionAst {
+                return_type: CheckedType::Checked(t),
+                ..
+            }) => t.clone(),
             Ast::Binary(_, _, _, CheckedType::Checked(t)) => t.clone(),
             Ast::Unary(_, _, CheckedType::Checked(t)) => t.clone(),
             Ast::Assignment(_, _, CheckedType::Checked(t)) => t.clone(),

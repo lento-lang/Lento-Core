@@ -181,7 +181,7 @@ pub fn interpret_ast(ast: &Ast, env: &mut Environment) -> InterpretResult {
             Value::List(values, ty.unwrap_checked_ref().clone())
         }
         Ast::Record(_, _) => todo!("Implement Record AST node: {:?}", ast),
-        Ast::Function(_, _, _, _) => todo!("Implement Function AST node: {:?}", ast),
+        Ast::Function(_) => todo!("Implement Function AST node: {:?}", ast),
         Ast::Unary(_, _, _) => todo!("Implement Unary AST node: {:?}", ast),
         Ast::Block(_, _) => todo!("Implement Block AST node: {:?}", ast),
     })
