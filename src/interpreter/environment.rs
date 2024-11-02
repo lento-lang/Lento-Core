@@ -103,27 +103,33 @@ impl<'a> Environment<'a> {
         let name = name.to_string();
         // Check if the variable already exists in the standard library
         if self.variables.contains_key(&name) {
-            panic!(
-                "Variable {} already exists in the current environment",
-                name
-            );
+            Err(RuntimeError {
+                message: format!(
+                    "Variable {} already exists in the current environment",
+                    name
+                ),
+            })
         } else {
             match value {
                 Value::Function(f) => {
                     if self.functions.contains_key(&name) {
-                        panic!(
-                            "Function {} already exists in the current environment",
-                            name
-                        );
+                        return Err(RuntimeError {
+                            message: format!(
+                                "Function {} already exists in the current environment",
+                                name
+                            ),
+                        });
                     }
                     self.functions.insert(name, f);
                 }
                 _ => {
                     if self.variables.contains_key(&name) {
-                        panic!(
-                            "Variable {} already exists in the current environment",
-                            name
-                        );
+                        return Err(RuntimeError {
+                            message: format!(
+                                "Variable {} already exists in the current environment",
+                                name
+                            ),
+                        });
                     }
                     self.variables.insert(name, value);
                 }
