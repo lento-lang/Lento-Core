@@ -123,28 +123,6 @@ impl<R: Read> Parser<R> {
         self.find_operator(symbol, |op| op.position == pos)
     }
 
-    // pub fn define_literal_type(&mut self, ty: Type) -> Failable<ParseTypeError> {
-    //     if let Type::Literal(name) = ty.clone() {
-    //         if self.types.contains_key(&name.to_string()) {
-    //             return Err(ParseTypeError::TypeExists);
-    //         }
-    //         self.types.insert(name.to_string(), ty);
-    //         self.lexer.types.insert(name.to_string());
-    //         Ok(())
-    //     } else {
-    //         Err(ParseTypeError::NonLiteralType)
-    //     }
-    // }
-
-    // pub fn define_alias_type(&mut self, name: String, ty: Type) -> Failable<ParseTypeError> {
-    //     if self.types.contains_key(&name) {
-    //         return Err(ParseTypeError::TypeExists);
-    //     }
-    //     self.types.insert(name.clone(), ty);
-    //     self.lexer.types.insert(name);
-    //     Ok(())
-    // }
-
     pub fn get_type(&self, name: &str) -> Option<&Type> {
         self.types.get(name)
     }
