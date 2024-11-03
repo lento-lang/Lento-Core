@@ -13,6 +13,10 @@ mod tests {
         },
     };
 
+    fn make_u1(n: u8) -> Value {
+        Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt1(n)))
+    }
+
     fn make_u8(n: u8) -> Value {
         Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(n)))
     }
@@ -23,7 +27,7 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[0] == Ast::Literal(make_u1(1)));
     }
 
     #[test]
@@ -32,7 +36,7 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 5);
-        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[0] == Ast::Literal(make_u1(1)));
         assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
         assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
         assert!(result.expressions[3] == Ast::Literal(make_u8(4)));
@@ -46,7 +50,7 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 3);
-        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[0] == Ast::Literal(make_u1(1)));
         assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
         assert!(result.expressions[2] == Ast::Literal(make_u8(3)));
     }
@@ -57,7 +61,7 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[0] == Ast::Literal(make_u1(1)));
     }
 
     #[test]
@@ -69,7 +73,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 1);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
         }
     }
 
@@ -82,7 +86,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 1);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
         }
     }
 
@@ -95,7 +99,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 2);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
             assert_eq!(elems[1], Ast::Literal(make_u8(2)));
         }
     }
@@ -109,7 +113,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 2);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
             assert_eq!(elems[1], Ast::Literal(make_u8(2)));
         }
     }
@@ -124,7 +128,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
             assert_eq!(elems[1], Ast::Literal(make_u8(2)));
             assert_eq!(elems[2], Ast::Literal(make_u8(3)));
         }
@@ -140,7 +144,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
             assert_eq!(elems[1], Ast::Literal(make_u8(2)));
             assert_eq!(elems[2], Ast::Literal(make_u8(3)));
         }
@@ -155,7 +159,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
             assert_eq!(elems[1], Ast::Literal(make_u8(2)));
             assert_eq!(elems[2], Ast::Literal(make_u8(3)));
         }
@@ -170,7 +174,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
             assert_eq!(elems[1], Ast::Literal(make_u8(2)));
             assert_eq!(elems[2], Ast::Literal(make_u8(3)));
         }
@@ -199,7 +203,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
             assert!(matches!(&elems[1], Ast::Binary(_, _, _)));
             assert_eq!(elems[2], Ast::Literal(make_u8(4)));
             if let Ast::Binary(lhs, op, rhs) = &elems[1] {
@@ -219,7 +223,7 @@ mod tests {
         assert!(matches!(result.expressions[0], Ast::List(_)));
         if let Ast::List(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u8(1)));
+            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
             assert_eq!(elems[1], Ast::Literal(make_u8(2)));
             assert_eq!(elems[2], Ast::Literal(make_u8(3)));
         }
@@ -337,7 +341,7 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[0] == Ast::Literal(make_u1(1)));
     }
 
     #[test]
@@ -353,7 +357,7 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 2);
-        assert!(result.expressions[0] == Ast::Literal(make_u8(1)));
+        assert!(result.expressions[0] == Ast::Literal(make_u1(1)));
         assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
     }
 
@@ -396,7 +400,7 @@ mod tests {
                 assert_eq!(key, "x");
             }
             assert!(matches!(fields[0].1, Ast::Literal(_)));
-            assert_eq!(fields[0].1, Ast::Literal(make_u8(1)));
+            assert_eq!(fields[0].1, Ast::Literal(make_u1(1)));
         }
     }
 
@@ -421,7 +425,7 @@ mod tests {
             }
             assert!(matches!(fields[0].1, Ast::Literal(_)));
             assert!(matches!(fields[1].1, Ast::Literal(_)));
-            assert_eq!(fields[0].1, Ast::Literal(make_u8(1)));
+            assert_eq!(fields[0].1, Ast::Literal(make_u1(1)));
             assert_eq!(fields[1].1, Ast::Literal(make_u8(2)));
         }
     }
@@ -449,7 +453,7 @@ mod tests {
                     assert_eq!(key, "y");
                 }
                 assert!(matches!(inner_fields[0].1, Ast::Literal(_)));
-                assert_eq!(inner_fields[0].1, Ast::Literal(make_u8(1)));
+                assert_eq!(inner_fields[0].1, Ast::Literal(make_u1(1)));
             }
         }
     }
