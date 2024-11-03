@@ -178,6 +178,13 @@ impl Function {
         variations.extend(self.variadics.iter());
         variations
     }
+
+    pub fn add_variation(&mut self, variation: FunctionVariation) {
+        match variation.get_params() {
+            FunctionParameterType::Singles(_) => self.singles.push(variation),
+            FunctionParameterType::Variadic(_, _) => self.variadics.push(variation),
+        }
+    }
 }
 
 impl GetType for Function {
