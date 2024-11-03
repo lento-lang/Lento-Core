@@ -12,7 +12,6 @@ use crate::{
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
         token::{LineInfoSpan, TokenInfo, TokenKind},
     },
-    stdlib::init::stdlib,
     type_checker::types::Type,
     util::failable::Failable,
 };
@@ -649,36 +648,28 @@ impl<R: Read> Parser<R> {
 //                               Parser Factory Functions                               //
 //--------------------------------------------------------------------------------------//
 
-fn parser_with_stdlib<R: Read>(lexer: Lexer<R>) -> Parser<R> {
-    let mut parser = Parser::new(lexer);
-    stdlib().init_parser(&mut parser);
-    parser
-}
-
 pub fn from_file(file: File, path: &Path) -> Parser<BufReader<File>> {
-    parser_with_stdlib(lexer::from_file(file, path.to_path_buf()))
+    Parser::new(lexer::from_file(file, path.to_path_buf()))
 }
 
 pub fn from_path(source_file: &Path) -> Result<Parser<BufReader<File>>, Error> {
-    Ok(parser_with_stdlib(lexer::from_path(
-        source_file.to_path_buf(),
-    )?))
+    Ok(Parser::new(lexer::from_path(source_file.to_path_buf())?))
 }
 
 pub fn from_string(source: String) -> Parser<Cursor<String>> {
-    parser_with_stdlib(lexer::from_string(source))
+    Parser::new(lexer::from_string(source))
 }
 
 pub fn from_str(source: &str) -> Parser<BytesReader<'_>> {
-    parser_with_stdlib(lexer::from_str(source))
+    Parser::new(lexer::from_str(source))
 }
 
 pub fn from_stdin() -> Parser<StdinReader> {
-    parser_with_stdlib(lexer::from_stdin())
+    Parser::new(lexer::from_stdin())
 }
 
 pub fn from_stream<R: Read>(reader: R, name: &str) -> Parser<R> {
-    parser_with_stdlib(lexer::from_stream(reader, name))
+    Parser::new(lexer::from_stream(reader, name))
 }
 
 //--------------------------------------------------------------------------------------//
