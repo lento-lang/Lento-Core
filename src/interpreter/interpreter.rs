@@ -103,9 +103,6 @@ fn eval_tuple(elems: &[CheckedAst], env: &mut Environment) -> InterpretResult {
 /// ! All nodes in the AST are assumed to be type-checked before being interpreted!
 pub fn interpret_ast(ast: &CheckedAst, env: &mut Environment) -> InterpretResult {
     Ok(match ast {
-        // CheckedAst::FunctionCall(name, args, _) => {
-        //     eval_function_call(name, &eval_arguments(args, env)?, env)?
-        // }
         CheckedAst::VariationCall(name, variation, args, _) => eval_function_variation_invocation(
             name.clone(),
             variation,
