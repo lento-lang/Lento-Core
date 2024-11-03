@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        interpreter::environment::Environment, parser, stdlib::init::stdlib, util::str::Str
+        interpreter::environment::Environment, parser, stdlib::init::stdlib, util::str::Str,
     };
 
     #[test]
@@ -39,14 +39,14 @@ mod tests {
     fn test_init_environment() {
         let mut env = Environment::new(Str::empty());
         stdlib().init_environment(&mut env);
-        assert!(env.get_value("pi").is_some());
-        assert!(env.get_value("tau").is_some());
-        assert!(env.get_value("e").is_some());
-        assert!(env.get_value("phi").is_some());
-        assert!(env.get_value("sqrt2").is_some());
-        assert!(env.get_value("add").is_some());
-        assert!(env.get_value("print").is_some());
-        assert!(env.get_value("exit").is_some());
+        assert!(env.lookup_variable("pi").is_some());
+        assert!(env.lookup_variable("tau").is_some());
+        assert!(env.lookup_variable("e").is_some());
+        assert!(env.lookup_variable("phi").is_some());
+        assert!(env.lookup_variable("sqrt2").is_some());
+        assert!(env.lookup_variable("add").is_some());
+        assert!(env.lookup_variable("print").is_some());
+        assert!(env.lookup_variable("exit").is_some());
         // Types
         assert!(env.get_type("any").is_some());
         assert!(env.get_type("unit").is_some());
