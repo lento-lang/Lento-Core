@@ -1,6 +1,6 @@
 <div align=center>
     <br>
-    <img src="../../assets/logo_white.png" height=100px/>
+    <img src="../../assets/logo_white.png" height=100px alt="Lento logo">
     <h1>Lento <code>Std</code></h1>
     <p>
 		<!-- portable to different platforms, interoperable languages, environments, etc. -->
@@ -11,8 +11,10 @@
 </div>
 
 ## Contents
+
 This is the standard base library of the Lento programming language written in Rust. \
 Including:
+
 - Error handling
 - I/O
 - File system
