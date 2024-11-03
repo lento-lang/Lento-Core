@@ -46,7 +46,6 @@ mod tests {
     #[test]
     fn number_many_semicolon() {
         let result = parse_str_all("1; 2; 3;");
-        dbg!(&result);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 3);
@@ -97,7 +96,6 @@ mod tests {
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
-        dbg!(&result.expressions[0]);
         assert!(matches!(result.expressions[0], Ast::Tuple(_)));
         if let Ast::Tuple(elems) = &result.expressions[0] {
             assert_eq!(elems.len(), 3);
@@ -329,7 +327,6 @@ mod tests {
     #[test]
     fn record_literal_two() {
         let result = parse_str_one("{ x: 1, y: 2 }");
-        dbg!(&result);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
