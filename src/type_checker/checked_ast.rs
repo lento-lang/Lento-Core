@@ -10,7 +10,6 @@ use super::types::GetType;
 /// A function definition is a named function with a list of parameters and a body expression
 #[derive(Debug, Clone, PartialEq)]
 pub struct CheckedFunctionAst {
-    pub name: String,
     pub params: FunctionParameterType,
     pub body: Box<CheckedAst>,
     pub return_type: Type,
@@ -60,7 +59,7 @@ pub enum CheckedAst {
     /// 3. Type of the return value of the function
     VariationCall(Option<Str>, Box<FunctionVariation>, Vec<CheckedAst>, Type),
     /// A function declaration is a named function with a list of parameters and a body expression
-    FunctionDecl(CheckedFunctionAst),
+    FunctionDecl(Option<String>, CheckedFunctionAst),
     /// A binary expression is an operation with two operands
     /// 1. Left operand
     /// 2. Operator
@@ -93,7 +92,7 @@ impl GetType for CheckedAst {
             CheckedAst::Identifier(_, ty) => ty,
             // CheckedAst::FunctionCall(_, _, ty) => ty,
             CheckedAst::VariationCall(_, _, _, ty) => ty,
-            CheckedAst::FunctionDecl(f) => f.get_type(),
+            CheckedAst::FunctionDecl(_, f) => f.get_type(),
             CheckedAst::Binary(_, _, _, ty) => ty,
             CheckedAst::Unary(_, _, ty) => ty,
             CheckedAst::Assignment(_, _, ty) => ty,
@@ -133,10 +132,12 @@ impl CheckedAst {
                     .collect::<Vec<String>>()
                     .join(" ")
             ),
-            CheckedAst::FunctionDecl(CheckedFunctionAst {
-                name, params, body, ..
-            }) => {
-                format!("(fn {} {} {})", name, params, body.print_sexpr())
+            CheckedAst::FunctionDecl(name, CheckedFunctionAst { params, body, .. }) => {
+                if let Some(name) = name {
+                    format!("({} {} {})", name, params, body.print_sexpr())
+                } else {
+                    format!("(anon {} {})", params, body.print_sexpr())
+                }
             }
             CheckedAst::Binary(lhs, op, rhs, _) => format!(
                 "({} {} {})",

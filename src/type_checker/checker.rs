@@ -230,12 +230,14 @@ impl TypeChecker<'_> {
             // Infer the return type from the body
             body.get_type().clone()
         };
-        Ok(CheckedAst::FunctionDecl(CheckedFunctionAst {
-            body: Box::new(body),
-            name: f.name.clone(),
-            params: f.params.clone(),
-            return_type,
-        }))
+        Ok(CheckedAst::FunctionDecl(
+            Some(f.name.clone()),
+            CheckedFunctionAst {
+                body: Box::new(body),
+                params: f.params.clone(),
+                return_type,
+            },
+        ))
     }
 
     fn check_tuple(&mut self, elems: &[Ast]) -> TypeResult<CheckedAst> {
