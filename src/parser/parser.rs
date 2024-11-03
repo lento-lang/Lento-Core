@@ -6,26 +6,23 @@ use std::{
 };
 
 use crate::{
-    interpreter::value::Value,
+    interpreter::value::{RecordKey, Value},
     lexer::{
         lexer::{self, InputSource, LexResult},
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
         token::{LineInfoSpan, TokenInfo, TokenKind},
     },
     stdlib::init::stdlib,
-    type_checker::types::{CheckedType, Type},
-    util::{failable::Failable, str::Str},
+    type_checker::types::Type,
+    util::failable::Failable,
 };
 
 use crate::lexer::lexer::Lexer;
 
 use super::{
-    ast::{unit, Ast, Module, RecordKeyAst},
-    error::{ParseError, ParseOperatorError, ParseTypeError},
-    op::{
-        Operator, OperatorAssociativity, OperatorHandler, OperatorPosition, OperatorPrecedence,
-        RuntimeOperator, StaticOperatorAst,
-    },
+    ast::{Ast, Module},
+    error::{ParseError, ParseOperatorError},
+    op::{OperatorAssociativity, OperatorInfo, OperatorPosition, OperatorPrecedence},
 };
 
 /// Token predicates for parsing
@@ -69,7 +66,7 @@ where
     /// - They have different signatures
     /// - They have different positions
     /// - The symbol is a built-in operator that is overloadable
-    operators: HashMap<String, Vec<Operator>>,
+    operators: HashMap<String, Vec<OperatorInfo>>,
     /// A map of all defined types in the parser.
     ///
     /// ## Note
@@ -93,11 +90,8 @@ impl<R: Read> Parser<R> {
 
     /// Define an operator in the parser.
     /// If the operator already exists with the same signature,
-    pub fn define_op(&mut self, op: Operator) -> Failable<ParseOperatorError> {
+    pub fn define_op(&mut self, op: OperatorInfo) -> Failable<ParseOperatorError> {
         if let Some(existing) = self.get_op(&op.symbol) {
-            if existing.iter().any(|e| e.signature() == op.signature()) {
-                return Err(ParseOperatorError::SignatureForSymbolExists);
-            }
             if existing.iter().any(|e| e.position == op.position) {
                 return Err(ParseOperatorError::PositionForSymbolExists);
             }
@@ -113,44 +107,44 @@ impl<R: Read> Parser<R> {
         Ok(())
     }
 
-    pub fn get_op(&self, symbol: &str) -> Option<&Vec<Operator>> {
+    pub fn get_op(&self, symbol: &str) -> Option<&Vec<OperatorInfo>> {
         self.operators.get(symbol)
     }
 
     pub fn find_operator(
         &self,
         symbol: &str,
-        pred: impl Fn(&Operator) -> bool,
-    ) -> Option<&Operator> {
+        pred: impl Fn(&OperatorInfo) -> bool,
+    ) -> Option<&OperatorInfo> {
         self.get_op(symbol)
             .and_then(|ops| ops.iter().find(|op| pred(op)))
     }
 
-    pub fn find_operator_pos(&self, symbol: &str, pos: OperatorPosition) -> Option<&Operator> {
+    pub fn find_operator_pos(&self, symbol: &str, pos: OperatorPosition) -> Option<&OperatorInfo> {
         self.find_operator(symbol, |op| op.position == pos)
     }
 
-    pub fn define_literal_type(&mut self, ty: Type) -> Failable<ParseTypeError> {
-        if let Type::Literal(name) = ty.clone() {
-            if self.types.contains_key(&name.to_string()) {
-                return Err(ParseTypeError::TypeExists);
-            }
-            self.types.insert(name.to_string(), ty);
-            self.lexer.types.insert(name.to_string());
-            Ok(())
-        } else {
-            Err(ParseTypeError::NonLiteralType)
-        }
-    }
+    // pub fn define_literal_type(&mut self, ty: Type) -> Failable<ParseTypeError> {
+    //     if let Type::Literal(name) = ty.clone() {
+    //         if self.types.contains_key(&name.to_string()) {
+    //             return Err(ParseTypeError::TypeExists);
+    //         }
+    //         self.types.insert(name.to_string(), ty);
+    //         self.lexer.types.insert(name.to_string());
+    //         Ok(())
+    //     } else {
+    //         Err(ParseTypeError::NonLiteralType)
+    //     }
+    // }
 
-    pub fn define_alias_type(&mut self, name: String, ty: Type) -> Failable<ParseTypeError> {
-        if self.types.contains_key(&name) {
-            return Err(ParseTypeError::TypeExists);
-        }
-        self.types.insert(name.clone(), ty);
-        self.lexer.types.insert(name);
-        Ok(())
-    }
+    // pub fn define_alias_type(&mut self, name: String, ty: Type) -> Failable<ParseTypeError> {
+    //     if self.types.contains_key(&name) {
+    //         return Err(ParseTypeError::TypeExists);
+    //     }
+    //     self.types.insert(name.clone(), ty);
+    //     self.lexer.types.insert(name);
+    //     Ok(())
+    // }
 
     pub fn get_type(&self, name: &str) -> Option<&Type> {
         self.types.get(name)
@@ -204,7 +198,7 @@ impl<R: Read> Parser<R> {
         // Check if the next token is an EOF, then return an empty unit top-level expression
         if let Ok(t) = self.lexer.peek_token_not(pred::ignored) {
             if pred::eof(&t.token) {
-                return Ok(unit());
+                return Ok(Ast::Tuple(vec![]));
             }
         }
 
@@ -277,7 +271,7 @@ impl<R: Read> Parser<R> {
             });
         }
         // TODO: Extract read_until_terminator() helper method
-        Ok(Ast::FunctionCall(id, args, CheckedType::Unchecked))
+        Ok(Ast::FunctionCall(id, args))
     }
 
     /// Parses the fields of a record from the lexer.
@@ -307,7 +301,7 @@ impl<R: Read> Parser<R> {
     ///     println!("Not a record.");
     /// }
     /// ```
-    fn parse_record_fields(&mut self) -> Option<Result<Vec<(RecordKeyAst, Ast)>, ParseError>> {
+    fn parse_record_fields(&mut self) -> Option<Result<Vec<(RecordKey, Ast)>, ParseError>> {
         let mut fields = Vec::new();
         // Initial soft parse to check if the record is empty
         // Or if it is a block
@@ -317,10 +311,10 @@ impl<R: Read> Parser<R> {
                     self.lexer.next_token().unwrap();
                     return Some(Ok(fields)); // Empty record
                 }
-                TokenKind::Identifier(id) => RecordKeyAst::String(id),
-                TokenKind::Number(n) => RecordKeyAst::Number(n),
-                TokenKind::String(s) => RecordKeyAst::String(s),
-                TokenKind::Char(c) => RecordKeyAst::Char(c),
+                TokenKind::Identifier(id) => RecordKey::String(id),
+                TokenKind::Number(n) => RecordKey::Number(n),
+                TokenKind::String(s) => RecordKey::String(s),
+                TokenKind::Char(c) => RecordKey::Char(c),
                 _ => return None, // Not a record
             };
             if let Ok(t) = self.lexer.peek_token(1) {
@@ -352,10 +346,10 @@ impl<R: Read> Parser<R> {
                 break;
             }
             let key = match t.token {
-                TokenKind::Identifier(id) => RecordKeyAst::String(id),
-                TokenKind::Number(n) => RecordKeyAst::Number(n),
-                TokenKind::String(s) => RecordKeyAst::String(s),
-                TokenKind::Char(c) => RecordKeyAst::Char(c),
+                TokenKind::Identifier(id) => RecordKey::String(id),
+                TokenKind::Number(n) => RecordKey::Number(n),
+                TokenKind::String(s) => RecordKey::String(s),
+                TokenKind::Char(c) => RecordKey::Char(c),
                 _ => {
                     return Some(Err(ParseError {
                         message: format!("Expected record key, but found {:?}", t.token),
@@ -397,22 +391,23 @@ impl<R: Read> Parser<R> {
                                 return self.parse_call(id);
                             }
                         }
-                        Ast::Identifier(id, CheckedType::Unchecked)
+                        Ast::Identifier(id)
                     }
-                    TokenKind::TypeIdentifier(t) => Ast::Type(Type::Literal(Str::String(t))),
                     TokenKind::Op(op) => {
+                        // TODO: Don't lookup operators in the parser, do this in the type checker!
                         if let Some(op) = self.find_operator_pos(&op, OperatorPosition::Prefix) {
                             let op = op.clone();
                             let rhs = self.parse_primary()?;
-                            if let OperatorHandler::Static(_, handler) = op.handler {
-                                (handler)(StaticOperatorAst::Prefix(rhs))
-                            } else {
-                                Ast::Unary(
-                                    RuntimeOperator::from(op.clone()),
-                                    Box::new(rhs),
-                                    CheckedType::Checked(op.signature().returns),
-                                )
-                            }
+                            // if let OperatorHandler::Static(_, handler) = op.handler {
+                            //     (handler)(StaticOperatorAst::Prefix(rhs))
+                            // } else {
+                            Ast::Unary(
+                                op.clone(),
+                                // RuntimeOperator::from(op.clone()),
+                                Box::new(rhs),
+                                // CheckedType::Checked(op.signature().returns),
+                            )
+                            //}
                         } else {
                             return Err(ParseError {
                                 message: format!("Expected prefix operator, but found {:?}", op),
@@ -427,10 +422,7 @@ impl<R: Read> Parser<R> {
                                 if let Ok(end) = self.lexer.peek_token(0) {
                                     if end.token == TokenKind::RightParen {
                                         self.lexer.next_token().unwrap();
-                                        return Ok(Ast::Tuple(
-                                            vec![],
-                                            CheckedType::Checked(Type::Unit),
-                                        ));
+                                        return Ok(Ast::Tuple(vec![]));
                                     }
                                 }
                                 // Tuples are defined by a comma-separated list of expressions
@@ -442,7 +434,7 @@ impl<R: Read> Parser<R> {
                             TokenKind::LeftBrace => {
                                 // Try to parse as record
                                 if let Some(res) = self.parse_record_fields() {
-                                    Ast::Record(res?, CheckedType::Unchecked)
+                                    Ast::Record(res?)
                                 } else {
                                     // Parse as block
                                     let mut exprs = Vec::new();
@@ -453,8 +445,7 @@ impl<R: Read> Parser<R> {
                                         exprs.push(self.parse_top_expr()?);
                                     }
                                     self.parse_expected(TokenKind::RightBrace, "}")?;
-                                    let return_type = exprs.last().unwrap().get_checked_type();
-                                    Ast::Block(exprs, return_type)
+                                    Ast::Block(exprs)
                                 }
                             }
                             // Lists
@@ -462,20 +453,15 @@ impl<R: Read> Parser<R> {
                                 if let Ok(end) = self.lexer.peek_token(0) {
                                     if end.token == TokenKind::RightBracket {
                                         self.lexer.next_token().unwrap();
-                                        return Ok(Ast::List(
-                                            vec![],
-                                            CheckedType::Checked(Type::List(Box::new(Type::Unit))),
-                                        ));
+                                        return Ok(Ast::List(vec![]));
                                     }
                                 }
                                 let body = self.parse_top_expr()?;
                                 self.parse_expected(TokenKind::RightBracket, "]")?;
                                 match body {
                                     // TODO: Add custom parsing for list elements instead of unwrapping a tuple
-                                    Ast::Tuple(elems, _) => {
-                                        Ast::List(elems, CheckedType::Unchecked)
-                                    }
-                                    single => Ast::List(vec![single], CheckedType::Unchecked),
+                                    Ast::Tuple(elems) => Ast::List(elems),
+                                    single => Ast::List(vec![single]),
                                 }
                             }
                             _ => unreachable!(),
@@ -516,7 +502,7 @@ impl<R: Read> Parser<R> {
         nt: &LexResult,
         min_prec: OperatorPrecedence,
         allow_eq: bool,
-    ) -> Option<Operator> {
+    ) -> Option<OperatorInfo> {
         let t = nt.as_ref().ok()?;
         let op = if let TokenKind::Op(op) = &t.token {
             op
@@ -538,7 +524,7 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    fn next_prec(curr_op: &Operator, next_op: &Operator) -> OperatorPrecedence {
+    fn next_prec(curr_op: &OperatorInfo, next_op: &OperatorInfo) -> OperatorPrecedence {
         curr_op.precedence + (next_op.precedence > curr_op.precedence) as OperatorPrecedence
     }
 
@@ -577,23 +563,25 @@ impl<R: Read> Parser<R> {
             } {
                 rhs = self.parse_expr(rhs, Self::next_prec(&curr_op, &next_op))?;
             }
-            expr = if let OperatorHandler::Static(_, handler) = curr_op.handler {
+            // TODO: Fix static operator handling
+            expr = /* if let OperatorHandler::Static(_, handler) = curr_op.handler {
                 (handler)(StaticOperatorAst::Infix(expr, rhs))
-            } else {
+            } else { */
                 Ast::Binary(
                     Box::new(expr),
-                    RuntimeOperator::from(curr_op.clone()),
+                    // RuntimeOperator::from(curr_op.clone()),
+                    curr_op.clone(),
                     Box::new(rhs),
-                    CheckedType::Checked(curr_op.signature().returns),
+                    // CheckedType::Checked(curr_op.signature().returns),
                 )
-            };
+            // };
         }
         Ok(expr)
     }
 
     /// Expect the parser state to be at the end of [expr, op] sequence.
     /// Next token should be a new expression or a terminator.
-    fn parse_expr_accum(&mut self, op: &Operator, first: Ast) -> ParseResult {
+    fn parse_expr_accum(&mut self, op: &OperatorInfo, first: Ast) -> ParseResult {
         let mut exprs = vec![first];
         while let Ok(t) = self.lexer.peek_token_not(pred::ignored) {
             if op.allow_trailing && t.token.is_terminator() {
@@ -615,12 +603,11 @@ impl<R: Read> Parser<R> {
                 break;
             }
         }
-        Ok(match &op.handler {
-            OperatorHandler::Static(_, handler) => (handler)(StaticOperatorAst::Accumulate(exprs)),
-            OperatorHandler::Runtime(func) => {
-                Ast::VariationCall(func.clone(), exprs, CheckedType::Unchecked)
-            }
-        })
+        // Ok(match &op.handler {
+        //     OperatorHandler::Static(_, handler) => (handler)(StaticOperatorAst::Accumulate(exprs)),
+        //     OperatorHandler::Runtime(func) => Ast::VariationCall(func.clone(), exprs),
+        // })
+        Ok(Ast::Accumulate(op.clone(), exprs))
     }
 
     /// Parse a top-level expression.

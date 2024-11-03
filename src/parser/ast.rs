@@ -1,14 +1,10 @@
 use crate::{
-    interpreter::{
-        number::Number,
-        value::{FunctionVariation, Value},
-    },
+    interpreter::value::{RecordKey, Value},
     lexer::lexer::InputSource,
-    type_checker::types::{CheckedType, FunctionParameterType, GetType, Type},
-    util::str::Str,
+    type_checker::types::{FunctionParameterType, Type},
 };
 
-use super::op::RuntimeOperator;
+use super::op::OperatorInfo;
 
 /// A function definition is a named function with a list of parameters and a body expression
 #[derive(Debug, Clone, PartialEq)]
@@ -16,21 +12,7 @@ pub struct FunctionAst {
     pub name: String,
     pub params: FunctionParameterType,
     pub body: Box<Ast>,
-    pub return_type: CheckedType,
-}
-
-/// A key in a record can be a string, integer, float, or character.
-/// This is used to represent the key in the AST.
-///
-/// ## Example
-/// ```ignore
-/// record = { "key": 1, 2: 3.0, 'c': "value", 4.0: 'd' }
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub enum RecordKeyAst {
-    String(String),
-    Number(Number),
-    Char(char),
+    pub return_type: Option<Type>,
 }
 
 /// The AST is a tree of nodes that represent the program.
@@ -43,63 +25,54 @@ pub enum Ast {
     Literal(Value),
     /// A tuple is a fixed-size collection of elements of possibly different types.
     /// 1. List of elements
-    /// 2. Type of the tuple, made up of the types of the elements and the number of elements
-    Tuple(Vec<Ast>, CheckedType),
+    Tuple(Vec<Ast>),
     /// A dynamic list of elements.
     /// 1. List of elements
     /// 2. Type of every element in the list (all elements must **be a subtype**)
-    List(Vec<Ast>, CheckedType),
+    List(Vec<Ast>),
     /// A record is a collection of key-value pairs
     /// 1. List of key-value pairs
-    /// 2. Type of the record, made up of the types of the keys and values
-    Record(Vec<(RecordKeyAst, Ast)>, CheckedType),
+    Record(Vec<(RecordKey, Ast)>),
     /// An identifier is a named reference to a value in the environment
     /// 1. Name of the identifier
-    /// 2. Type of the identifier (the type of the value it refers to)
-    Identifier(String, CheckedType),
-    /// A type identifier is a named reference to a type in the environment
-    /// 1. Name of the type identifier
-    /// 2. Type definition of the type identifier
-    Type(Type),
+    Identifier(String),
     /// A function call is an invocation of a function with a list of arguments
     /// 1. Name of the function
     /// 2. List of arguments
-    /// 3. Type of the return value of the function
-    FunctionCall(String, Vec<Ast>, CheckedType),
-    /// A function variation call is an invocation of a function variation with a list of arguments
-    /// 1. Function variation
-    /// 2. List of arguments
-    /// 3. Type of the return value of the function
-    VariationCall(Box<FunctionVariation>, Vec<Ast>, CheckedType),
-    /// A function definition is a named function with a list of parameters and a body expression
-    Function(FunctionAst),
+    FunctionCall(String, Vec<Ast>),
+    // /// A function variation call is an invocation of a function variation with a list of arguments
+    // /// 1. Function variation
+    // /// 2. List of arguments
+    // VariationCall(Box<FunctionVariation>, Vec<Ast>),
+    /// A function declaration is a named function with a list of parameters and a body expression
+    FunctionDecl(FunctionAst),
+    /// An accumulate expression is an operation with multiple operands
+    /// 1. Operator
+    /// 2. List of operands
+    Accumulate(OperatorInfo, Vec<Ast>),
     /// A binary expression is an operation with two operands
     /// 1. Left operand
     /// 2. Operator
     /// 3. Right operand
-    /// 4. Type of the result of the operation
-    Binary(Box<Ast>, RuntimeOperator, Box<Ast>, CheckedType),
+    Binary(Box<Ast>, OperatorInfo, Box<Ast>),
     /// A unary expression is an operation with one operand
     /// 1. Operator
     /// 2. Operand
-    /// 3. Type of the result of the operation
-    Unary(RuntimeOperator, Box<Ast>, CheckedType),
+    Unary(OperatorInfo, Box<Ast>),
     /// An assignment expression assigns a value to a variable
     /// 1. Matching pattern (identifier, destructuring of a tuple, record, etc.)
     /// 2. Value
-    /// 3. Type of the value
-    Assignment(Box<Ast>, Box<Ast>, CheckedType),
+    Assignment(Box<Ast>, Box<Ast>),
     /// Block expression evaluates all expressions in the block and returns the value of the last expression.
     /// 1. List of expressions
-    /// 2. Type of the last expression
-    Block(Vec<Ast>, CheckedType),
+    Block(Vec<Ast>),
 }
 
 impl Ast {
     pub fn print_sexpr(&self) -> String {
         match self {
             Ast::Literal(value) => value.to_string(),
-            Ast::Tuple(elements, _) => format!(
+            Ast::Tuple(elements) => format!(
                 "({})",
                 elements
                     .iter()
@@ -107,7 +80,7 @@ impl Ast {
                     .collect::<Vec<String>>()
                     .join(" ")
             ),
-            Ast::List(elements, _) => format!(
+            Ast::List(elements) => format!(
                 "[{}]",
                 elements
                     .iter()
@@ -115,10 +88,9 @@ impl Ast {
                     .collect::<Vec<String>>()
                     .join(" ")
             ),
-            Ast::Record(_elements, _) => todo!(),
-            Ast::Identifier(name, _) => name.clone(),
-            Ast::Type(ty) => format!("{}", ty),
-            Ast::FunctionCall(name, args, _) => format!(
+            Ast::Record(_elements) => todo!(),
+            Ast::Identifier(name) => name.clone(),
+            Ast::FunctionCall(name, args) => format!(
                 "({} {})",
                 name,
                 args.iter()
@@ -126,32 +98,43 @@ impl Ast {
                     .collect::<Vec<String>>()
                     .join(" ")
             ),
-            Ast::VariationCall(variation, args, _) => format!(
-                "({} {})",
-                variation,
-                args.iter()
-                    .map(|e| e.print_sexpr())
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            ),
-            Ast::Function(FunctionAst {
+            // Ast::VariationCall(variation, args) => format!(
+            //     "({} {})",
+            //     variation,
+            //     args.iter()
+            //         .map(|e| e.print_sexpr())
+            //         .collect::<Vec<String>>()
+            //         .join(" ")
+            // ),
+            Ast::FunctionDecl(FunctionAst {
                 name, params, body, ..
             }) => {
                 format!("(fn {} {} {})", name, params, body.print_sexpr())
             }
-            Ast::Binary(lhs, op, rhs, _) => format!(
+            Ast::Accumulate(op, operands) => {
+                format!(
+                    "({} {})",
+                    op.symbol.clone(),
+                    operands
+                        .iter()
+                        .map(|e| e.print_sexpr())
+                        .collect::<Vec<String>>()
+                        .join(" ")
+                )
+            }
+            Ast::Binary(lhs, op, rhs) => format!(
                 "({} {} {})",
                 op.symbol.clone(),
                 lhs.print_sexpr(),
                 rhs.print_sexpr()
             ),
-            Ast::Unary(op, operand, _) => {
+            Ast::Unary(op, operand) => {
                 format!("({} {})", op.symbol.clone(), operand.print_sexpr())
             }
-            Ast::Assignment(lhs, rhs, _) => {
+            Ast::Assignment(lhs, rhs) => {
                 format!("(= {} {})", lhs.print_sexpr(), rhs.print_sexpr())
             }
-            Ast::Block(expressions, _) => format!(
+            Ast::Block(expressions) => format!(
                 "({})",
                 expressions
                     .iter()
@@ -161,39 +144,6 @@ impl Ast {
             ),
         }
     }
-
-    pub fn get_checked_type(&self) -> CheckedType {
-        CheckedType::Checked(match self {
-            Ast::Literal(value) => value.get_type().clone(),
-            Ast::Tuple(_, CheckedType::Checked(t)) => t.clone(),
-            Ast::List(_, CheckedType::Checked(t)) => t.clone(),
-            Ast::Record(_, CheckedType::Checked(t)) => t.clone(),
-            Ast::Identifier(_, CheckedType::Checked(t)) => t.clone(),
-            Ast::Type(_) => Type::Literal(Str::Str("Type")),
-            Ast::FunctionCall(_, _, CheckedType::Checked(t)) => t.clone(),
-            Ast::Function(FunctionAst {
-                return_type: CheckedType::Checked(t),
-                ..
-            }) => t.clone(),
-            Ast::Binary(_, _, _, CheckedType::Checked(t)) => t.clone(),
-            Ast::Unary(_, _, CheckedType::Checked(t)) => t.clone(),
-            Ast::Assignment(_, _, CheckedType::Checked(t)) => t.clone(),
-            Ast::Block(_, CheckedType::Checked(t)) => t.clone(),
-            _ => return CheckedType::Unchecked,
-        })
-    }
-}
-
-pub fn tuple(elements: Vec<Ast>) -> Ast {
-    Ast::Tuple(elements, CheckedType::Unchecked)
-}
-
-/// Create a new `unit` AST node.
-///
-/// ## Implementation
-/// Implemented as a tuple with no elements.
-pub fn unit() -> Ast {
-    Ast::Tuple(vec![], CheckedType::Checked(Type::Unit))
 }
 
 /// Module is the root program node of the AST

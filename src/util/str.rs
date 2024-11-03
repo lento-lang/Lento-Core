@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Str {
     String(String),
     Str(&'static str),

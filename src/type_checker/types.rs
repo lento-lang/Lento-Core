@@ -1,4 +1,7 @@
-use crate::{interpreter::value::Value, util::str::Str};
+use crate::{
+    interpreter::value::{RecordKey, Value},
+    util::str::Str,
+};
 use std::fmt::{Debug, Display};
 
 //--------------------------------------------------------------------------------------//
@@ -41,55 +44,13 @@ pub trait TypeTrait {
 // Compound Type Expressions
 pub type NamedType = (String, Type);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum CheckedType {
-    Checked(Type),
-    Unchecked,
-}
-
-impl CheckedType {
-    /// Should always be ok after type checking
-    pub fn unwrap_checked_ref(&self) -> &Type {
-        match self {
-            CheckedType::Checked(t) => t,
-            CheckedType::Unchecked => panic!("Unwrap of unchecked type"),
-        }
-    }
-
-    /// Returns an owned type.
-    /// Should always be ok after type checking
-    /// Panics if the type is unchecked
-    pub fn unwrap_checked(self) -> Type {
-        match self {
-            CheckedType::Checked(t) => t,
-            CheckedType::Unchecked => panic!("Unwrap of unchecked type"),
-        }
-    }
-
-    pub fn is_exact_type(&self, t: &Type) -> bool {
-        match self {
-            CheckedType::Checked(t1) => t1 == t,
-            CheckedType::Unchecked => false,
-        }
-    }
-}
-
-impl Display for CheckedType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CheckedType::Checked(t) => write!(f, "{}", t),
-            CheckedType::Unchecked => write!(f, "unchecked"),
-        }
-    }
-}
-
 /// TODO: Reimplement function parameter types
 /// TODO: So that it allows multiple variadic parameters mixed with single parameters
 /// TODO: while they do not have ambiguities, conflicts, or overlaps.
 /// TODO: Eg. `(a: int, b: int, ...c: int, d: bool, ...e: bool, f: string)`
 /// TODO: BUT NOT: `(a: int, b: int, ...c: int, d: int, ...e: int, f: string)`
 /// TODO: because `c`, `d`, and `e` are ambiguous.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FunctionParameterType {
     Singles(Vec<NamedType>),
     Variadic(Vec<NamedType>, NamedType), // Some initial types, followed by a variadic type
@@ -140,6 +101,38 @@ impl FunctionParameterType {
         }
     }
 
+    pub fn match_args_types(&self, arg_types: &[&Type]) -> bool {
+        match self {
+            FunctionParameterType::Singles(types) => {
+                if types.len() != arg_types.len() {
+                    return false;
+                }
+                for (i, (_, t)) in types.iter().enumerate() {
+                    if !arg_types[i].subtype(t) {
+                        return false;
+                    }
+                }
+                true
+            }
+            FunctionParameterType::Variadic(types, (_, var_type)) => {
+                if types.len() > arg_types.len() {
+                    return false;
+                }
+                for (i, (_, t)) in types.iter().enumerate() {
+                    if !t.subtype(arg_types[i]) {
+                        return false;
+                    }
+                }
+                for arg in &arg_types[types.len()..] {
+                    if !var_type.subtype(arg) {
+                        return false;
+                    }
+                }
+                true
+            }
+        }
+    }
+
     pub fn is_variadic(&self) -> bool {
         match self {
             FunctionParameterType::Singles(_) => false,
@@ -177,7 +170,7 @@ impl Display for FunctionParameterType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FunctionVariationType {
     params: FunctionParameterType,
     ret: Type,
@@ -186,6 +179,14 @@ pub struct FunctionVariationType {
 impl FunctionVariationType {
     pub fn new(params: FunctionParameterType, ret: Type) -> Self {
         FunctionVariationType { params, ret }
+    }
+
+    pub fn get_params(&self) -> &FunctionParameterType {
+        &self.params
+    }
+
+    pub fn get_return_type(&self) -> &Type {
+        &self.ret
     }
 }
 
@@ -236,7 +237,7 @@ impl TypeTrait for FunctionVariationType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Type {
     /// The type of the `any` value.
     /// This is the top type.
@@ -273,7 +274,7 @@ pub enum Type {
     /// A record type.
     /// The first argument is the list of fields in the record.
     /// A record type is a product type.
-    Record(Vec<(Str, Type)>),
+    Record(Vec<(RecordKey, Type)>),
 
     /// Generic type with name and parameters.
     /// The parameters are the type parameters of the generic type.
@@ -652,7 +653,7 @@ pub mod std_collection_types {
         Type::Tuple(types)
     }
 
-    pub fn record(fields: Vec<(Str, Type)>) -> Type {
+    pub fn record(fields: Vec<(RecordKey, Type)>) -> Type {
         Type::Record(fields)
     }
 }

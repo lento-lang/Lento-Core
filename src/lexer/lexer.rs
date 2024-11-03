@@ -76,7 +76,6 @@ where
     index: usize,
     line_info: LineInfoSpan,
     pub operators: HashSet<String>,
-    pub types: HashSet<String>,
     peeked_tokens: Vec<LexResult>, // Queue of peeked tokens (FIFO)
     /// The buffer size of the lexer. \
     /// This is the size of the buffer used to read from the source code.
@@ -101,7 +100,6 @@ impl<R: Read> Lexer<R> {
             index: 0,
             line_info: LineInfoSpan::new(),
             operators: HashSet::new(),
-            types: HashSet::new(),
             peeked_tokens: Vec::new(),
             buffer_size: 512,
             try_read_after_eof: false,
@@ -122,7 +120,6 @@ impl<R: Read> Lexer<R> {
             index: 0,
             line_info: LineInfoSpan::new(),
             operators: HashSet::new(),
-            types: HashSet::new(),
             peeked_tokens: Vec::new(),
             buffer_size: 512,
             try_read_after_eof: true,
@@ -998,7 +995,6 @@ impl<R: Read> Lexer<R> {
             "true" => TokenKind::Boolean(true),
             "false" => TokenKind::Boolean(false),
             "let" => TokenKind::Let,
-            t if self.types.contains(t) => TokenKind::TypeIdentifier(s),
             sym => match self.operators.get(sym) {
                 Some(op) => TokenKind::Op(op.clone()),
                 None => TokenKind::Identifier(s),

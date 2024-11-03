@@ -1,10 +1,14 @@
-use crate::{interpreter::value::FunctionVariation, parser::ast::Ast, type_checker::types::{FunctionParameterType, Type}};
+use crate::{
+    interpreter::value::FunctionVariation,
+    parser::ast::Ast,
+    type_checker::types::{FunctionParameterType, Type},
+};
 
 //--------------------------------------------------------------------------------------//
 //                               Execution Agnostic Data                                //
 //--------------------------------------------------------------------------------------//
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub enum OperatorPosition {
     Prefix,  // Unary operator
     Infix,   // Binary operator
@@ -33,7 +37,10 @@ impl OperatorPosition {
     }
 
     pub fn is_infix(&self) -> bool {
-        matches!(self, OperatorPosition::Infix | OperatorPosition::InfixAccumulate)
+        matches!(
+            self,
+            OperatorPosition::Infix | OperatorPosition::InfixAccumulate
+        )
     }
 
     pub fn is_postfix(&self) -> bool {
@@ -45,7 +52,7 @@ impl OperatorPosition {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub enum OperatorAssociativity {
     Left,
     Right,
@@ -73,20 +80,15 @@ pub mod default_operator_precedence {
 //                                      Operators                                       //
 //--------------------------------------------------------------------------------------//
 
-// Function reference, verify arity is the same as the operator position
-pub type RuntimeOperatorHandler = Box<FunctionVariation>;
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum StaticOperatorAst {
     Prefix(Ast),
     Infix(Ast, Ast),
     Postfix(Ast),
-    Accumulate(Vec<Ast>)
+    Accumulate(Vec<Ast>),
 }
 
-pub type StaticOperatorHandler = fn(StaticOperatorAst) -> Ast;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct OperatorSignature {
     pub params: FunctionParameterType,
     pub returns: Type,
@@ -96,20 +98,8 @@ pub struct OperatorSignature {
 //                                       Prelude                                        //
 //--------------------------------------------------------------------------------------//
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum OperatorHandler {
-    /// Runtime operators (functions)
-    /// 1. The handler function for the operator called at runtime
-    Runtime(RuntimeOperatorHandler),
-    /// The compile-time handler for the operator
-    /// (macros or syntax extensions/sugar)
-    /// 1. The signature of the operator. This is used for type checking and inference on the operator in expressions.
-    /// 2. The native handler function for the operator called at compile-time
-    Static(OperatorSignature, StaticOperatorHandler),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Operator {
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
+pub struct OperatorInfo {
     /// Descriptive name of the operator
     /// (used for error messages and introspection)
     pub name: String,
@@ -137,6 +127,25 @@ pub struct Operator {
     /// a, b, c,    // OK `,` allow trailing arguments
     /// ```
     pub allow_trailing: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum OperatorHandler {
+    /// Runtime operators (functions)
+    /// 1. The handler function for the operator called at runtime
+    Runtime(Box<FunctionVariation>),
+    /// The compile-time handler for the operator
+    /// (macros or syntax extensions/sugar)
+    /// 1. The signature of the operator. This is used for type checking and inference on the operator in expressions.
+    /// 2. The native handler function for the operator called at compile-time
+    Static(OperatorSignature, fn(StaticOperatorAst) -> Ast),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Operator {
+    /// Basic information about the operator
+    /// required for parsing and type checking.
+    pub info: OperatorInfo,
     /// The handler for the operator
     pub handler: OperatorHandler,
 }
@@ -148,36 +157,38 @@ impl Operator {
                 let params = handler.get_params().clone();
                 let returns = handler.get_return_type().clone();
                 OperatorSignature { params, returns }
-            },
+            }
             OperatorHandler::Static(ref signature, _) => signature.clone(),
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct RuntimeOperator {
-    pub name: String,
-    pub symbol: String,
-    pub handler: RuntimeOperatorHandler,
-}
+// #[derive(Clone, Debug, PartialEq)]
+// pub struct RuntimeOperator {
+//     pub name: String,
+//     pub symbol: String,
+//     pub handler: RuntimeOperatorHandler,
+// }
 
-impl RuntimeOperator {
-    pub fn signature(&self) -> OperatorSignature {
-        let params = self.handler.get_params().clone();
-        let returns = self.handler.get_return_type().clone();
-        OperatorSignature { params, returns }
-    }
-}
+// impl RuntimeOperator {
+//     pub fn signature(&self) -> OperatorSignature {
+//         let params = self.handler.get_params().clone();
+//         let returns = self.handler.get_return_type().clone();
+//         OperatorSignature { params, returns }
+//     }
+// }
 
-impl From<Operator> for RuntimeOperator {
-    fn from(op: Operator) -> Self {
-        match op.handler {
-            OperatorHandler::Runtime(handler) => RuntimeOperator {
-                name: op.name,
-                symbol: op.symbol,
-                handler,
-            },
-            OperatorHandler::Static(_, _) => panic!("Cannot convert a static operator to a runtime operator"),
-        }
-    }
-}
+// impl From<Operator> for RuntimeOperator {
+//     fn from(op: Operator) -> Self {
+//         match op.handler {
+//             OperatorHandler::Runtime(handler) => RuntimeOperator {
+//                 name: op.info.name,
+//                 symbol: op.info.symbol,
+//                 handler,
+//             },
+//             OperatorHandler::Static(_, _) => {
+//                 panic!("Cannot convert a static operator to a runtime operator")
+//             }
+//         }
+//     }
+// }

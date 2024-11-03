@@ -1,18 +1,23 @@
-use std::{collections::HashMap, fmt::Display};
+use std::fmt::Display;
 
-use crate::{
-    parser::ast::Ast,
-    type_checker::types::{
-        std_primitive_types, FunctionParameterType, FunctionVariationType, GetType, Type,
-    },
+use crate::type_checker::{
+    checked_ast::CheckedAst,
+    types::{std_primitive_types, FunctionParameterType, FunctionVariationType, GetType, Type},
 };
 
 use super::{interpreter::InterpretResult, number::Number};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// A key in a record can be a string, integer, float, or character.
+/// This is used to represent the key in the AST.
+///
+/// ## Example
+/// ```ignore
+/// record = { "key": 1, 2: 3.0, 'c': "value", 4.0: 'd' }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
 pub enum RecordKey {
     String(String),
-    Integer(String),
+    Number(Number),
     Char(char),
 }
 
@@ -20,7 +25,7 @@ impl Display for RecordKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RecordKey::String(s) => write!(f, "{}", s),
-            RecordKey::Integer(i) => write!(f, "{}", i),
+            RecordKey::Number(n) => write!(f, "{}", n),
             RecordKey::Char(c) => write!(f, "{}", c),
         }
     }
@@ -38,7 +43,7 @@ pub enum FunctionVariation {
     /// User-defined functions
     User {
         params: FunctionParameterType,
-        body: Ast,
+        body: CheckedAst,
         ret: Type,
     },
     /// Built-in functions
@@ -50,7 +55,7 @@ pub enum FunctionVariation {
 }
 
 impl FunctionVariation {
-    pub fn new_user(params: FunctionParameterType, body: Ast, ret: Type) -> Self {
+    pub fn new_user(params: FunctionParameterType, body: CheckedAst, ret: Type) -> Self {
         Self::User { params, body, ret }
     }
 
@@ -137,6 +142,10 @@ impl Function {
         (singles, variadics)
     }
 
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
     /// A sum type of all the function variation signatures
     pub fn signature_from(variations: &[FunctionVariation]) -> Type {
         Type::Function(
@@ -174,7 +183,7 @@ pub enum Value {
     Boolean(bool),
     Tuple(Vec<Value>, Type),
     List(Vec<Value>, Type),
-    Record(HashMap<RecordKey, Value>, Type),
+    Record(Vec<(RecordKey, Value)>, Type),
     Function(Function),
     Type(Type),
 }

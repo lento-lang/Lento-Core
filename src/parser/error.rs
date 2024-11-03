@@ -22,7 +22,6 @@ impl Debug for ParseError {
 /// operator table.
 #[derive(Debug, PartialEq)]
 pub enum ParseOperatorError {
-    SignatureForSymbolExists,
     SymbolNotOverloadable,
     PositionForSymbolExists,
 }

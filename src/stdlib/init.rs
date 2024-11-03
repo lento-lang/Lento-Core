@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{collections::HashMap, io::Read};
 
 use crate::{
     interpreter::{
@@ -11,12 +11,15 @@ use crate::{
         ast::Ast,
         op::{
             default_operator_precedence, Operator, OperatorAssociativity, OperatorHandler,
-            OperatorPosition, OperatorSignature, StaticOperatorAst,
+            OperatorInfo, OperatorPosition, OperatorSignature, StaticOperatorAst,
         },
         parser::Parser,
     },
     stdlib::arithmetic,
-    type_checker::types::{std_primitive_types, CheckedType, FunctionParameterType, Type},
+    type_checker::{
+        checker::TypeChecker,
+        types::{std_primitive_types, FunctionParameterType, Type},
+    },
     util::str::Str,
 };
 
@@ -24,46 +27,61 @@ use super::system;
 
 pub struct Initializer {
     operators: Vec<Operator>,
-    types: Vec<Type>,
+    types: HashMap<String, Type>,
     values: Vec<(Str, Value)>,
-    functions: Vec<(Str, Function)>,
+    functions: Vec<Function>,
 }
 
 impl Initializer {
     pub fn init_lexer(&self, lexer: &mut Lexer<impl Read>) {
         for op in &self.operators {
             if let OperatorHandler::Static(_, _handler) = &op.handler {
-                lexer.operators.insert(op.symbol.clone());
+                lexer.operators.insert(op.info.symbol.clone());
             }
         }
-        for type_ in &self.types {
-            if let Type::Literal(name) = type_ {
-                lexer.types.insert(name.to_string());
-            } else {
-                panic!("init_lexer() expects a literal type");
-            }
-        }
+        // for type_ in &self.types {
+        //     if let Type::Literal(name) = type_ {
+        //         lexer.types.insert(name.to_string());
+        //     } else {
+        //         panic!("init_lexer() expects a literal type");
+        //     }
+        // }
     }
 
     pub fn init_parser(&self, parser: &mut Parser<impl Read>) {
         for op in &self.operators {
-            if let Err(e) = parser.define_op(op.clone()) {
+            if let Err(e) = parser.define_op(op.info.clone()) {
                 panic!(
                     "Parser initialization failed when adding operator '{:?}': {:?}",
                     op, e
                 );
             }
         }
-        for type_ in &self.types {
-            if let Type::Literal(name) = type_ {
-                if let Err(e) = parser.define_literal_type(type_.clone()) {
-                    panic!(
-                        "Parser initialization failed when adding type '{}': {:?}",
-                        name, e
-                    );
-                }
-            } else {
-                panic!("init_parser() expects a literal type");
+        // for type_ in &self.types {
+        //     if let Type::Literal(name) = type_ {
+        //         if let Err(e) = parser.define_literal_type(type_.clone()) {
+        //             panic!(
+        //                 "Parser initialization failed when adding type '{}': {:?}",
+        //                 name, e
+        //             );
+        //         }
+        //     } else {
+        //         panic!("init_parser() expects a literal type");
+        //     }
+        // }
+    }
+
+    pub fn init_type_checker(&self, type_checker: &mut TypeChecker) {
+        for op in &self.operators {
+            type_checker.add_operator(op.clone());
+        }
+        for (name, ty) in &self.types {
+            type_checker.add_type(name, ty.clone());
+        }
+        for func in &self.functions {
+            let name = func.get_name();
+            for variation in func.get_variations() {
+                type_checker.add_function(name, variation.clone());
             }
         }
     }
@@ -77,11 +95,15 @@ impl Initializer {
                 );
             }
         }
-        for (name, func) in &self.functions {
-            if let Err(e) = env.add_value(name.clone(), Value::Function(func.clone())) {
+        for func in &self.functions {
+            if let Err(e) = env.add_value(
+                Str::String(func.get_name().to_string()),
+                Value::Function(func.clone()),
+            ) {
                 panic!(
                     "Environment initialization failed when adding function '{}': {:?}",
-                    name, e
+                    func.get_name(),
+                    e
                 );
             }
         }
@@ -95,13 +117,15 @@ pub fn stdlib() -> Initializer {
         //--------------------------------------------------------------------------------------//
         operators: vec![
             Operator {
-                name: "assign".into(),
-                symbol: "=".into(),
-                position: OperatorPosition::Infix,
-                precedence: default_operator_precedence::ASSIGNMENT,
-                associativity: OperatorAssociativity::Right,
-                overloadable: false,
-                allow_trailing: false,
+                info: OperatorInfo {
+                    name: "assign".into(),
+                    symbol: "=".into(),
+                    position: OperatorPosition::Infix,
+                    precedence: default_operator_precedence::ASSIGNMENT,
+                    associativity: OperatorAssociativity::Right,
+                    overloadable: false,
+                    allow_trailing: false,
+                },
                 handler: OperatorHandler::Static(
                     OperatorSignature {
                         params: FunctionParameterType::Singles(vec![
@@ -112,8 +136,7 @@ pub fn stdlib() -> Initializer {
                     },
                     |op| {
                         if let StaticOperatorAst::Infix(lhs, rhs) = op {
-                            let assign_type = rhs.get_checked_type();
-                            Ast::Assignment(Box::new(lhs), Box::new(rhs), assign_type)
+                            Ast::Assignment(Box::new(lhs), Box::new(rhs))
                         } else {
                             panic!("assign expects an infix operator");
                         }
@@ -121,13 +144,15 @@ pub fn stdlib() -> Initializer {
                 ),
             },
             Operator {
-                name: "tuple".into(),
-                symbol: ",".into(),
-                position: OperatorPosition::InfixAccumulate,
-                precedence: default_operator_precedence::TUPLE,
-                associativity: OperatorAssociativity::Left,
-                overloadable: false,
-                allow_trailing: true,
+                info: OperatorInfo {
+                    name: "tuple".into(),
+                    symbol: ",".into(),
+                    position: OperatorPosition::InfixAccumulate,
+                    precedence: default_operator_precedence::TUPLE,
+                    associativity: OperatorAssociativity::Left,
+                    overloadable: false,
+                    allow_trailing: true,
+                },
                 handler: OperatorHandler::Static(
                     OperatorSignature {
                         params: FunctionParameterType::Variadic(
@@ -138,20 +163,7 @@ pub fn stdlib() -> Initializer {
                     },
                     |op| {
                         if let StaticOperatorAst::Accumulate(elems) = op {
-                            let tuple_type = if elems
-                                .iter()
-                                .any(|e| e.get_checked_type() == CheckedType::Unchecked)
-                            {
-                                CheckedType::Unchecked
-                            } else {
-                                CheckedType::Checked(Type::Tuple(
-                                    elems
-                                        .iter()
-                                        .map(|e| e.get_checked_type().unwrap_checked().clone())
-                                        .collect(),
-                                ))
-                            };
-                            Ast::Tuple(elems, tuple_type)
+                            Ast::Tuple(elems)
                         } else {
                             panic!("tuple expects an accumulator operator");
                         }
@@ -159,13 +171,15 @@ pub fn stdlib() -> Initializer {
                 ),
             },
             Operator {
-                name: "add".into(),
-                symbol: "+".into(),
-                position: OperatorPosition::Infix,
-                precedence: default_operator_precedence::ADDITIVE,
-                associativity: OperatorAssociativity::Left,
-                overloadable: true,
-                allow_trailing: false,
+                info: OperatorInfo {
+                    name: "add".into(),
+                    symbol: "+".into(),
+                    position: OperatorPosition::Infix,
+                    precedence: default_operator_precedence::ADDITIVE,
+                    associativity: OperatorAssociativity::Left,
+                    overloadable: true,
+                    allow_trailing: false,
+                },
                 handler: OperatorHandler::Runtime(Box::new(arithmetic::add())),
             },
         ],
@@ -195,7 +209,16 @@ pub fn stdlib() -> Initializer {
             std_primitive_types::FLOAT32,
             std_primitive_types::FLOAT64,
             std_primitive_types::FLOATBIG,
-        ],
+        ]
+        .into_iter()
+        .map(|ty| {
+            if let Type::Literal(ref name) = ty {
+                (name.to_string(), ty)
+            } else {
+                panic!("stdlib() expects a literal type");
+            }
+        })
+        .collect(),
 
         //--------------------------------------------------------------------------------------//
         //                                      Constants                                       //
@@ -257,22 +280,10 @@ pub fn stdlib() -> Initializer {
         //                                       Functions                                      //
         //--------------------------------------------------------------------------------------//
         functions: vec![
-            (
-                Str::String("add".to_string()),
-                Function::new("add".to_string(), vec![arithmetic::add()]),
-            ),
-            (
-                Str::String("print".to_string()),
-                Function::new("print".to_string(), vec![system::print()]),
-            ),
-            (
-                Str::String("typeof".to_string()),
-                Function::new("typeof".to_string(), vec![system::type_of()]),
-            ),
-            (
-                Str::String("exit".to_string()),
-                Function::new("exit".to_string(), vec![system::exit()]),
-            ),
+            Function::new("add".to_string(), vec![arithmetic::add()]),
+            Function::new("print".to_string(), vec![system::print()]),
+            Function::new("typeof".to_string(), vec![system::type_of()]),
+            Function::new("exit".to_string(), vec![system::exit()]),
         ],
     }
 }

@@ -5,7 +5,7 @@ mod tests {
     use crate::{
         interpreter::number::{FloatingPoint, Number, UnsignedInteger},
         lexer::{
-            lexer::{from_str, from_string, Lexer},
+            lexer::{from_str, Lexer},
             token::TokenKind,
         },
         stdlib::init::stdlib,
@@ -149,19 +149,19 @@ mod tests {
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
     }
 
-    #[test]
-    fn types() {
-        let types = [
-            "unit", "str", "char", "bool", "u1", "u8", "u16", "u32", "u64", "u128", "ubig", "i8",
-            "i16", "i32", "i64", "i128", "ibig", "f32", "f64", "fbig",
-        ];
-        let mut lexer = from_string(types.join(" "));
-        stdlib().init_lexer(&mut lexer);
-        for ty in types.iter() {
-            assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier(ty.to_string()));
-        }
-        assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
-    }
+    // #[test]
+    // fn types() {
+    //     let types = [
+    //         "unit", "str", "char", "bool", "u1", "u8", "u16", "u32", "u64", "u128", "ubig", "i8",
+    //         "i16", "i32", "i64", "i128", "ibig", "f32", "f64", "fbig",
+    //     ];
+    //     let mut lexer = from_string(types.join(" "));
+    //     stdlib().init_lexer(&mut lexer);
+    //     for ty in types.iter() {
+    //         assert_next_token_eq(&mut lexer, TokenKind::TypeIdentifier(ty.to_string()));
+    //     }
+    //     assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);
+    // }
 
     #[test]
     fn commas() {

@@ -17,7 +17,6 @@ pub enum TokenKind {
     String(String),
     Char(char),
     Boolean(bool),
-    TypeIdentifier(String),
     // Grouping and separation tokens
     LeftParen,    // (
     RightParen,   // )
@@ -101,7 +100,6 @@ impl Display for TokenKind {
             Self::String(s) => write!(f, "\"{}\"", s),
             Self::Char(c) => write!(f, "'{}'", c),
             Self::Boolean(b) => write!(f, "{}", b),
-            Self::TypeIdentifier(s) => write!(f, "{}", s),
             Self::LeftParen => write!(f, "("),
             Self::RightParen => write!(f, ")"),
             Self::LeftBrace => write!(f, "{{"),
