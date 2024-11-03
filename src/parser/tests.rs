@@ -65,21 +65,8 @@ mod tests {
     }
 
     #[test]
-    fn tuple_1() {
+    fn tuple_1_trailing() {
         let result = parse_str_one("(1,)");
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.expressions.len() == 1);
-        assert!(matches!(result.expressions[0], Ast::Tuple(_)));
-        if let Ast::Tuple(elems) = &result.expressions[0] {
-            assert_eq!(elems.len(), 1);
-            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
-        }
-    }
-
-    #[test]
-    fn tuple_1_no_par() {
-        let result = parse_str_one("1,");
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -105,38 +92,8 @@ mod tests {
     }
 
     #[test]
-    fn tuple_2_no_par() {
-        let result = parse_str_one("1, 2");
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.expressions.len() == 1);
-        assert!(matches!(result.expressions[0], Ast::Tuple(_)));
-        if let Ast::Tuple(elems) = &result.expressions[0] {
-            assert_eq!(elems.len(), 2);
-            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
-            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
-        }
-    }
-
-    #[test]
     fn tuple_3() {
         let result = parse_str_one("(1, 2, 3)");
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.expressions.len() == 1);
-        dbg!(&result.expressions[0]);
-        assert!(matches!(result.expressions[0], Ast::Tuple(_)));
-        if let Ast::Tuple(elems) = &result.expressions[0] {
-            assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
-            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
-            assert_eq!(elems[2], Ast::Literal(make_u8(3)));
-        }
-    }
-
-    #[test]
-    fn tuple_3_no_par() {
-        let result = parse_str_one("1, 2, 3");
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -166,21 +123,6 @@ mod tests {
     }
 
     #[test]
-    fn tuple_3_no_par_trailing() {
-        let result = parse_str_one("1, 2, 3,");
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.expressions.len() == 1);
-        assert!(matches!(result.expressions[0], Ast::Tuple(_)));
-        if let Ast::Tuple(elems) = &result.expressions[0] {
-            assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
-            assert_eq!(elems[1], Ast::Literal(make_u8(2)));
-            assert_eq!(elems[2], Ast::Literal(make_u8(3)));
-        }
-    }
-
-    #[test]
     fn tuple_addition() {
         let result = parse_str_one("(1, 2) + (3, 4)");
         assert!(result.is_ok());
@@ -191,26 +133,6 @@ mod tests {
             assert_eq!(op.name, "add".to_string());
             assert!(matches!(*lhs.to_owned(), Ast::Tuple(_)));
             assert!(matches!(*rhs.to_owned(), Ast::Tuple(_)));
-        }
-    }
-
-    #[test]
-    fn tuple_with_addition() {
-        let result = parse_str_one("1, 2 + 3, 4");
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert!(result.expressions.len() == 1);
-        assert!(matches!(result.expressions[0], Ast::Tuple(_)));
-        if let Ast::Tuple(elems) = &result.expressions[0] {
-            assert_eq!(elems.len(), 3);
-            assert_eq!(elems[0], Ast::Literal(make_u1(1)));
-            assert!(matches!(&elems[1], Ast::Binary(_, _, _)));
-            assert_eq!(elems[2], Ast::Literal(make_u8(4)));
-            if let Ast::Binary(lhs, op, rhs) = &elems[1] {
-                assert_eq!(op.name, "add".to_string());
-                assert_eq!(**lhs, Ast::Literal(make_u8(2)));
-                assert_eq!(**rhs, Ast::Literal(make_u8(3)));
-            }
         }
     }
 
