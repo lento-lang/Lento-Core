@@ -97,7 +97,6 @@ impl<R: Read> Parser<R> {
             if existing.iter().any(|e| e.position == op.position) {
                 return Err(ParseOperatorError::PositionForSymbolExists);
             }
-            if !op.overloadable && existing.iter().any(|e| !e.overloadable) {
         }
         self.lexer.operators.insert(op.symbol.clone());
         self.operators
