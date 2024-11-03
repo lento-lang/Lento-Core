@@ -399,15 +399,6 @@ impl TypeTrait for Type {
                     && types1.iter().zip(types2).all(|(t1, t2)| t1.subtype(t2))
             }
             (_, Type::Sum(types)) => types.iter().any(|t| self.subtype(t)),
-            // (Type::Enum(name1, variants1), Type::Enum(name2, variants2)) => {
-            //     name1 == name2
-            //         && variants1.len() == variants2.len()
-            //         && variants1.iter().zip(variants2).all(|((n1, t1), (n2, t2))| {
-            //             n1 == n2
-            //                 && t1.len() == t2.len()
-            //                 && t1.iter().zip(t2).all(|(t1, t2)| t1.subtype(t2))
-            //         })
-            // }
             (Type::Variant(parent1, name1, fields1), Type::Variant(parent2, name2, fields2)) => {
                 parent1.eq(parent2)
                     && name1 == name2
