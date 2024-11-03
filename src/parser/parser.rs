@@ -91,12 +91,13 @@ impl<R: Read> Parser<R> {
     /// If the operator already exists with the same signature,
     pub fn define_op(&mut self, op: OperatorInfo) -> Failable<ParseOperatorError> {
         if let Some(existing) = self.get_op(&op.symbol) {
+            if existing.iter().any(|e| !e.overloadable) {
+                return Err(ParseOperatorError::SymbolNotOverloadable);
+            }
             if existing.iter().any(|e| e.position == op.position) {
                 return Err(ParseOperatorError::PositionForSymbolExists);
             }
             if !op.overloadable && existing.iter().any(|e| !e.overloadable) {
-                return Err(ParseOperatorError::SymbolNotOverloadable);
-            }
         }
         self.lexer.operators.insert(op.symbol.clone());
         self.operators
