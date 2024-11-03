@@ -110,10 +110,10 @@ pub fn stdlib() -> Initializer {
                 handler: OperatorHandler::Static(
                     OperatorSignature {
                         params: FunctionParameterType::Singles(vec![
-                            ("lhs".into(), Type::Any),
-                            ("rhs".into(), Type::Any),
+                            ("lhs".into(), std_primitive_types::ANY),
+                            ("rhs".into(), std_primitive_types::ANY),
                         ]),
-                        returns: Type::Any,
+                        returns: std_primitive_types::ANY,
                     },
                     |op| {
                         if let StaticOperatorAst::Infix(lhs, rhs) = op {

@@ -239,14 +239,6 @@ impl TypeTrait for FunctionVariationType {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
-    /// The type of the `any` value.
-    /// This is the top type.
-    /// ! Should only accessible within the compiler and native functions in the standard library.
-    Any,
-
-    /// The top type, supertype of all types and itself.
-    Type,
-
     /// A literal type (name).
     /// Examples such as `int`, `float`, `string`, `char`, `bool`, `unit`, `any`.
     /// Or `IO`, `List`, `Option`, `Result`, `Either`, `Tuple`, `Record`, `Function`, `UserDefinedType`.
@@ -313,6 +305,8 @@ pub enum Type {
 impl TypeTrait for Type {
     fn subtype(&self, other: &Type) -> bool {
         match (self, other) {
+            (&std_primitive_types::ANY, _) => true,
+            (_, &std_primitive_types::ANY) => true,
             (Type::Literal(s1), Type::Literal(s2)) => *s1 == *s2,
             (Type::Generic(s1, params1, _), Type::Generic(s2, params2, _)) => {
                 s1 == s2
@@ -354,9 +348,7 @@ impl TypeTrait for Type {
                     && fields1.len() == fields2.len()
                     && fields1.iter().zip(fields2).all(|(t1, t2)| t1.subtype(t2))
             }
-            (Type::Any, _) => true,
-            (_, Type::Any) => true,
-            _ => false, // todo!("implement subtype"),
+            _ => false,
         }
     }
 
@@ -402,8 +394,6 @@ impl TypeTrait for Type {
                 name,
                 fields.into_iter().map(Type::simplify).collect(),
             ),
-            Type::Any => self,
-            Type::Type => self,
         }
     }
 }
@@ -411,8 +401,6 @@ impl TypeTrait for Type {
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.clone().simplify() {
-            Type::Any => write!(f, "any"),
-            Type::Type => write!(f, "type"),
             Type::Literal(t) => write!(f, "{}", t),
             Type::Function(variations) => {
                 let print_params =
@@ -516,13 +504,13 @@ pub mod std_primitive_types {
     /// The type of the `any` value.
     /// This is the top type.
     /// ! Should only accessible within the compiler and native functions in the standard library.
-    pub const ANY: Type = Type::Any;
+    pub const ANY: Type = Type::Literal(Str::Str("any"));
+
+    /// The top type, supertype of all types and itself.
+    pub const TYPE: Type = Type::Literal(Str::Str("type"));
 
     /// The unit type.
     pub const UNIT: Type = Type::Literal(Str::Str("unit"));
-
-    // The top type.
-    pub const TYPE: Type = Type::Type;
 
     /// A string type. (supports unicode)
     pub const STRING: Type = Type::Literal(Str::Str("str"));
