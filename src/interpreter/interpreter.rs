@@ -80,6 +80,9 @@ fn eval_arguments(args: &[CheckedAst], env: &mut Environment) -> Result<Vec<Valu
 
 /// Assume `elems` are a non-empty vector
 fn eval_tuple(elems: &[CheckedAst], env: &mut Environment) -> InterpretResult {
+    if elems.is_empty() {
+        return Ok(Value::Unit);
+    }
     let (values, types): (Vec<Value>, Vec<Type>) = elems
         .iter()
         .map(|e| {
@@ -109,13 +112,7 @@ pub fn interpret_ast(ast: &CheckedAst, env: &mut Environment) -> InterpretResult
             &eval_arguments(args, env)?,
             env,
         )?,
-        CheckedAst::Tuple(v, _) => {
-            if v.is_empty() {
-                Value::Unit
-            } else {
-                eval_tuple(v, env)?
-            }
-        }
+        CheckedAst::Tuple(v, _) => eval_tuple(v, env)?,
         CheckedAst::Literal(l) => l.clone(),
         CheckedAst::Identifier(id, _) => match env.get_value(id) {
             Some(v) => v,

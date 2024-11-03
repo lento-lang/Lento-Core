@@ -244,9 +244,6 @@ pub enum Type {
     /// ! Should only accessible within the compiler and native functions in the standard library.
     Any,
 
-    /// The unit type.
-    Unit,
-
     /// The top type, supertype of all types and itself.
     Type,
 
@@ -406,7 +403,6 @@ impl TypeTrait for Type {
                 fields.into_iter().map(Type::simplify).collect(),
             ),
             Type::Any => self,
-            Type::Unit => self,
             Type::Type => self,
         }
     }
@@ -416,7 +412,6 @@ impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.clone().simplify() {
             Type::Any => write!(f, "any"),
-            Type::Unit => write!(f, "()"),
             Type::Type => write!(f, "type"),
             Type::Literal(t) => write!(f, "{}", t),
             Type::Function(variations) => {
@@ -524,7 +519,7 @@ pub mod std_primitive_types {
     pub const ANY: Type = Type::Any;
 
     /// The unit type.
-    pub const UNIT: Type = Type::Unit;
+    pub const UNIT: Type = Type::Literal(Str::Str("unit"));
 
     // The top type.
     pub const TYPE: Type = Type::Type;
