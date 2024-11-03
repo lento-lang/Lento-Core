@@ -394,20 +394,42 @@ impl<R: Read> Parser<R> {
                     }
                     start if start.is_grouping_start() => {
                         match start {
-                            // Tuples, Units and Parentheses
+                            // Tuples, Units and Parentheses: ()
                             TokenKind::LeftParen => {
-                                if let Ok(end) = self.lexer.peek_token(0) {
-                                    if end.token == TokenKind::RightParen {
-                                        self.lexer.next_token().unwrap();
-                                        return Ok(Ast::Tuple(vec![]));
-                                    }
-                                }
                                 // Tuples are defined by a comma-separated list of expressions
-                                let expr = self.parse_top_expr()?;
+                                let mut exprs = Vec::new();
+                                while let Ok(end) = self.lexer.peek_token(0) {
+                                    if end.token == TokenKind::RightParen {
+                                        break;
+                                    }
+                                    exprs.push(self.parse_top_expr()?);
+                                    if let Ok(nt) = self.lexer.peek_token(0) {
+                                        if nt.token == TokenKind::Comma {
+                                            self.lexer.next_token().unwrap();
+                                            continue;
+                                        } else if nt.token == TokenKind::RightParen {
+                                            break;
+                                        }
+                                    }
+                                    return Err(ParseError {
+                                        message: format!(
+                                            "Expected ',' or ')', but found {:?}",
+                                            self.lexer.peek_token(0)
+                                        ),
+                                        span: (
+                                            self.lexer.current_index(),
+                                            self.lexer.current_index(),
+                                        ),
+                                    });
+                                }
                                 self.parse_expected(TokenKind::RightParen, ")")?;
-                                expr
+                                if exprs.len() == 1 {
+                                    exprs.pop().unwrap()
+                                } else {
+                                    Ast::Tuple(exprs)
+                                }
                             }
-                            // Records and Blocks
+                            // Records and Blocks: {}
                             TokenKind::LeftBrace => {
                                 // Try to parse as record
                                 if let Some(res) = self.parse_record_fields() {
@@ -425,21 +447,35 @@ impl<R: Read> Parser<R> {
                                     Ast::Block(exprs)
                                 }
                             }
-                            // Lists
+                            // Lists: []
                             TokenKind::LeftBracket => {
-                                if let Ok(end) = self.lexer.peek_token(0) {
+                                let mut exprs = Vec::new();
+                                while let Ok(end) = self.lexer.peek_token(0) {
                                     if end.token == TokenKind::RightBracket {
-                                        self.lexer.next_token().unwrap();
-                                        return Ok(Ast::List(vec![]));
+                                        break;
                                     }
+                                    exprs.push(self.parse_top_expr()?);
+                                    if let Ok(nt) = self.lexer.peek_token(0) {
+                                        if nt.token == TokenKind::Comma {
+                                            self.lexer.next_token().unwrap();
+                                            continue;
+                                        } else if nt.token == TokenKind::RightBracket {
+                                            break;
+                                        }
+                                    }
+                                    return Err(ParseError {
+                                        message: format!(
+                                            "Expected ',' or ']', but found {:?}",
+                                            self.lexer.peek_token(0)
+                                        ),
+                                        span: (
+                                            self.lexer.current_index(),
+                                            self.lexer.current_index(),
+                                        ),
+                                    });
                                 }
-                                let body = self.parse_top_expr()?;
                                 self.parse_expected(TokenKind::RightBracket, "]")?;
-                                match body {
-                                    // TODO: Add custom parsing for list elements instead of unwrapping a tuple
-                                    Ast::Tuple(elems) => Ast::List(elems),
-                                    single => Ast::List(vec![single]),
-                                }
+                                Ast::List(exprs)
                             }
                             _ => unreachable!(),
                         }
