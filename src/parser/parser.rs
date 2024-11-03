@@ -397,6 +397,7 @@ impl<R: Read> Parser<R> {
                             // Tuples, Units and Parentheses: ()
                             TokenKind::LeftParen => {
                                 // Tuples are defined by a comma-separated list of expressions
+                                let mut explicit_single = false;
                                 let mut exprs = Vec::new();
                                 while let Ok(end) = self.lexer.peek_token(0) {
                                     if end.token == TokenKind::RightParen {
@@ -406,6 +407,12 @@ impl<R: Read> Parser<R> {
                                     if let Ok(nt) = self.lexer.peek_token(0) {
                                         if nt.token == TokenKind::Comma {
                                             self.lexer.next_token().unwrap();
+                                            if self.lexer.peek_token(0).unwrap().token
+                                                == TokenKind::RightParen
+                                            {
+                                                explicit_single = true;
+                                                // Break in the next iteration
+                                            }
                                             continue;
                                         } else if nt.token == TokenKind::RightParen {
                                             break;
@@ -423,7 +430,7 @@ impl<R: Read> Parser<R> {
                                     });
                                 }
                                 self.parse_expected(TokenKind::RightParen, ")")?;
-                                if exprs.len() == 1 {
+                                if exprs.len() == 1 && !explicit_single {
                                     exprs.pop().unwrap()
                                 } else {
                                     Ast::Tuple(exprs)
