@@ -9,7 +9,7 @@ use crate::{
 use super::{
     environment::Environment,
     error::{runtime_error, RuntimeError},
-    value::{FunctionVariation, NativeFunctionParameters, Value},
+    value::{Function, FunctionVariation, NativeFunctionParameters, Value},
 };
 
 //--------------------------------------------------------------------------------------//
@@ -111,9 +111,13 @@ pub fn interpret_ast(ast: &CheckedAst, env: &mut Environment) -> InterpretResult
         )?,
         CheckedAst::Tuple(v, _) => eval_tuple(v, env)?,
         CheckedAst::Literal(l) => l.clone(),
-        CheckedAst::Identifier(id, _) => match env.get_value(id) {
-            Some(v) => v,
-            None => return Err(runtime_error(format!("Unknown identifier '{}'", id))),
+        CheckedAst::Identifier(id, _) => match env.lookup_identifier(id) {
+            (Some(_), Some(_)) => {
+                return Err(runtime_error(format!("Ambiguous identifier '{}'", id)))
+            }
+            (Some(v), _) => v.clone(),
+            (_, Some(f)) => Value::Function(f.clone()),
+            (None, None) => return Err(runtime_error(format!("Unknown identifier '{}'", id))),
         },
         CheckedAst::Binary(lhs, op, rhs, _) => {
             let lhs = interpret_ast(lhs, env)?;
@@ -145,8 +149,41 @@ pub fn interpret_ast(ast: &CheckedAst, env: &mut Environment) -> InterpretResult
                 .collect::<Result<Vec<Value>, _>>()?;
             Value::List(values, ty.clone())
         }
-        CheckedAst::Record(_, _) => todo!("Implement Record AST node: {:?}", ast),
-        CheckedAst::FunctionDecl(_) => todo!("Implement Function AST node: {:?}", ast),
+        CheckedAst::Record(expr, ty) => {
+            let mut record = Vec::new();
+            for (key, value) in expr {
+                let value = interpret_ast(value, env)?;
+                record.push((key.clone(), value));
+            }
+            Value::Record(record, ty.clone())
+        }
+        CheckedAst::FunctionDecl(name, func) => {
+            if let Some(name) = name {
+                // Add a new variation to the local environment
+                // Failing if a variation of the same signature already exists
+                Value::Function(
+                    env.add_local_function_variation(
+                        name,
+                        FunctionVariation::new_user(
+                            func.params.clone(),
+                            *func.body.clone(),
+                            func.return_type.clone(),
+                        ),
+                    )?
+                    .clone(),
+                )
+            } else {
+                // Anonymous function
+                Value::Function(Function::new(
+                    "anon".to_string(),
+                    vec![FunctionVariation::new_user(
+                        func.params.clone(),
+                        *func.body.clone(),
+                        func.return_type.clone(),
+                    )],
+                ))
+            }
+        }
         CheckedAst::Unary(_, _, _) => todo!("Implement Unary AST node: {:?}", ast),
         CheckedAst::Block(exprs, _) => {
             let mut result = Value::Unit;

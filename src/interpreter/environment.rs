@@ -8,7 +8,7 @@ use crate::{
 
 use super::{
     error::RuntimeError,
-    value::{Function, Value},
+    value::{Function, FunctionVariation, Value},
 };
 
 /// The environment is a map of variable names to values.
@@ -43,38 +43,46 @@ impl<'a> Environment<'a> {
         }
     }
 
-    pub fn get_variable(&self, name: &str) -> Option<Value> {
-        if let Some(v) = self.variables.get(name) {
-            Some(v.clone())
-        } else if let Some(p) = &self.parent {
-            p.get_variable(name)
-        } else {
-            None
-        }
+    pub fn lookup_variable(&self, name: &str) -> Option<&Value> {
+        self.variables
+            .get(name)
+            .or_else(|| self.parent.and_then(|p| p.lookup_variable(name)))
     }
 
-    pub fn get_function(&self, name: &str) -> Option<Value> {
-        if let Some(f) = self.functions.get(name) {
-            Some(Value::Function(f.clone()))
-        } else if let Some(p) = &self.parent {
-            p.get_function(name)
+    pub fn lookup_function(&self, name: &str) -> Option<&Function> {
+        self.functions
+            .get(name)
+            .or_else(|| self.parent.and_then(|p| p.lookup_function(name)))
+    }
+
+    pub fn add_local_function_variation(
+        &mut self,
+        name: &str,
+        variation: FunctionVariation,
+    ) -> Result<&Function, RuntimeError> {
+        if let Some(existing) = self.functions.get_mut(name) {
+            if existing.get_variations().contains(&&variation) {
+                return Err(RuntimeError {
+                    message: format!(
+                        "Function variation of '{}' with the same signature already exists",
+                        name
+                    ),
+                });
+            }
+            existing.add_variation(variation);
         } else {
-            None
+            self.functions.insert(
+                name.to_string(),
+                Function::new(name.to_string(), vec![variation]),
+            );
         }
+        Ok(self.functions.get(name).unwrap())
     }
 
     /// Get a value from the environment.
     /// If the value is not found in the current environment, the parent environment is searched recursively.
-    pub fn get_value(&self, name: &str) -> Option<Value> {
-        if let Some(v) = self.get_variable(name) {
-            Some(v)
-        } else if let Some(f) = self.get_function(name) {
-            Some(f)
-        } else if let Some(p) = &self.parent {
-            p.get_value(name)
-        } else {
-            None
-        }
+    pub fn lookup_identifier(&self, name: &str) -> (Option<&Value>, Option<&Function>) {
+        (self.lookup_variable(name), self.lookup_function(name))
     }
 
     pub fn get_type(&self, name: &str) -> Option<Type> {

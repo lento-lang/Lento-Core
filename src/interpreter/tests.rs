@@ -179,7 +179,7 @@ mod tests {
         let mut env = global_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
+        assert!(env.lookup_function("add").is_some());
     }
 
     #[test]
@@ -199,7 +199,7 @@ mod tests {
         let mut env = global_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
+        assert!(env.lookup_function("add").is_some());
     }
 
     #[test]
@@ -219,7 +219,7 @@ mod tests {
         let mut env = global_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
+        assert!(env.lookup_function("add").is_some());
     }
 
     #[test]
@@ -239,7 +239,7 @@ mod tests {
         let mut env = global_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
+        assert!(env.lookup_function("add").is_some());
     }
 
     #[test]
@@ -259,7 +259,7 @@ mod tests {
         let mut env = global_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
+        assert!(env.lookup_function("add").is_some());
     }
 
     #[test]
@@ -279,7 +279,7 @@ mod tests {
         let mut env = global_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
+        assert!(env.lookup_function("add").is_some());
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
         let mut env = global_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
+        assert!(env.lookup_function("add").is_some());
     }
 
     #[test]
@@ -315,6 +315,6 @@ mod tests {
         let mut env = global_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
-        assert!(env.get_function("add").is_some());
+        assert!(env.lookup_function("add").is_some());
     }
 }
