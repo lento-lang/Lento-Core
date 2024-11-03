@@ -6,7 +6,6 @@ use crate::{
         ast::{Ast, FunctionAst, Module},
         op::{Operator, OperatorHandler, OperatorInfo, StaticOperatorAst},
     },
-    stdlib::init::stdlib,
     util::str::Str,
 };
 
@@ -499,10 +498,4 @@ impl TypeChecker<'_> {
                 .join(" ")
         )))
     }
-}
-
-pub fn type_checker_with_stdlib() -> TypeChecker<'static> {
-    let mut checker = TypeChecker::default();
-    stdlib().init_type_checker(&mut checker);
-    checker
 }
