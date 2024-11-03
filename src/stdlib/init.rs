@@ -39,13 +39,6 @@ impl Initializer {
                 lexer.operators.insert(op.info.symbol.clone());
             }
         }
-        // for type_ in &self.types {
-        //     if let Type::Literal(name) = type_ {
-        //         lexer.types.insert(name.to_string());
-        //     } else {
-        //         panic!("init_lexer() expects a literal type");
-        //     }
-        // }
     }
 
     pub fn init_parser(&self, parser: &mut Parser<impl Read>) {
@@ -57,18 +50,6 @@ impl Initializer {
                 );
             }
         }
-        // for type_ in &self.types {
-        //     if let Type::Literal(name) = type_ {
-        //         if let Err(e) = parser.define_literal_type(type_.clone()) {
-        //             panic!(
-        //                 "Parser initialization failed when adding type '{}': {:?}",
-        //                 name, e
-        //             );
-        //         }
-        //     } else {
-        //         panic!("init_parser() expects a literal type");
-        //     }
-        // }
     }
 
     pub fn init_type_checker(&self, type_checker: &mut TypeChecker) {

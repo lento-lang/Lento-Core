@@ -372,37 +372,6 @@ impl TypeChecker<'_> {
         })
     }
 
-    // fn check_variation_call(
-    //     &mut self,
-    //     variation: &FunctionVariation,
-    //     args: &[Ast],
-    // ) -> TypeResult<CheckedAst> {
-    //     let args = args
-    //         .iter()
-    //         .map(|a| self.check_expr(a))
-    //         .collect::<TypeResult<Vec<_>>>()?;
-    //     let arg_types = args.iter().map(|a| a.get_type()).collect::<Vec<_>>();
-    //     if variation.get_params().match_args_types(&arg_types) {
-    //         Ok(CheckedAst::VariationCall(
-    //             Box::new(variation.clone()),
-    //             args,
-    //             variation.get_return_type().clone(),
-    //         ))
-    //     } else {
-    //         Err(TypeError {
-    //             message: format!(
-    //                 "Function variation has no variant with {} arguments of types: ({})",
-    //                 args.len(),
-    //                 arg_types
-    //                     .iter()
-    //                     .map(|t| t.to_string())
-    //                     .collect::<Vec<_>>()
-    //                     .join(", ")
-    //             ),
-    //         })
-    //     }
-    // }
-
     /// Check the type of an accumulate expression.
     /// An accumulate expression results in a function variation-specific call.
     fn check_accumulate(

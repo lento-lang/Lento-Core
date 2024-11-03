@@ -40,10 +40,6 @@ pub enum Ast {
     /// 1. Name of the function
     /// 2. List of arguments
     FunctionCall(String, Vec<Ast>),
-    // /// A function variation call is an invocation of a function variation with a list of arguments
-    // /// 1. Function variation
-    // /// 2. List of arguments
-    // VariationCall(Box<FunctionVariation>, Vec<Ast>),
     /// A function declaration is a named function with a list of parameters and a body expression
     FunctionDecl(FunctionAst),
     /// An accumulate expression is an operation with multiple operands

@@ -162,33 +162,3 @@ impl Operator {
         }
     }
 }
-
-// #[derive(Clone, Debug, PartialEq)]
-// pub struct RuntimeOperator {
-//     pub name: String,
-//     pub symbol: String,
-//     pub handler: RuntimeOperatorHandler,
-// }
-
-// impl RuntimeOperator {
-//     pub fn signature(&self) -> OperatorSignature {
-//         let params = self.handler.get_params().clone();
-//         let returns = self.handler.get_return_type().clone();
-//         OperatorSignature { params, returns }
-//     }
-// }
-
-// impl From<Operator> for RuntimeOperator {
-//     fn from(op: Operator) -> Self {
-//         match op.handler {
-//             OperatorHandler::Runtime(handler) => RuntimeOperator {
-//                 name: op.info.name,
-//                 symbol: op.info.symbol,
-//                 handler,
-//             },
-//             OperatorHandler::Static(_, _) => {
-//                 panic!("Cannot convert a static operator to a runtime operator")
-//             }
-//         }
-//     }
-// }

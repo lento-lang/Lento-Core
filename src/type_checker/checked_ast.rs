@@ -54,11 +54,6 @@ pub enum CheckedAst {
     /// 1. Name of the identifier
     /// 2. Type of the identifier (the type of the value it refers to)
     Identifier(String, Type),
-    // /// A function call is an invocation of a function with a list of arguments
-    // /// 1. Name of the function
-    // /// 2. List of arguments
-    // /// 3. Type of the return value of the function
-    // FunctionCall(String, Vec<CheckedAst>, Type),
     /// A function variation call is an invocation of a function variation with a list of arguments
     /// 1. Function variation
     /// 2. List of arguments
@@ -129,14 +124,6 @@ impl CheckedAst {
             ),
             CheckedAst::Record(_elements, _) => todo!(),
             CheckedAst::Identifier(name, _) => name.clone(),
-            // CheckedAst::FunctionCall(name, args, _) => format!(
-            //     "({} {})",
-            //     name,
-            //     args.iter()
-            //         .map(|e| e.print_sexpr())
-            //         .collect::<Vec<String>>()
-            //         .join(" ")
-            // ),
             CheckedAst::VariationCall(name, variation, args, _) => format!(
                 "({} {} {})",
                 name.clone().unwrap_or("anon".into()),

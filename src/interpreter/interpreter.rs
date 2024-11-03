@@ -78,43 +78,6 @@ fn eval_arguments(args: &[CheckedAst], env: &mut Environment) -> Result<Vec<Valu
     args.iter().map(|a| interpret_ast(a, env)).collect()
 }
 
-// fn eval_function_call(name: &str, args: &[Value], env: &mut Environment) -> InterpretResult {
-//     // Look for the name in the environment
-//     match env.get_value(name) {
-//         Some(Value::Function(f)) => {
-//             // Find a matching variation to the call signature (only arguments are considered)
-//             // Bind the arguments to the function's parameters
-//             // Evaluate the function body
-//             // Return the result
-
-//             let mut found: Option<&FunctionVariation> = None;
-//             for variation in f.get_variations() {
-//                 if !variation.get_params().match_args(args) {
-//                     continue;
-//                 }
-//                 found = Some(variation);
-//                 break;
-//             }
-//             // Bind the arguments to the parameters
-//             if let Some(found) = found {
-//                 eval_function_variation_invocation(
-//                     Some(Str::String(name.to_string())),
-//                     found,
-//                     args,
-//                     env,
-//                 )
-//             } else {
-//                 Err(runtime_error(format!(
-//                     "No matching function variation for {}",
-//                     name
-//                 )))
-//             }
-//         }
-//         Some(_) => Err(runtime_error(format!("{} is not a function", name))),
-//         None => Err(runtime_error(format!("Unknown function: {}", name))),
-//     }
-// }
-
 /// Assume `elems` are a non-empty vector
 fn eval_tuple(elems: &[CheckedAst], env: &mut Environment) -> InterpretResult {
     let (values, types): (Vec<Value>, Vec<Type>) = elems
