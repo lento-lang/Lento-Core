@@ -126,33 +126,6 @@ pub fn stdlib() -> Initializer {
             },
             Operator {
                 info: OperatorInfo {
-                    name: "tuple".into(),
-                    symbol: ",".into(),
-                    position: OperatorPosition::InfixAccumulate,
-                    precedence: default_operator_precedence::TUPLE,
-                    associativity: OperatorAssociativity::Left,
-                    overloadable: false,
-                    allow_trailing: true,
-                },
-                handler: OperatorHandler::Static(
-                    OperatorSignature {
-                        params: FunctionParameterType::Variadic(
-                            vec![],
-                            ("elements".into(), Type::Any),
-                        ),
-                        returns: Type::Any,
-                    },
-                    |op| {
-                        if let StaticOperatorAst::Accumulate(elems) = op {
-                            Ast::Tuple(elems)
-                        } else {
-                            panic!("tuple expects an accumulator operator");
-                        }
-                    },
-                ),
-            },
-            Operator {
-                info: OperatorInfo {
                     name: "add".into(),
                     symbol: "+".into(),
                     position: OperatorPosition::Infix,
