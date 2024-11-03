@@ -398,4 +398,92 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn block_one() {
+        let result = parse_str_one("{ 1 }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Block(_)));
+        if let Ast::Block(inner) = &result.expressions[0] {
+            assert_eq!(inner.len(), 1);
+            assert!(matches!(inner[0], Ast::Literal(_)));
+        }
+    }
+
+    #[test]
+    fn block_two() {
+        let result = parse_str_one("{ 1; 2 }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Block(_)));
+        if let Ast::Block(inner) = &result.expressions[0] {
+            assert_eq!(inner.len(), 2);
+            assert!(matches!(inner[0], Ast::Literal(_)));
+            assert!(matches!(inner[1], Ast::Literal(_)));
+        }
+    }
+
+    #[test]
+    fn block_three() {
+        let result = parse_str_one("{ 1; 2; 3 }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Block(_)));
+        if let Ast::Block(inner) = &result.expressions[0] {
+            assert_eq!(inner.len(), 3);
+            assert!(matches!(inner[0], Ast::Literal(_)));
+            assert!(matches!(inner[1], Ast::Literal(_)));
+            assert!(matches!(inner[2], Ast::Literal(_)));
+        }
+    }
+
+    #[test]
+    fn block_three_no_semicolon() {
+        let result = parse_str_one("{ 1 2 3 }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Block(_)));
+        if let Ast::Block(inner) = &result.expressions[0] {
+            assert_eq!(inner.len(), 3);
+            assert!(matches!(inner[0], Ast::Literal(_)));
+            assert!(matches!(inner[1], Ast::Literal(_)));
+            assert!(matches!(inner[2], Ast::Literal(_)));
+        }
+    }
+
+    #[test]
+    fn block_nested() {
+        let result = parse_str_one("{ { 1 } }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Block(_)));
+        if let Ast::Block(inner) = &result.expressions[0] {
+            assert_eq!(inner.len(), 1);
+            assert!(matches!(inner[0], Ast::Block(_)));
+        }
+    }
+
+    #[test]
+    fn block_nested_two() {
+        let result = parse_str_one("{ { 1; 2 } }");
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Block(_)));
+        if let Ast::Block(inner) = &result.expressions[0] {
+            assert_eq!(inner.len(), 1);
+            assert!(matches!(inner[0], Ast::Block(_)));
+            if let Ast::Block(inner_inner) = &inner[0] {
+                assert_eq!(inner_inner.len(), 2);
+                assert!(matches!(inner_inner[0], Ast::Literal(_)));
+                assert!(matches!(inner_inner[1], Ast::Literal(_)));
+            }
+        }
+    }
 }
