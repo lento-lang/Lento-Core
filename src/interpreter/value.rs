@@ -95,6 +95,22 @@ impl FunctionVariation {
             }
         }
     }
+
+    pub fn pretty_print_color(&self) -> String {
+        use colorful::Colorful;
+
+        let (params, ret) = match self {
+            FunctionVariation::User { params, ret, .. } => (params, ret),
+            FunctionVariation::Native { params, ret, .. } => (params, ret),
+        };
+
+        format!(
+            "{} {} {}",
+            params.pretty_print_color(),
+            "->".dark_gray(),
+            ret.pretty_print_color()
+        )
+    }
 }
 
 impl Display for FunctionVariation {
@@ -352,13 +368,16 @@ impl Value {
                 result
             }
             Value::Function(fun) => {
-                let mut result = format!("function[{}] {{\n", fun.name)
-                    .light_gray()
-                    .to_string();
+                let mut result = format!(
+                    "{}{}{}\n",
+                    "fn[".dark_gray(),
+                    fun.name.to_string().light_magenta(),
+                    "] {".dark_gray()
+                );
                 for v in fun.singles.iter() {
-                    result.push_str(&format!("\t{}\n", v));
+                    result.push_str(&format!("    {}\n", v.pretty_print_color()));
                 }
-                result.push_str(&"}".light_gray().to_string());
+                result.push_str(&"}".dark_gray().to_string());
                 result
             }
             Value::Type(ty) => format!("{}", ty).light_blue().to_string(),

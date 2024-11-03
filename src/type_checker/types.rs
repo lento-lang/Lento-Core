@@ -57,16 +57,6 @@ pub enum FunctionParameterType {
 }
 
 impl FunctionParameterType {
-    fn fmt_named(f: &mut std::fmt::Formatter<'_>, named: &[NamedType]) -> std::fmt::Result {
-        for (i, (name, t)) in named.iter().enumerate() {
-            if i != 0 {
-                write!(f, ", ")?;
-            }
-            write!(f, "{} {}", t, name)?;
-        }
-        Ok(())
-    }
-
     /// Match the given arguments to the function parameters.
     /// Return true if the arguments suffice the parameter types.
     pub fn match_args(&self, args: &[Value]) -> bool {
@@ -153,6 +143,82 @@ impl FunctionParameterType {
             FunctionParameterType::Variadic(types, variadic) => Some((types, variadic)),
         }
     }
+
+    fn fmt_named(f: &mut std::fmt::Formatter<'_>, named: &[NamedType]) -> std::fmt::Result {
+        for (i, (name, t)) in named.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{} {}", t, name)?;
+        }
+        Ok(())
+    }
+
+    fn fmt_named_color(named: &[NamedType]) -> String {
+        use colorful::Colorful;
+
+        if named.is_empty() {
+            return "()".to_string();
+        }
+
+        let mut result = String::new();
+        if named.len() > 1 {
+            result.push_str(&"(".dark_gray().to_string());
+        }
+        for (i, (name, t)) in named.iter().enumerate() {
+            if i != 0 {
+                result.push_str(&", ".dark_gray().to_string());
+            }
+            result.push_str(&format!("{} {}", t.to_string().light_blue(), name));
+        }
+        if named.len() > 1 {
+            result.push_str(&")".dark_gray().to_string());
+        }
+        result
+    }
+
+    fn fmt_unnamed_color(types: &[&Type]) -> String {
+        use colorful::Colorful;
+
+        if types.is_empty() {
+            return "()".to_string();
+        }
+
+        let mut result = String::new();
+        if types.len() > 1 {
+            result.push_str(&"(".dark_gray().to_string());
+        }
+        for (i, t) in types.iter().enumerate() {
+            if i != 0 {
+                result.push_str(&", ".dark_gray().to_string());
+            }
+            result.push_str(&t.pretty_print_color());
+        }
+        if types.len() > 1 {
+            result.push_str(&")".dark_gray().to_string());
+        }
+        result
+    }
+
+    pub fn pretty_print_color(&self) -> String {
+        use colorful::Colorful;
+
+        match self {
+            FunctionParameterType::Singles(types) => FunctionParameterType::fmt_named_color(types),
+            FunctionParameterType::Variadic(types, variadic) => {
+                let mut result = FunctionParameterType::fmt_named_color(types);
+                if !types.is_empty() {
+                    result.push_str(&", ".dark_gray().to_string());
+                }
+                result.push_str(&format!(
+                    "...{} {}",
+                    variadic.1.to_string().light_blue(),
+                    variadic.0
+                ));
+                result
+            }
+        }
+    }
 }
 
 impl Display for FunctionParameterType {
@@ -164,7 +230,7 @@ impl Display for FunctionParameterType {
                 if !types.is_empty() {
                     write!(f, ", ")?;
                 }
-                write!(f, "{} ...{}", variadic.1, variadic.0)
+                write!(f, "...{} {}", variadic.1, variadic.0)
             }
         }
     }
@@ -491,6 +557,119 @@ impl Display for Type {
                     write!(f, "{}", t)?;
                 }
                 write!(f, ")")
+            }
+        }
+    }
+}
+
+impl Type {
+    pub fn pretty_print_color(&self) -> String {
+        use colorful::Colorful;
+
+        match self.clone().simplify() {
+            Type::Literal(t) => t.to_string().light_blue().to_string(),
+            Type::Function(variations) => {
+                let mut result = String::new();
+                for (i, variation) in variations.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(&" | ".dark_gray().to_string());
+                    }
+                    match &variation.params {
+                        FunctionParameterType::Singles(s) => {
+                            result.push_str(&FunctionParameterType::fmt_unnamed_color(
+                                &s.iter().map(|(_, t)| t).collect::<Vec<_>>(),
+                            ));
+                        }
+                        FunctionParameterType::Variadic(s, v) => {
+                            result.push_str(&FunctionParameterType::fmt_unnamed_color(
+                                &s.iter().map(|(_, t)| t).collect::<Vec<_>>(),
+                            ));
+                            if !s.is_empty() {
+                                result.push_str(&", ".dark_gray().to_string());
+                            }
+                            result.push_str(&format!("...{}", v.1.to_string().light_blue()));
+                        }
+                    };
+                    result.push_str(&format!(
+                        " {} {}",
+                        "->".dark_gray(),
+                        variation.ret.to_string().light_blue()
+                    ));
+                }
+                result
+            }
+            Type::Tuple(types) => {
+                if types.is_empty() {
+                    "()".to_string()
+                } else {
+                    let mut result = String::new();
+                    result.push_str(&"(".dark_gray().to_string());
+                    for (i, t) in types.iter().enumerate() {
+                        if i > 0 {
+                            result.push_str(&", ".dark_gray().to_string());
+                        }
+                        result.push_str(&t.pretty_print_color());
+                    }
+                    result.push_str(&")".dark_gray().to_string());
+                    result
+                }
+            }
+            Type::List(t) => format!("[{}]", t.pretty_print_color()),
+            Type::Record(fields) => {
+                let mut result = String::new();
+                result.push_str(&"{".dark_gray().to_string());
+                for (i, (name, t)) in fields.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(&", ".dark_gray().to_string());
+                    }
+                    result.push_str(&format!("{}: {}", name, t.pretty_print_color()));
+                }
+                result.push_str(&"}".dark_gray().to_string());
+                result
+            }
+            Type::Sum(types) => {
+                if types.is_empty() {
+                    "()".to_string()
+                } else {
+                    let mut result = String::new();
+                    result.push_str(&"(".dark_gray().to_string());
+                    for (i, t) in types.iter().enumerate() {
+                        if i > 0 {
+                            result.push_str(&" | ".dark_gray().to_string());
+                        }
+                        result.push_str(&t.pretty_print_color());
+                    }
+                    result.push_str(&")".dark_gray().to_string());
+                    result
+                }
+            }
+            Type::Generic(s, params, _) => {
+                let mut result = String::new();
+                result.push_str(&s.to_string().light_blue().to_string());
+                if !params.is_empty() {
+                    result.push_str(&"<".dark_gray().to_string());
+                    for (i, param) in params.iter().enumerate() {
+                        if i > 0 {
+                            result.push_str(&", ".dark_gray().to_string());
+                        }
+                        result.push_str(&param.pretty_print_color());
+                    }
+                    result.push_str(&">".dark_gray().to_string());
+                }
+                result
+            }
+            Type::Variant(_, name, fields) => {
+                let mut result = String::new();
+                result.push_str(&name.to_string().light_blue().to_string());
+                result.push_str(&"(".dark_gray().to_string());
+                for (i, t) in fields.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str(&", ".dark_gray().to_string());
+                    }
+                    result.push_str(&t.pretty_print_color());
+                }
+                result.push_str(&")".dark_gray().to_string());
+                result
             }
         }
     }
