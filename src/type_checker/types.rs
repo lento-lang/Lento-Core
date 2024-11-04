@@ -169,7 +169,7 @@ impl FunctionParameterType {
             if i != 0 {
                 result.push_str(&", ".dark_gray().to_string());
             }
-            result.push_str(&format!("{} {}", t.to_string().light_blue(), name));
+            result.push_str(&format!("{} {}", t.pretty_print_color(), name));
         }
         if named.len() > 1 {
             result.push_str(&")".dark_gray().to_string());
