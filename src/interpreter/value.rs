@@ -425,7 +425,7 @@ impl Value {
                 result
             }
             Value::Variation(var) => var.pretty_print_color(),
-            Value::Type(ty) => format!("{}", ty).light_blue().to_string(),
+            Value::Type(ty) => ty.pretty_print_color(),
         }
     }
 }
