@@ -153,6 +153,9 @@ impl<'a> Environment<'a> {
         } else {
             match value {
                 Value::Variation(variation) => {
+                    self.add_function_variation(&name.to_string(), *variation)?;
+                }
+                Value::Function(func) => {
                     if self.functions.contains_key(&name) {
                         return Err(RuntimeError {
                             message: format!(
@@ -161,7 +164,7 @@ impl<'a> Environment<'a> {
                             ),
                         });
                     }
-                    self.add_function_variation(&name.to_string(), *variation)?;
+                    self.functions.insert(name, func);
                 }
                 _ => {
                     if self.variables.contains_key(&name) {
