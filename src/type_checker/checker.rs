@@ -73,6 +73,12 @@ impl TypeEnv {
     }
 }
 
+enum IdentifierType<'a> {
+    Variable(&'a Type),
+    Type(&'a Type),
+    Function(&'a [VariationType]),
+}
+
 /// The type checker is used to check the types of expressions and functions.
 #[derive(Debug, Default)]
 pub struct TypeChecker<'a> {
@@ -125,15 +131,28 @@ impl<'a> TypeChecker<'a> {
             .or_else(|| self.parent.and_then(|p| p.lookup_type(name)))
     }
 
-    fn lookup_identifier(
-        &self,
-        name: &str,
-    ) -> (Option<&[VariationType]>, Option<&Type>, Option<&Type>) {
-        (
-            self.lookup_function(name),
-            self.lookup_variable(name),
-            self.lookup_type(name),
-        )
+    fn lookup_identifier(&self, name: &str) -> Option<IdentifierType> {
+        Some(if let Some(ty) = self.lookup_type(name) {
+            IdentifierType::Type(ty)
+        } else if let Some(variants) = self.lookup_function(name) {
+            IdentifierType::Function(variants)
+        } else if let Some(ty) = self.lookup_variable(name) {
+            IdentifierType::Variable(ty)
+        } else {
+            return None;
+        })
+    }
+
+    fn lookup_local_identifier(&self, name: &str) -> Option<IdentifierType> {
+        Some(if let Some(ty) = self.env.lookup_type(name) {
+            IdentifierType::Type(ty)
+        } else if let Some(variants) = self.env.lookup_function(name) {
+            IdentifierType::Function(variants)
+        } else if let Some(ty) = self.env.lookup_variable(name) {
+            IdentifierType::Variable(ty)
+        } else {
+            return None;
+        })
     }
 
     fn lookup_operator(&self, symbol: &str) -> Vec<&Operator> {
@@ -293,28 +312,20 @@ impl<'a> TypeChecker<'a> {
     }
 
     fn check_identifier(&self, name: &str) -> TypeResult<CheckedAst> {
-        let (functions, variables, types) = self.lookup_identifier(name);
-        if functions.is_some() && (variables.is_some() || types.is_some())
-            || (variables.is_some() && (functions.is_some() || types.is_some()))
-            || (types.is_some() && (functions.is_some() || variables.is_some()))
-        {
-            Err(TypeError {
-                message: format!("Ambiguous identifier: '{}'", name),
-            })
-        } else if let Some(ty) = variables {
-            Ok(CheckedAst::Identifier(name.to_string(), ty.clone()))
-        } else if let Some(ty) = types {
-            Ok(CheckedAst::Literal(Value::Type(ty.clone())))
-        } else if let Some(variants) = functions {
-            Ok(CheckedAst::Identifier(
-                name.to_string(),
-                Type::Function(variants.to_vec()),
-            ))
-        } else {
-            Err(TypeError {
-                message: format!("Unknown variable: {}", name),
-            })
-        }
+        Ok(match self.lookup_identifier(name) {
+            Some(IdentifierType::Variable(ty)) => {
+                CheckedAst::Identifier(name.to_string(), ty.clone())
+            }
+            Some(IdentifierType::Type(ty)) => CheckedAst::Literal(Value::Type(ty.clone())),
+            Some(IdentifierType::Function(variants)) => {
+                CheckedAst::Identifier(name.to_string(), Type::Function(variants.to_vec()))
+            }
+            None => {
+                return Err(TypeError {
+                    message: format!("Unknown variable: {}", name),
+                })
+            }
+        })
     }
 
     fn check_assignment(&mut self, target: &Ast, expr: &Ast) -> TypeResult<CheckedAst> {
@@ -326,6 +337,16 @@ impl<'a> TypeChecker<'a> {
                 })
             }
         };
+        if let Some(existing) = self.lookup_local_identifier(target) {
+            let ty_name = match existing {
+                IdentifierType::Variable(_) => "Variable",
+                IdentifierType::Type(_) => "Type",
+                IdentifierType::Function(_) => "Function",
+            };
+            return Err(TypeError {
+                message: format!("{} '{}' already exists", ty_name, target),
+            });
+        }
         let expr = self.check_expr(expr)?;
         let ty = expr.get_type().clone();
         self.env.add_variable(target, ty.clone());
