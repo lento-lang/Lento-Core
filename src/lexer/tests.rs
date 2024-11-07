@@ -172,7 +172,12 @@ mod tests {
     #[test]
     fn parens() {
         let mut lexer = from_str("(a)");
-        assert_next_token_eq(&mut lexer, TokenKind::LeftParen);
+        assert_next_token_eq(
+            &mut lexer,
+            TokenKind::LeftParen {
+                is_function_call: false,
+            },
+        );
         assert_next_token_eq(&mut lexer, TokenKind::Identifier("a".to_string()));
         assert_next_token_eq(&mut lexer, TokenKind::RightParen);
         assert_next_token_eq(&mut lexer, TokenKind::EndOfFile);

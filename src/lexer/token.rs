@@ -18,7 +18,11 @@ pub enum TokenKind {
     Char(char),
     Boolean(bool),
     // Grouping and separation tokens
-    LeftParen,    // (
+    // (
+    LeftParen {
+        // If the left parenthesis is part of a function call
+        is_function_call: bool,
+    },
     RightParen,   // )
     LeftBrace,    // {
     RightBrace,   // }
@@ -44,6 +48,10 @@ impl TokenKind {
         )
     }
 
+    pub fn is_identifier(&self) -> bool {
+        matches!(self, TokenKind::Identifier(_))
+    }
+
     pub fn is_terminator(&self) -> bool {
         matches!(
             self,
@@ -60,7 +68,7 @@ impl TokenKind {
     pub fn is_grouping_start(&self) -> bool {
         matches!(
             self,
-            TokenKind::LeftParen | TokenKind::LeftBrace | TokenKind::LeftBracket
+            TokenKind::LeftParen { .. } | TokenKind::LeftBrace | TokenKind::LeftBracket
         )
     }
 
@@ -100,7 +108,7 @@ impl Display for TokenKind {
             Self::String(s) => write!(f, "\"{}\"", s),
             Self::Char(c) => write!(f, "'{}'", c),
             Self::Boolean(b) => write!(f, "{}", b),
-            Self::LeftParen => write!(f, "("),
+            Self::LeftParen { .. } => write!(f, "("),
             Self::RightParen => write!(f, ")"),
             Self::LeftBrace => write!(f, "{{"),
             Self::RightBrace => write!(f, "}}"),

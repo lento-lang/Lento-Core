@@ -87,6 +87,9 @@ where
     /// If true, the lexer will only read from the source code once.
     read_only_once: bool,
     has_read_once: bool,
+    /// A flag to indicate that the next open paren is a function call paren
+    /// This is used to differentiate between function calls and tuples
+    pub is_function_call: bool,
 }
 
 impl<R: Read> Lexer<R> {
@@ -106,6 +109,7 @@ impl<R: Read> Lexer<R> {
             eof: false,
             read_only_once: false,
             has_read_once: false,
+            is_function_call: false,
         }
     }
 
@@ -126,6 +130,7 @@ impl<R: Read> Lexer<R> {
             eof: false,
             read_only_once: false,
             has_read_once: false,
+            is_function_call: false,
         }
     }
 
@@ -368,10 +373,19 @@ impl<R: Read> Lexer<R> {
             } else if c.is_numeric() {
                 self.read_number(c)
             } else if Self::is_identifier_head_char(c) {
-                self.read_identifier(c)
+                let id = self.read_identifier(c)?;
+                if id.token.is_identifier() {
+                    // Check if the next character is a open paren
+                    if self.peek_char(0) == Some('(') {
+                        self.is_function_call = true;
+                    }
+                }
+                Ok(id)
             } else {
-                self.new_token_info(match c {
-                    '(' => TokenKind::LeftParen,
+                let token = self.new_token_info(match c {
+                    '(' => TokenKind::LeftParen {
+                        is_function_call: self.is_function_call,
+                    },
                     ')' => TokenKind::RightParen,
                     '{' => TokenKind::LeftBrace,
                     '}' => TokenKind::RightBrace,
@@ -382,7 +396,9 @@ impl<R: Read> Lexer<R> {
                     ',' => TokenKind::Comma,
                     '/' if self.peek_char(0) == Some('/') => return self.read_comment(),
                     _ => return self.read_operator(c),
-                })
+                });
+                self.is_function_call = false; // Reset the function call flag
+                token
             }
         } else {
             self.new_token_info(TokenKind::EndOfFile)

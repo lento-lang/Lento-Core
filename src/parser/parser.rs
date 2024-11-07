@@ -190,32 +190,46 @@ impl<R: Read> Parser<R> {
             TokenKind::Char(c) => Value::Char(*c),
             TokenKind::Boolean(b) => Value::Boolean(*b),
             _ => {
+                log::error!("Expected literal, but found {:?}", token);
                 return Err(ParseError {
                     message: format!("Expected literal, but found {:?}", token),
                     span: (info.start.index, info.end.index),
-                })
+                });
             }
         }))
     }
 
-    fn parse_call(&mut self, id: String) -> ParseResult {
+    fn parse_paren_call(&mut self, id: String) -> ParseResult {
+        log::trace!("Parsing parenthesized function call: {}", id);
         let mut args = Vec::new();
         let nt = self.lexer.read_next_token_not(pred::ignored);
         if nt.is_err() {
+            log::error!(
+                "Expected '(', but failed due to: {}",
+                nt.unwrap_err().message
+            );
             return Err(ParseError {
                 message: "Expected '('".to_string(),
                 span: (self.lexer.current_index(), self.lexer.current_index()),
             });
         }
-        assert!(nt.unwrap().token == TokenKind::LeftParen);
+        assert!(
+            nt.unwrap().token
+                == TokenKind::LeftParen {
+                    is_function_call: true
+                }
+        );
         while let Ok(t) = self.lexer.peek_token(0) {
             if t.token == TokenKind::RightParen {
                 break;
             }
-            let expr = self.parse_top_expr()?;
-            args.push(expr);
+            args.push(self.parse_top_expr()?);
             let nt = self.lexer.peek_token(0);
             if nt.is_err() {
+                log::error!(
+                    "Expected ',' or ')', but failed due to: {}",
+                    nt.unwrap_err().message
+                );
                 return Err(ParseError {
                     message: "Expected ')'".to_string(),
                     span: (self.lexer.current_index(), self.lexer.current_index()),
@@ -224,6 +238,7 @@ impl<R: Read> Parser<R> {
             let nt = nt.unwrap().token;
             if nt == TokenKind::RightParen {
                 if let Err(err) = self.lexer.next_token() {
+                    log::error!("Expected ')' but failed with: {}", err.message);
                     return Err(ParseError {
                         message: format!("Expected ')' but failed with: {}", err.message),
                         span: (self.lexer.current_index(), self.lexer.current_index() + 1),
@@ -233,6 +248,10 @@ impl<R: Read> Parser<R> {
             }
             let nt = self.lexer.next_token();
             if nt.is_err() {
+                log::error!(
+                    "Expected ')', but failed due to: {}",
+                    nt.unwrap_err().message
+                );
                 return Err(ParseError {
                     message: "Expected ')'".to_string(),
                     span: (self.lexer.current_index(), self.lexer.current_index() + 1),
@@ -242,6 +261,7 @@ impl<R: Read> Parser<R> {
             if nt.is_terminator() {
                 continue;
             }
+            log::error!("Expected ')' but found {:?}", nt);
             return Err(ParseError {
                 message: "Expected ')'".to_string(),
                 span: (self.lexer.current_index(), self.lexer.current_index() + 1),
@@ -309,10 +329,11 @@ impl<R: Read> Parser<R> {
                     TokenKind::Comma => (),                           // Continue parsing
                     TokenKind::RightBrace => return Some(Ok(fields)), // Just a single field
                     _ => {
+                        log::error!("Expected ',' or '}}', but found {:?}", t);
                         return Some(Err(ParseError {
                             message: format!("Expected ',' or '}}', but found {:?}", t),
                             span: (t.info.start.index, t.info.end.index),
-                        }))
+                        }));
                     }
                 }
             }
@@ -328,10 +349,11 @@ impl<R: Read> Parser<R> {
                 TokenKind::String(s) => RecordKey::String(s),
                 TokenKind::Char(c) => RecordKey::Char(c),
                 _ => {
+                    log::error!("Expected record key, but found {:?}", t.token);
                     return Some(Err(ParseError {
                         message: format!("Expected record key, but found {:?}", t.token),
                         span: (t.info.start.index, t.info.end.index),
-                    }))
+                    }));
                 }
             };
             let _ = Some(self.parse_expected(TokenKind::Colon, ":"))?;
@@ -345,10 +367,11 @@ impl<R: Read> Parser<R> {
                     TokenKind::Comma => continue,
                     TokenKind::RightBrace => break,
                     _ => {
+                        log::error!("Expected ',' or '}}', but found {:?}", t);
                         return Some(Err(ParseError {
                             message: format!("Expected ',' or '}}', but found {:?}", t),
                             span: (t.info.start.index, t.info.end.index),
-                        }))
+                        }));
                     }
                 }
             }
@@ -364,8 +387,12 @@ impl<R: Read> Parser<R> {
                     TokenKind::Identifier(id) => {
                         // Check if function call
                         if let Ok(t) = self.lexer.peek_token(0) {
-                            if t.token == TokenKind::LeftParen {
-                                return self.parse_call(id);
+                            if t.token
+                                == (TokenKind::LeftParen {
+                                    is_function_call: true,
+                                })
+                            {
+                                return self.parse_paren_call(id);
                             }
                         }
                         Ast::Identifier(id)
@@ -386,6 +413,7 @@ impl<R: Read> Parser<R> {
                             )
                             //}
                         } else {
+                            log::error!("Expected prefix operator, but found {:?}", op);
                             return Err(ParseError {
                                 message: format!("Expected prefix operator, but found {:?}", op),
                                 span: (t.info.start.index, t.info.end.index),
@@ -395,7 +423,9 @@ impl<R: Read> Parser<R> {
                     start if start.is_grouping_start() => {
                         match start {
                             // Tuples, Units and Parentheses: ()
-                            TokenKind::LeftParen => {
+                            TokenKind::LeftParen {
+                                is_function_call: false,
+                            } => {
                                 // Tuples are defined by a comma-separated list of expressions
                                 let mut explicit_single = false;
                                 let mut exprs = Vec::new();
@@ -418,6 +448,10 @@ impl<R: Read> Parser<R> {
                                             break;
                                         }
                                     }
+                                    log::error!(
+                                        "Expected ',' or ')', but found {:?}",
+                                        self.lexer.peek_token(0)
+                                    );
                                     return Err(ParseError {
                                         message: format!(
                                             "Expected ',' or ')', but found {:?}",
@@ -470,6 +504,10 @@ impl<R: Read> Parser<R> {
                                             break;
                                         }
                                     }
+                                    log::error!(
+                                        "Expected ',' or ']', but found {:?}",
+                                        self.lexer.peek_token(0)
+                                    );
                                     return Err(ParseError {
                                         message: format!(
                                             "Expected ',' or ']', but found {:?}",
@@ -488,13 +526,14 @@ impl<R: Read> Parser<R> {
                         }
                     }
                     _ => {
+                        log::error!("Expected primary expression, but found {:?}", t.token);
                         return Err(ParseError {
                             message: format!(
                                 "Expected primary expression, but found {:?}",
                                 t.token
                             ),
                             span: (t.info.start.index, t.info.end.index),
-                        })
+                        });
                     }
                 })
             }
