@@ -250,7 +250,6 @@ pub fn stdlib() -> Initializer {
         //                                       Functions                                      //
         //--------------------------------------------------------------------------------------//
         functions: vec![
-            ("add", Function::new(vec![arithmetic::add()])),
             ("print", Function::new(vec![system::print()])),
             ("typeof", Function::new(vec![system::type_of()])),
             ("exit", Function::new(vec![system::exit()])),
