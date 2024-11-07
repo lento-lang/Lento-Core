@@ -665,7 +665,7 @@ impl Type {
             }
             Type::Variant(_, name, fields) => {
                 let mut result = String::new();
-                result.push_str(&name.to_string().light_blue().to_string());
+                result.push_str(&name.to_string().light_cyan().to_string());
                 result.push_str(&"(".dark_gray().to_string());
                 for (i, t) in fields.iter().enumerate() {
                     if i > 0 {
