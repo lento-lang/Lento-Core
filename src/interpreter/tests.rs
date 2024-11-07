@@ -142,6 +142,7 @@ mod tests {
 			y = 2;
 			z = x + y;
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();
@@ -163,6 +164,7 @@ mod tests {
 				x + y + z
 			}
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();
@@ -183,6 +185,7 @@ mod tests {
 				x + y + z
 			}
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();
@@ -203,6 +206,7 @@ mod tests {
 				x + y + z
 			}
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();
@@ -223,6 +227,7 @@ mod tests {
 				x + y + z
 			}
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();
@@ -243,6 +248,7 @@ mod tests {
 				x + y + z
 			}
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();
@@ -263,6 +269,7 @@ mod tests {
 				x + y + z + a + b + c
 			}
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();
@@ -281,6 +288,7 @@ mod tests {
             r#"
 			add(x: u8, y: u8, z: u8) -> u8 = x + y + z;
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();
@@ -299,6 +307,7 @@ mod tests {
             r#"
 			add x: u8 y: u8 z: u8 -> u8 = x + y + z;
 		"#,
+            None,
         )
         .expect("Failed to parse module");
         let mut checker = TypeChecker::default();

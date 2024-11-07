@@ -12,6 +12,7 @@ use crate::{
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
         token::{LineInfoSpan, TokenInfo, TokenKind},
     },
+    stdlib::init::Initializer,
     type_checker::types::Type,
     util::failable::Failable,
 };
@@ -677,75 +678,83 @@ pub fn from_stream<R: Read>(reader: R, name: &str) -> Parser<R> {
 /// Returns a parsed module from a given source file or a parse error.
 pub type ModuleResult = Result<Module, ParseError>;
 
-pub fn parse_string_one(source: String) -> ModuleResult {
+pub fn parse_string_one(source: String, init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_string(source);
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
     Ok(Module::new(
         String::from("unnamed"),
-        vec![from_string(source).parse_one()?],
+        vec![parser.parse_one()?],
         InputSource::String,
     ))
 }
 
-pub fn parse_string_all(source: String) -> ModuleResult {
+pub fn parse_string_all(source: String, init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_string(source);
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
     Ok(Module::new(
         String::from("unnamed"),
-        from_string(source).parse_all()?,
+        parser.parse_all()?,
         InputSource::String,
     ))
 }
 
-pub fn parse_str_one(source: &str) -> ModuleResult {
+pub fn parse_str_one(source: &str, init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_str(source);
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
     Ok(Module::new(
         String::from("unnamed"),
-        vec![from_str(source).parse_one()?],
+        vec![parser.parse_one()?],
         InputSource::String,
     ))
 }
 
-pub fn parse_str_all(source: &str) -> ModuleResult {
+pub fn parse_str_all(source: &str, init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_str(source);
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
     Ok(Module::new(
         String::from("unnamed"),
-        from_str(source).parse_all()?,
+        parser.parse_all()?,
         InputSource::String,
     ))
 }
 
-pub fn parse_stdin_one() -> ModuleResult {
+pub fn parse_stdin_one(init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_stdin();
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
     Ok(Module::new(
         String::from("unnamed"),
-        vec![from_stdin().parse_one()?],
+        vec![parser.parse_one()?],
         InputSource::Stream("stdin".to_string()),
     ))
 }
 
-pub fn parse_stdin_all() -> ModuleResult {
+pub fn parse_stdin_all(init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_stdin();
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
     Ok(Module::new(
         String::from("unnamed"),
-        from_stdin().parse_all()?,
+        parser.parse_all()?,
         InputSource::Stream("stdin".to_string()),
     ))
 }
 
-pub fn parse_file_one(file: File, path: &Path) -> ModuleResult {
-    Ok(Module::new(
-        String::from("unnamed"),
-        vec![from_file(file, path).parse_one()?],
-        InputSource::File(path.to_path_buf()),
-    ))
-}
-
-pub fn parse_file_all(file: File, path: &Path) -> ModuleResult {
-    Ok(Module::new(
-        String::from("unnamed"),
-        from_file(file, path).parse_all()?,
-        InputSource::File(path.to_path_buf()),
-    ))
-}
-
-pub fn parse_path_one(path: &Path) -> ModuleResult {
-    let mut parser = from_path(path).map_err(|e| ParseError {
-        message: format!("Failed to open file: {}", e),
-        span: (0, 0),
-    })?;
+pub fn parse_file_one(file: File, path: &Path, init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_file(file, path);
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
     Ok(Module::new(
         String::from("unnamed"),
         vec![parser.parse_one()?],
@@ -753,11 +762,41 @@ pub fn parse_path_one(path: &Path) -> ModuleResult {
     ))
 }
 
-pub fn parse_path_all(path: &Path) -> ModuleResult {
+pub fn parse_file_all(file: File, path: &Path, init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_file(file, path);
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
+    Ok(Module::new(
+        String::from("unnamed"),
+        parser.parse_all()?,
+        InputSource::File(path.to_path_buf()),
+    ))
+}
+
+pub fn parse_path_one(path: &Path, init: Option<&Initializer>) -> ModuleResult {
     let mut parser = from_path(path).map_err(|e| ParseError {
         message: format!("Failed to open file: {}", e),
         span: (0, 0),
     })?;
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
+    Ok(Module::new(
+        String::from("unnamed"),
+        vec![parser.parse_one()?],
+        InputSource::File(path.to_path_buf()),
+    ))
+}
+
+pub fn parse_path_all(path: &Path, init: Option<&Initializer>) -> ModuleResult {
+    let mut parser = from_path(path).map_err(|e| ParseError {
+        message: format!("Failed to open file: {}", e),
+        span: (0, 0),
+    })?;
+    if let Some(init) = init {
+        init.init_parser(&mut parser);
+    }
     Ok(Module::new(
         String::from("unnamed"),
         parser.parse_all()?,

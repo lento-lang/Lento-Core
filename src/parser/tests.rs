@@ -23,7 +23,7 @@ mod tests {
 
     #[test]
     fn number() {
-        let result = parse_str_one("1");
+        let result = parse_str_one("1", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn number_many() {
-        let result = parse_str_all("1 2 3 4 5");
+        let result = parse_str_all("1 2 3 4 5", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 5);
@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn number_many_semicolon() {
-        let result = parse_str_all("1; 2; 3;");
+        let result = parse_str_all("1; 2; 3;", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 3);
@@ -56,7 +56,7 @@ mod tests {
 
     #[test]
     fn number_par() {
-        let result = parse_str_one("(1)");
+        let result = parse_str_one("(1)", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn tuple_1_trailing() {
-        let result = parse_str_one("(1,)");
+        let result = parse_str_one("(1,)", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn tuple_2() {
-        let result = parse_str_one("(1, 2)");
+        let result = parse_str_one("(1, 2)", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn tuple_3() {
-        let result = parse_str_one("(1, 2, 3)");
+        let result = parse_str_one("(1, 2, 3)", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn tuple_3_trailing() {
-        let result = parse_str_one("(1, 2, 3,)");
+        let result = parse_str_one("(1, 2, 3,)", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -122,7 +122,7 @@ mod tests {
 
     #[test]
     fn tuple_addition() {
-        let result = parse_str_one("(1, 2) + (3, 4)");
+        let result = parse_str_one("(1, 2) + (3, 4)", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn list_3() {
-        let result = parse_str_one("[1, 2, 3]");
+        let result = parse_str_one("[1, 2, 3]", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn call_paren_apply() {
-        let result = parse_str_one("println(\"Hello, World!\")");
+        let result = parse_str_one("println(\"Hello, World!\")", None);
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -164,7 +164,7 @@ mod tests {
 
     #[test]
     fn call_no_paren_apply() {
-        let result = parse_str_one("println \"Hello, World!\"");
+        let result = parse_str_one("println \"Hello, World!\"", None);
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn call_tuple_apply() {
-        let result = parse_str_one("println (\"Hello, World!\")");
+        let result = parse_str_one("println (\"Hello, World!\")", None);
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn hello_world_file() {
-        let result = parse_path_one(Path::new("./examples/basic/hello_world.lt"));
+        let result = parse_path_one(Path::new("./examples/basic/hello_world.lt"), None);
         let expected = Ast::FunctionCall(
             "println".to_string(),
             vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn arithmetic() {
-        let result = parse_str_one("1 + 2");
+        let result = parse_str_one("1 + 2", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn arithmetic_tree() {
-        let result = parse_str_one("1 + 2 + 3");
+        let result = parse_str_one("1 + 2 + 3", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn assignment() {
-        let result = parse_str_one("x = 1");
+        let result = parse_str_one("x = 1", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn assign_add() {
-        let result = parse_str_one("x = 1 + 2");
+        let result = parse_str_one("x = 1 + 2", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -257,7 +257,7 @@ mod tests {
 
     #[test]
     fn comment() {
-        let result = parse_str_all("1; // This is a comment");
+        let result = parse_str_all("1; // This is a comment", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -273,6 +273,7 @@ mod tests {
 			2;
 			// This is a comment
 		"#,
+            None,
         );
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -283,7 +284,7 @@ mod tests {
 
     // #[test]
     // fn arithmetic_complex() {
-    //     let result = parse_str_one("5 * (10 - 2) / 2 + 1");
+    //     let result = parse_str_one("5 * (10 - 2) / 2 + 1", None);
     //     assert!(result.is_ok());
     //     let result = result.unwrap();
     //     assert!(result.expressions.len() == 1);
@@ -295,7 +296,7 @@ mod tests {
 
     #[test]
     fn record_literal_empty() {
-        let result = parse_str_one("{}");
+        let result = parse_str_one("{}", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -307,7 +308,7 @@ mod tests {
 
     #[test]
     fn record_literal_one() {
-        let result = parse_str_one("{ x: 1 }");
+        let result = parse_str_one("{ x: 1 }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -326,7 +327,7 @@ mod tests {
 
     #[test]
     fn record_literal_two() {
-        let result = parse_str_one("{ x: 1, y: 2 }");
+        let result = parse_str_one("{ x: 1, y: 2 }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -351,7 +352,7 @@ mod tests {
 
     #[test]
     fn record_literal_nested() {
-        let result = parse_str_one("{ x: { y: 1 } }");
+        let result = parse_str_one("{ x: { y: 1 } }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -379,7 +380,7 @@ mod tests {
 
     #[test]
     fn record_nested_block() {
-        let result = parse_str_one("{ x: { 1 + 2 } }");
+        let result = parse_str_one("{ x: { 1 + 2 } }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -401,7 +402,7 @@ mod tests {
 
     #[test]
     fn block_one() {
-        let result = parse_str_one("{ 1 }");
+        let result = parse_str_one("{ 1 }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -414,7 +415,7 @@ mod tests {
 
     #[test]
     fn block_two() {
-        let result = parse_str_one("{ 1; 2 }");
+        let result = parse_str_one("{ 1; 2 }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -428,7 +429,7 @@ mod tests {
 
     #[test]
     fn block_three() {
-        let result = parse_str_one("{ 1; 2; 3 }");
+        let result = parse_str_one("{ 1; 2; 3 }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -443,7 +444,7 @@ mod tests {
 
     #[test]
     fn block_three_no_semicolon() {
-        let result = parse_str_one("{ 1 2 3 }");
+        let result = parse_str_one("{ 1 2 3 }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -458,7 +459,7 @@ mod tests {
 
     #[test]
     fn block_nested() {
-        let result = parse_str_one("{ { 1 } }");
+        let result = parse_str_one("{ { 1 } }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
@@ -471,7 +472,7 @@ mod tests {
 
     #[test]
     fn block_nested_two() {
-        let result = parse_str_one("{ { 1; 2 } }");
+        let result = parse_str_one("{ { 1; 2 } }", None);
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.expressions.len() == 1);
