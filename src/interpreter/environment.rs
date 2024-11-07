@@ -146,7 +146,7 @@ impl<'a> Environment<'a> {
         if self.variables.contains_key(&name) {
             Err(RuntimeError {
                 message: format!(
-                    "Variable {} already exists in the current environment",
+                    "Variable named '{}' already exists in the current environment",
                     name
                 ),
             })

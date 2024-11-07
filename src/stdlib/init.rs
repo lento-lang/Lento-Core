@@ -93,8 +93,8 @@ impl Initializer {
                 } => {
                     if let Err(e) = env.add_function_variation(function_name, *handler.clone()) {
                         panic!(
-                            "Environment initialization failed when adding operator '{}': {:?}",
-                            op.info.name, e
+                            "Environment initialization failed when adding operator '{}': {}",
+                            op.info.name, e.message
                         );
                     }
                 }
