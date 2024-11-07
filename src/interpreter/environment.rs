@@ -63,12 +63,24 @@ impl<'a> Environment<'a> {
     }
 
     pub fn lookup_variable(&self, name: &str) -> Option<&Value> {
+        log::trace!(
+            "Looking up variable '{}' in environment '{}' of {:?}",
+            name,
+            self.name,
+            self.variables.keys().collect::<Vec<&String>>()
+        );
         self.variables
             .get(name)
             .or_else(|| self.parent.and_then(|p| p.lookup_variable(name)))
     }
 
     pub fn lookup_function(&self, name: &str) -> Option<&Function> {
+        log::trace!(
+            "Looking up function '{}' in environment '{}' of {:?}",
+            name,
+            self.name,
+            self.functions.keys().collect::<Vec<&String>>()
+        );
         self.functions
             .get(name)
             .or_else(|| self.parent.and_then(|p| p.lookup_function(name)))
