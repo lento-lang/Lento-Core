@@ -359,7 +359,8 @@ impl<'a> TypeChecker<'a> {
     }
 
     fn check_block(&mut self, exprs: &[Ast]) -> TypeResult<CheckedAst> {
-        let exprs = self.check_top_exprs(exprs)?;
+        let mut scope = self.new_scope();
+        let exprs = scope.check_top_exprs(exprs)?;
         let ty = if let Some(expr) = exprs.last() {
             expr.get_type().clone()
         } else {
