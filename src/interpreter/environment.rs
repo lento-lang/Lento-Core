@@ -43,6 +43,25 @@ impl<'a> Environment<'a> {
         }
     }
 
+    /// Flatten all parent environments into a single static environment.
+    pub fn deep_clone(&self) -> Environment<'static> {
+        let mut env = if let Some(parent) = self.parent {
+            parent.deep_clone()
+        } else {
+            Environment::new(self.name.clone())
+        };
+        for (name, value) in &self.variables {
+            env.variables.insert(name.clone(), value.clone());
+        }
+        for (name, function) in &self.functions {
+            env.functions.insert(name.clone(), function.clone());
+        }
+        for (name, type_) in &self.types {
+            env.types.insert(name.clone(), type_.clone());
+        }
+        env
+    }
+
     pub fn lookup_variable(&self, name: &str) -> Option<&Value> {
         self.variables
             .get(name)
@@ -55,13 +74,17 @@ impl<'a> Environment<'a> {
             .or_else(|| self.parent.and_then(|p| p.lookup_function(name)))
     }
 
-    pub fn add_local_function_variation(
+    pub fn add_function_variation(
         &mut self,
         name: &str,
         variation: FunctionVariation,
     ) -> Result<&Function, RuntimeError> {
         if let Some(existing) = self.functions.get_mut(name) {
-            if existing.get_variations().contains(&&variation) {
+            if existing
+                .get_variations()
+                .iter()
+                .any(|v| v.get_params() == variation.get_params())
+            {
                 return Err(RuntimeError {
                     message: format!(
                         "Function variation of '{}' with the same signature already exists",
@@ -71,10 +94,8 @@ impl<'a> Environment<'a> {
             }
             existing.add_variation(variation);
         } else {
-            self.functions.insert(
-                name.to_string(),
-                Function::new(name.to_string(), vec![variation]),
-            );
+            self.functions
+                .insert(name.to_string(), Function::new(vec![variation]));
         }
         Ok(self.functions.get(name).unwrap())
     }
@@ -119,7 +140,7 @@ impl<'a> Environment<'a> {
             })
         } else {
             match value {
-                Value::Function(f) => {
+                Value::Variation(variation) => {
                     if self.functions.contains_key(&name) {
                         return Err(RuntimeError {
                             message: format!(
@@ -128,7 +149,7 @@ impl<'a> Environment<'a> {
                             ),
                         });
                     }
-                    self.functions.insert(name, f);
+                    self.add_function_variation(&name.to_string(), *variation)?;
                 }
                 _ => {
                     if self.variables.contains_key(&name) {

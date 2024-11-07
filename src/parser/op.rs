@@ -80,7 +80,7 @@ pub mod default_operator_precedence {
 //                                      Operators                                       //
 //--------------------------------------------------------------------------------------//
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum StaticOperatorAst {
     Prefix(Ast),
     Infix(Ast, Ast),
@@ -100,8 +100,11 @@ pub struct OperatorSignature {
 
 #[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub struct OperatorInfo {
-    /// Descriptive name of the operator
-    /// (used for error messages and introspection)
+    /// Descriptive name of the operator.
+    /// Used for:
+    /// - handler function definition
+    /// - error messages
+    /// - introspection.
     pub name: String,
     /// The symbol of the operator
     pub symbol: String,
@@ -129,11 +132,14 @@ pub struct OperatorInfo {
     pub allow_trailing: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum OperatorHandler {
     /// Runtime operators (functions)
     /// 1. The handler function for the operator called at runtime
-    Runtime(Box<FunctionVariation>),
+    Runtime {
+        function_name: String,
+        handler: Box<FunctionVariation>,
+    },
     /// The compile-time handler for the operator
     /// (macros or syntax extensions/sugar)
     /// 1. The signature of the operator. This is used for type checking and inference on the operator in expressions.
@@ -141,7 +147,7 @@ pub enum OperatorHandler {
     Static(OperatorSignature, fn(StaticOperatorAst) -> Ast),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Operator {
     /// Basic information about the operator
     /// required for parsing and type checking.
@@ -153,7 +159,7 @@ pub struct Operator {
 impl Operator {
     pub fn signature(&self) -> OperatorSignature {
         match self.handler {
-            OperatorHandler::Runtime(ref handler) => {
+            OperatorHandler::Runtime { ref handler, .. } => {
                 let params = handler.get_params().clone();
                 let returns = handler.get_return_type().clone();
                 OperatorSignature { params, returns }

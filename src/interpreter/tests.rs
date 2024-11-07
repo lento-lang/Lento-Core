@@ -10,28 +10,26 @@ mod tests {
         parser::parser,
         stdlib::arithmetic,
         type_checker::{
-            checked_ast::{CheckedAst, CheckedOperator},
+            checked_ast::CheckedAst,
             checker::TypeChecker,
             types::{std_primitive_types, FunctionParameterType, GetType, Type},
         },
         util::str::Str,
     };
 
+    fn empty_env() -> Environment<'static> {
+        Environment::new(Str::Str("empty"))
+    }
+
     fn make_u8(n: u8) -> Value {
         Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(n)))
     }
 
-    fn add(lhs: CheckedAst, rhs: CheckedAst, ty: Type) -> CheckedAst {
-        CheckedAst::Binary(
-            Box::new(lhs),
-            Box::new(CheckedOperator {
-                name: "add".into(),
-                symbol: "+".into(),
-                handler: arithmetic::add(),
-            }),
-            Box::new(rhs),
-            ty,
-        )
+    fn add(lhs: CheckedAst, rhs: CheckedAst) -> CheckedAst {
+        CheckedAst::DirectCall {
+            variation: Box::new(arithmetic::add()),
+            args: vec![lhs, rhs],
+        }
     }
 
     #[test]
@@ -39,7 +37,6 @@ mod tests {
         let ast = add(
             CheckedAst::Literal(make_u8(1)),
             CheckedAst::Literal(make_u8(2)),
-            std_primitive_types::UINT8,
         );
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
@@ -73,15 +70,13 @@ mod tests {
 
     #[test]
     fn function_call() {
-        let ast = CheckedAst::VariationCall(
-            Some("add".into()),
-            Box::new(arithmetic::add()),
-            vec![
+        let ast = CheckedAst::DirectCall {
+            variation: Box::new(arithmetic::add()),
+            args: vec![
                 CheckedAst::Literal(make_u8(1)),
                 CheckedAst::Literal(make_u8(2)),
             ],
-            std_primitive_types::UINT8,
-        );
+        };
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -91,17 +86,16 @@ mod tests {
 
     #[test]
     fn unit_function() {
-        let ast = CheckedAst::VariationCall(
-            Some("unit".into()),
-            Box::new(FunctionVariation::new_user(
+        let ast = CheckedAst::DirectCall {
+            variation: Box::new(FunctionVariation::new_user(
                 FunctionParameterType::Singles(vec![]),
                 CheckedAst::Block(vec![], std_primitive_types::UNIT),
+                empty_env(), // Empty environment
                 std_primitive_types::UNIT,
             )),
-            vec![],
-            std_primitive_types::UNIT,
-        );
-        let result = interpret_ast(&ast, &mut Environment::new(Str::Str("empty")));
+            args: vec![],
+        };
+        let result = interpret_ast(&ast, &mut empty_env());
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.get_type() == &std_primitive_types::UNIT);
@@ -110,17 +104,16 @@ mod tests {
 
     #[test]
     fn invalid_function() {
-        let ast = CheckedAst::VariationCall(
-            Some("invalid".into()), // Invalid function
-            Box::new(FunctionVariation::new_user(
+        let ast = CheckedAst::DirectCall {
+            variation: Box::new(FunctionVariation::new_user(
                 FunctionParameterType::Singles(vec![]),
                 CheckedAst::Block(vec![], std_primitive_types::UNIT),
+                empty_env(), // Empty environment
                 std_primitive_types::UNIT,
             )),
-            vec![CheckedAst::Literal(make_u8(1))], // Invalid argument to unit function
-            std_primitive_types::UNIT,
-        );
-        let result = interpret_ast(&ast, &mut Environment::new(Str::Str("empty")));
+            args: vec![CheckedAst::Literal(make_u8(1))],
+        };
+        let result = interpret_ast(&ast, &mut empty_env());
         assert!(result.is_err());
     }
 

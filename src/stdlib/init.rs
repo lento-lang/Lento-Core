@@ -29,7 +29,7 @@ pub struct Initializer {
     operators: Vec<Operator>,
     types: HashMap<String, Type>,
     values: Vec<(Str, Value)>,
-    functions: Vec<Function>,
+    functions: Vec<(&'static str, Function)>,
 }
 
 impl Initializer {
@@ -59,10 +59,9 @@ impl Initializer {
         for (name, ty) in &self.types {
             type_checker.add_type(name, ty.clone());
         }
-        for func in &self.functions {
-            let name = func.get_name();
+        for (name, func) in &self.functions {
             for variation in func.get_variations() {
-                type_checker.add_function(name, variation.clone());
+                type_checker.add_function(name, variation.get_type());
             }
         }
     }
@@ -76,16 +75,30 @@ impl Initializer {
                 );
             }
         }
-        for func in &self.functions {
-            if let Err(e) = env.add_value(
-                Str::String(func.get_name().to_string()),
-                Value::Function(func.clone()),
-            ) {
+        for (name, func) in &self.functions {
+            if let Err(e) =
+                env.add_value(Str::String(name.to_string()), Value::Function(func.clone()))
+            {
                 panic!(
                     "Environment initialization failed when adding function '{}': {:?}",
-                    func.get_name(),
-                    e
+                    name, e
                 );
+            }
+        }
+        for op in &self.operators {
+            match &op.handler {
+                OperatorHandler::Runtime {
+                    function_name,
+                    handler,
+                } => {
+                    if let Err(e) = env.add_function_variation(function_name, *handler.clone()) {
+                        panic!(
+                            "Environment initialization failed when adding operator '{}': {:?}",
+                            op.info.name, e
+                        );
+                    }
+                }
+                OperatorHandler::Static(_, _) => {}
             }
         }
     }
@@ -134,7 +147,10 @@ pub fn stdlib() -> Initializer {
                     overloadable: true,
                     allow_trailing: false,
                 },
-                handler: OperatorHandler::Runtime(Box::new(arithmetic::add())),
+                handler: OperatorHandler::Runtime {
+                    function_name: "add".into(),
+                    handler: Box::new(arithmetic::add()),
+                },
             },
         ],
 
@@ -234,10 +250,10 @@ pub fn stdlib() -> Initializer {
         //                                       Functions                                      //
         //--------------------------------------------------------------------------------------//
         functions: vec![
-            Function::new("add".to_string(), vec![arithmetic::add()]),
-            Function::new("print".to_string(), vec![system::print()]),
-            Function::new("typeof".to_string(), vec![system::type_of()]),
-            Function::new("exit".to_string(), vec![system::exit()]),
+            ("add", Function::new(vec![arithmetic::add()])),
+            ("print", Function::new(vec![system::print()])),
+            ("typeof", Function::new(vec![system::type_of()])),
+            ("exit", Function::new(vec![system::exit()])),
         ],
     }
 }

@@ -2,10 +2,10 @@ use std::fmt::Display;
 
 use crate::type_checker::{
     checked_ast::CheckedAst,
-    types::{std_primitive_types, FunctionParameterType, FunctionVariationType, GetType, Type},
+    types::{std_primitive_types, FunctionParameterType, GetType, Type, VariationType},
 };
 
-use super::{interpreter::InterpretResult, number::Number};
+use super::{environment::Environment, interpreter::InterpretResult, number::Number};
 
 /// A key in a record can be a string, integer, float, or character.
 /// This is used to represent the key in the AST.
@@ -32,20 +32,24 @@ impl Display for RecordKey {
 }
 
 /// Is the value representation of `FunctionParameterType`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum NativeFunctionParameters {
     Singles(Vec<Value>),
     Variadic(Vec<Value>, Vec<Value>), // Some initial values of different types, followed by the variadic type values
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
+pub struct UserFunctionVariation {
+    pub params: FunctionParameterType,
+    pub body: CheckedAst,
+    pub closure: Environment<'static>,
+    pub ret: Type,
+}
+
+#[derive(Debug, Clone)]
 pub enum FunctionVariation {
     /// User-defined functions
-    User {
-        params: FunctionParameterType,
-        body: CheckedAst,
-        ret: Type,
-    },
+    User(UserFunctionVariation),
     /// Built-in functions
     Native {
         handler: fn(NativeFunctionParameters) -> InterpretResult,
@@ -55,8 +59,18 @@ pub enum FunctionVariation {
 }
 
 impl FunctionVariation {
-    pub fn new_user(params: FunctionParameterType, body: CheckedAst, ret: Type) -> Self {
-        Self::User { params, body, ret }
+    pub fn new_user(
+        params: FunctionParameterType,
+        body: CheckedAst,
+        closure: Environment<'static>,
+        ret: Type,
+    ) -> Self {
+        Self::User(UserFunctionVariation {
+            params,
+            body,
+            closure,
+            ret,
+        })
     }
 
     pub fn new_native(
@@ -73,25 +87,25 @@ impl FunctionVariation {
 
     pub fn get_params(&self) -> &FunctionParameterType {
         match self {
-            FunctionVariation::User { params, .. } => params,
+            FunctionVariation::User(UserFunctionVariation { params, .. }) => params,
             FunctionVariation::Native { params, .. } => params,
         }
     }
 
     pub fn get_return_type(&self) -> &Type {
         match self {
-            FunctionVariation::User { ret, .. } => ret,
+            FunctionVariation::User(UserFunctionVariation { ret, .. }) => ret,
             FunctionVariation::Native { ret, .. } => ret,
         }
     }
 
-    pub fn get_type(&self) -> FunctionVariationType {
+    pub fn get_type(&self) -> VariationType {
         match self {
-            FunctionVariation::User { params, ret, .. } => {
-                FunctionVariationType::new(params.clone(), ret.clone())
+            FunctionVariation::User(UserFunctionVariation { params, ret, .. }) => {
+                VariationType::new(params.clone(), ret.clone())
             }
             FunctionVariation::Native { params, ret, .. } => {
-                FunctionVariationType::new(params.clone(), ret.clone())
+                VariationType::new(params.clone(), ret.clone())
             }
         }
     }
@@ -100,7 +114,7 @@ impl FunctionVariation {
         use colorful::Colorful;
 
         let (params, ret) = match self {
-            FunctionVariation::User { params, ret, .. } => (params, ret),
+            FunctionVariation::User(UserFunctionVariation { params, ret, .. }) => (params, ret),
             FunctionVariation::Native { params, ret, .. } => (params, ret),
         };
 
@@ -116,16 +130,16 @@ impl FunctionVariation {
 impl Display for FunctionVariation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let (params, ret_type) = match self {
-            FunctionVariation::User { params, ret, .. } => (params, ret),
+            FunctionVariation::User(UserFunctionVariation { params, ret, .. }) => (params, ret),
             FunctionVariation::Native { params, ret, .. } => (params, ret),
         };
-        write!(f, "({}) -> {}", params, ret_type) // TODO: Make this a unicode arrow
+        write!(f, "{} -> {}", params, ret_type) // TODO: Make this a unicode arrow
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Function {
-    name: String,
+    // name: String,
     singles: Vec<FunctionVariation>,
     variadics: Vec<FunctionVariation>,
     // TODO: Add an environment for each function variation
@@ -133,12 +147,11 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn new(name: String, variations: Vec<FunctionVariation>) -> Self {
+    pub fn new(variations: Vec<FunctionVariation>) -> Self {
         let signature = Function::signature_from(&variations);
         let (singles, variadics) = Self::split_variations(variations);
         Self {
             signature,
-            name,
             singles,
             variadics,
         }
@@ -158,9 +171,9 @@ impl Function {
         (singles, variadics)
     }
 
-    pub fn get_name(&self) -> &str {
-        &self.name
-    }
+    // pub fn get_name(&self) -> &str {
+    //     &self.name
+    // }
 
     /// A sum type of all the function variation signatures
     pub fn signature_from(variations: &[FunctionVariation]) -> Type {
@@ -185,6 +198,13 @@ impl Function {
             FunctionParameterType::Variadic(_, _) => self.variadics.push(variation),
         }
     }
+
+    pub fn get_variation(&self, variation: &VariationType) -> Option<&FunctionVariation> {
+        if let Some(v) = self.singles.iter().find(|&s| s.get_type() == *variation) {
+            return Some(v);
+        }
+        self.variadics.iter().find(|&v| v.get_type() == *variation)
+    }
 }
 
 impl GetType for Function {
@@ -197,7 +217,7 @@ impl GetType for Function {
 /// These values are stored in the interpreter's memory during runtime and are garbage collected when they are no longer in use.
 /// The interpreter takes AST nodes and evaluates them to produce a value.
 /// Values can be referenced and used in other expressions.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Unit,
     Number(Number),
@@ -207,6 +227,7 @@ pub enum Value {
     Tuple(Vec<Value>, Type),
     List(Vec<Value>, Type),
     Record(Vec<(RecordKey, Value)>, Type),
+    Variation(Box<FunctionVariation>),
     Function(Function),
     Type(Type),
 }
@@ -222,6 +243,7 @@ impl GetType for Value {
             Value::Tuple(_, t) => t,
             Value::List(_, t) => t,
             Value::Record(_, t) => t,
+            Value::Variation(f) => f.get_return_type(), //.get_type(),
             Value::Function(f) => f.get_type(),
             Value::Type(_) => &std_primitive_types::TYPE,
         }
@@ -267,13 +289,32 @@ impl Display for Value {
                 write!(f, " }}")
             }
             Value::Function(fun) => {
-                writeln!(f, "function[{}] {{", fun.name)?;
+                writeln!(f, "fn {{")?;
                 for v in fun.singles.iter() {
                     writeln!(f, "\t{}", v)?;
                 }
                 write!(f, "}}")
             }
+            Value::Variation(var) => write!(f, "{}", var),
             Value::Type(ty) => write!(f, "{}", ty),
+        }
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Number(l0), Self::Number(r0)) => l0 == r0,
+            (Self::String(l0), Self::String(r0)) => l0 == r0,
+            (Self::Char(l0), Self::Char(r0)) => l0 == r0,
+            (Self::Boolean(l0), Self::Boolean(r0)) => l0 == r0,
+            (Self::Tuple(l0, l1), Self::Tuple(r0, r1)) => l0 == r0 && l1 == r1,
+            (Self::List(l0, l1), Self::List(r0, r1)) => l0 == r0 && l1 == r1,
+            (Self::Record(l0, l1), Self::Record(r0, r1)) => l0 == r0 && l1 == r1,
+            (Self::Variation(l0), Self::Variation(r0)) => l0.get_type() == r0.get_type(),
+            (Self::Function(l0), Self::Function(r0)) => l0.get_type() == r0.get_type(),
+            (Self::Type(l0), Self::Type(r0)) => l0 == r0,
+            _ => false,
         }
     }
 }
@@ -320,13 +361,14 @@ impl Value {
                 result
             }
             Value::Function(fun) => {
-                let mut result = format!("function[{}] {{\n", fun.name);
+                let mut result = "fn {\n".to_string();
                 for v in fun.singles.iter() {
                     result.push_str(&format!("\t{}\n", v));
                 }
                 result.push('}');
                 result
             }
+            Value::Variation(var) => var.to_string(),
             Value::Type(ty) => ty.to_string(),
         }
     }
@@ -375,18 +417,14 @@ impl Value {
                 result
             }
             Value::Function(fun) => {
-                let mut result = format!(
-                    "{}{}{}\n",
-                    "fn[".dark_gray(),
-                    fun.name.to_string().light_magenta(),
-                    "] {".dark_gray()
-                );
+                let mut result = "fn {\n".dark_gray().to_string();
                 for v in fun.singles.iter() {
                     result.push_str(&format!("    {}\n", v.pretty_print_color()));
                 }
                 result.push_str(&"}".dark_gray().to_string());
                 result
             }
+            Value::Variation(var) => var.pretty_print_color(),
             Value::Type(ty) => format!("{}", ty).light_blue().to_string(),
         }
     }

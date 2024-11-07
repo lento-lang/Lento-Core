@@ -145,11 +145,21 @@ impl FunctionParameterType {
     }
 
     fn fmt_named(f: &mut std::fmt::Formatter<'_>, named: &[NamedType]) -> std::fmt::Result {
+        if named.is_empty() {
+            return write!(f, "()");
+        }
+
+        if named.len() > 1 {
+            write!(f, "(")?;
+        }
         for (i, (name, t)) in named.iter().enumerate() {
             if i != 0 {
                 write!(f, ", ")?;
             }
             write!(f, "{} {}", t, name)?;
+        }
+        if named.len() > 1 {
+            write!(f, ")")?;
         }
         Ok(())
     }
@@ -237,14 +247,14 @@ impl Display for FunctionParameterType {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct FunctionVariationType {
-    params: FunctionParameterType,
-    ret: Type,
+pub struct VariationType {
+    pub params: FunctionParameterType,
+    pub ret: Type,
 }
 
-impl FunctionVariationType {
+impl VariationType {
     pub fn new(params: FunctionParameterType, ret: Type) -> Self {
-        FunctionVariationType { params, ret }
+        VariationType { params, ret }
     }
 
     pub fn get_params(&self) -> &FunctionParameterType {
@@ -256,7 +266,7 @@ impl FunctionVariationType {
     }
 }
 
-impl TypeTrait for FunctionVariationType {
+impl TypeTrait for VariationType {
     fn subtype(&self, other: &Self) -> bool {
         match (self.params.is_variadic(), other.params.is_variadic()) {
             (true, true) => {
@@ -286,7 +296,7 @@ impl TypeTrait for FunctionVariationType {
     }
 
     fn simplify(self) -> Self {
-        FunctionVariationType {
+        VariationType {
             params: match self.params {
                 FunctionParameterType::Singles(types) => FunctionParameterType::Singles(
                     types.into_iter().map(|(n, t)| (n, t.simplify())).collect(),
@@ -303,6 +313,12 @@ impl TypeTrait for FunctionVariationType {
     }
 }
 
+impl Display for VariationType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} -> {}", self.params, self.ret)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
     /// A literal type (name).
@@ -313,7 +329,7 @@ pub enum Type {
     /// A function type.
     /// The first argument is the list of parameter types.
     /// The second argument is the return type.
-    Function(Vec<FunctionVariationType>),
+    Function(Vec<VariationType>),
 
     /// A tuple type.
     /// The first argument is the list of element types.
@@ -417,11 +433,9 @@ impl TypeTrait for Type {
                 params.into_iter().map(Type::simplify).collect(),
                 Box::new(body.simplify()),
             ),
-            Type::Function(ty) => Type::Function(
-                ty.into_iter()
-                    .map(FunctionVariationType::simplify)
-                    .collect(),
-            ),
+            Type::Function(ty) => {
+                Type::Function(ty.into_iter().map(VariationType::simplify).collect())
+            }
             Type::Tuple(types) => Type::Tuple(types.into_iter().map(Type::simplify).collect()),
             Type::List(t) => Type::List(Box::new(t.simplify())),
             Type::Record(fields) => {
