@@ -55,6 +55,14 @@ impl Initializer {
     pub fn init_type_checker(&self, type_checker: &mut TypeChecker) {
         for op in &self.operators {
             type_checker.add_operator(op.clone());
+            // Also add runtime handler functions to the type checker
+            if let OperatorHandler::Runtime {
+                function_name,
+                handler,
+            } = &op.handler
+            {
+                type_checker.add_function(function_name, handler.get_type());
+            }
         }
         for (name, ty) in &self.types {
             type_checker.add_type(name, ty.clone());
