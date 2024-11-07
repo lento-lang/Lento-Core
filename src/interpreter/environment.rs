@@ -90,7 +90,7 @@ impl<'a> Environment<'a> {
         &mut self,
         name: &str,
         variation: FunctionVariation,
-    ) -> Result<&Function, RuntimeError> {
+    ) -> Result<(), RuntimeError> {
         if let Some(existing) = self.functions.get_mut(name) {
             if existing
                 .get_variations()
@@ -109,7 +109,7 @@ impl<'a> Environment<'a> {
             self.functions
                 .insert(name.to_string(), Function::new(vec![variation]));
         }
-        Ok(self.functions.get(name).unwrap())
+        Ok(())
     }
 
     /// Get a value from the environment.
