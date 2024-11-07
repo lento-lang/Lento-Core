@@ -202,72 +202,34 @@ impl<R: Read> Parser<R> {
     fn parse_paren_call(&mut self, id: String) -> ParseResult {
         log::trace!("Parsing parenthesized function call: {}", id);
         let mut args = Vec::new();
-        let nt = self.lexer.read_next_token_not(pred::ignored);
-        if nt.is_err() {
-            log::error!(
-                "Expected '(', but failed due to: {}",
-                nt.unwrap_err().message
-            );
-            return Err(ParseError {
-                message: "Expected '('".to_string(),
-                span: (self.lexer.current_index(), self.lexer.current_index()),
-            });
-        }
-        assert!(
-            nt.unwrap().token
-                == TokenKind::LeftParen {
-                    is_function_call: true
-                }
-        );
-        while let Ok(t) = self.lexer.peek_token(0) {
-            if t.token == TokenKind::RightParen {
+        while let Ok(end) = self.lexer.peek_token(0) {
+            if end.token == TokenKind::RightParen {
                 break;
             }
             args.push(self.parse_top_expr()?);
-            let nt = self.lexer.peek_token(0);
-            if nt.is_err() {
-                log::error!(
-                    "Expected ',' or ')', but failed due to: {}",
-                    nt.unwrap_err().message
-                );
-                return Err(ParseError {
-                    message: "Expected ')'".to_string(),
-                    span: (self.lexer.current_index(), self.lexer.current_index()),
-                });
-            }
-            let nt = nt.unwrap().token;
-            if nt == TokenKind::RightParen {
-                if let Err(err) = self.lexer.next_token() {
-                    log::error!("Expected ')' but failed with: {}", err.message);
-                    return Err(ParseError {
-                        message: format!("Expected ')' but failed with: {}", err.message),
-                        span: (self.lexer.current_index(), self.lexer.current_index() + 1),
-                    });
+            if let Ok(nt) = self.lexer.peek_token(0) {
+                if nt.token == TokenKind::Comma {
+                    self.lexer.next_token().unwrap();
+                    continue;
+                } else if nt.token == TokenKind::RightParen {
+                    break;
                 }
-                break;
             }
-            let nt = self.lexer.next_token();
-            if nt.is_err() {
-                log::error!(
-                    "Expected ')', but failed due to: {}",
-                    nt.unwrap_err().message
-                );
-                return Err(ParseError {
-                    message: "Expected ')'".to_string(),
-                    span: (self.lexer.current_index(), self.lexer.current_index() + 1),
-                });
-            }
-            let nt = nt.unwrap().token;
-            if nt.is_terminator() {
-                continue;
-            }
-            log::error!("Expected ')' but found {:?}", nt);
+            log::error!(
+                "Expected ',' or ')', but found {:?}",
+                self.lexer.peek_token(0)
+            );
             return Err(ParseError {
-                message: "Expected ')'".to_string(),
-                span: (self.lexer.current_index(), self.lexer.current_index() + 1),
+                message: format!(
+                    "Expected ',' or ')', but found {:?}",
+                    self.lexer.peek_token(0)
+                ),
+                span: (self.lexer.current_index(), self.lexer.current_index()),
             });
         }
-        // TODO: Extract read_until_terminator() helper method
+        self.parse_expected(TokenKind::RightParen, ")")?;
+
+        log::trace!("Parsed function call: {}({:?})", id, args);
         Ok(Ast::FunctionCall(id, args))
     }
 
@@ -392,6 +354,7 @@ impl<R: Read> Parser<R> {
                                     is_function_call: true,
                                 })
                             {
+                                self.lexer.next_token().unwrap(); // Consume the left paren
                                 return self.parse_paren_call(id);
                             }
                         }
