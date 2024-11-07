@@ -160,6 +160,7 @@ impl<'a> TypeChecker<'a> {
             .operators
             .iter()
             .filter(|o| o.info.symbol == symbol)
+            .chain(self.parent.iter().flat_map(|p| p.lookup_operator(symbol)))
             .collect()
     }
 
