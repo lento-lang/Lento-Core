@@ -23,7 +23,7 @@ use crate::{
     util::str::Str,
 };
 
-use super::system;
+use super::{logical, system};
 
 pub struct Initializer {
     operators: Vec<Operator>,
@@ -118,6 +118,8 @@ pub fn stdlib() -> Initializer {
         //                                       Operators                                      //
         //--------------------------------------------------------------------------------------//
         operators: vec![
+            // Assignment operator, native to the language
+            // TODO: Implement this operator statically in the parser instead of using an operator handler
             Operator {
                 info: OperatorInfo {
                     name: "assign".into(),
@@ -145,6 +147,7 @@ pub fn stdlib() -> Initializer {
                     },
                 ),
             },
+            // Addition operator
             Operator {
                 info: OperatorInfo {
                     name: "add".into(),
@@ -158,6 +161,22 @@ pub fn stdlib() -> Initializer {
                 handler: OperatorHandler::Runtime {
                     function_name: "add".into(),
                     handler: Box::new(arithmetic::add()),
+                },
+            },
+            // Equality operator
+            Operator {
+                info: OperatorInfo {
+                    name: "eq".into(),
+                    symbol: "==".into(),
+                    position: OperatorPosition::Infix,
+                    precedence: default_operator_precedence::EQUALITY,
+                    associativity: OperatorAssociativity::Left,
+                    overloadable: true,
+                    allow_trailing: false,
+                },
+                handler: OperatorHandler::Runtime {
+                    function_name: "eq".into(),
+                    handler: Box::new(logical::eq()),
                 },
             },
         ],
