@@ -592,13 +592,13 @@ impl Type {
                             if !s.is_empty() {
                                 result.push_str(&", ".dark_gray().to_string());
                             }
-                            result.push_str(&format!("...{}", v.1.to_string().light_blue()));
+                            result.push_str(&format!("...{}", v.1.pretty_print_color()));
                         }
                     };
                     result.push_str(&format!(
                         " {} {}",
                         "->".dark_gray(),
-                        variation.ret.to_string().light_blue()
+                        variation.ret.pretty_print_color()
                     ));
                 }
                 result
