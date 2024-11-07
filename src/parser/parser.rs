@@ -178,8 +178,6 @@ impl<R: Read> Parser<R> {
                 return Ok(Ast::Tuple(vec![]));
             }
         }
-
-        // if let Ok(e) = expr.as_ref() { println!("Parsed expression: {:?}", e); }
         self.parse_top_expr()
     }
 
@@ -365,16 +363,7 @@ impl<R: Read> Parser<R> {
                         if let Some(op) = self.find_operator_pos(&op, OperatorPosition::Prefix) {
                             let op = op.clone();
                             let rhs = self.parse_primary()?;
-                            // if let OperatorHandler::Static(_, handler) = op.handler {
-                            //     (handler)(StaticOperatorAst::Prefix(rhs))
-                            // } else {
-                            Ast::Unary(
-                                op.clone(),
-                                // RuntimeOperator::from(op.clone()),
-                                Box::new(rhs),
-                                // CheckedType::Checked(op.signature().returns),
-                            )
-                            //}
+                            Ast::Unary(op.clone(), Box::new(rhs))
                         } else {
                             log::error!("Expected prefix operator, but found {:?}", op);
                             return Err(ParseError {
@@ -586,17 +575,7 @@ impl<R: Read> Parser<R> {
                 rhs = self.parse_expr(rhs, Self::next_prec(&curr_op, &next_op))?;
             }
             // TODO: Fix static operator handling
-            expr = /* if let OperatorHandler::Static(_, handler) = curr_op.handler {
-                (handler)(StaticOperatorAst::Infix(expr, rhs))
-            } else { */
-                Ast::Binary(
-                    Box::new(expr),
-                    // RuntimeOperator::from(curr_op.clone()),
-                    curr_op.clone(),
-                    Box::new(rhs),
-                    // CheckedType::Checked(curr_op.signature().returns),
-                )
-            // };
+            expr = Ast::Binary(Box::new(expr), curr_op.clone(), Box::new(rhs));
         }
         Ok(expr)
     }
@@ -625,10 +604,6 @@ impl<R: Read> Parser<R> {
                 break;
             }
         }
-        // Ok(match &op.handler {
-        //     OperatorHandler::Static(_, handler) => (handler)(StaticOperatorAst::Accumulate(exprs)),
-        //     OperatorHandler::Runtime(func) => Ast::VariationCall(func.clone(), exprs),
-        // })
         Ok(Ast::Accumulate(op.clone(), exprs))
     }
 

@@ -228,7 +228,6 @@ impl<'a> TypeChecker<'a> {
             Ast::Record(pairs) => self.check_record(pairs)?,
             Ast::Identifier(i) => self.check_identifier(i)?,
             Ast::FunctionCall(name, args) => self.check_call(name, args)?,
-            // Ast::VariationCall(variation, args) => self.check_variation_call(variation, args)?,
             Ast::Accumulate(info, operands) => self.check_accumulate(info, operands)?,
             Ast::Binary(lhs, info, rhs) => self.check_binary(lhs, info, rhs)?,
             Ast::Unary(info, operand) => self.check_unary(info, operand)?,

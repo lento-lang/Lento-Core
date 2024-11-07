@@ -135,7 +135,6 @@ pub struct OperatorInfo {
 #[derive(Clone, Debug)]
 pub enum OperatorHandler {
     /// Runtime operators (functions)
-    /// 1. The handler function for the operator called at runtime
     Runtime {
         function_name: String,
         handler: Box<FunctionVariation>,

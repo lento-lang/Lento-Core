@@ -11,7 +11,6 @@ const TY_UNIT: Type = std_primitive_types::UNIT;
 //                               Native Runtime Functions                               //
 //--------------------------------------------------------------------------------------//
 
-/// ## stdlib `system::print`
 /// Print the given values to the console with a newline at the end.
 pub fn print() -> FunctionVariation {
     FunctionVariation::new_native(
@@ -31,6 +30,7 @@ pub fn print() -> FunctionVariation {
     )
 }
 
+/// Return the type of a value.
 pub fn type_of() -> FunctionVariation {
     FunctionVariation::new_native(
         |values| {
@@ -49,7 +49,6 @@ pub fn type_of() -> FunctionVariation {
     )
 }
 
-/// ## stdlib `system::exit`
 /// Exit the program with the given exit code.
 pub fn exit() -> FunctionVariation {
     FunctionVariation::new_native(

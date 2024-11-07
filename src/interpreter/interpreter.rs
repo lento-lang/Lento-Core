@@ -89,39 +89,12 @@ pub fn interpret_ast(ast: &CheckedAst, env: &mut Environment) -> InterpretResult
             params,
             body,
             return_type,
-        } => {
-            // if let Some(name) = name {
-            //     // Add a new variation to the local environment
-            //     // Failing if a variation of the same signature already exists
-            //     Value::Function(
-            //         env.add_function_variation(
-            //             name,
-            //             FunctionVariation::new_user(
-            //                 func.params.clone(),
-            //                 *func.body.clone(),
-            //                 func.return_type.clone(),
-            //             ),
-            //         )?
-            //         .clone(),
-            //     )
-            // } else {
-            //     // Anonymous function
-            //     Value::Function(Function::new(
-            //         "anon".to_string(),
-            //         vec![FunctionVariation::new_user(
-            //             func.params.clone(),
-            //             *func.body.clone(),
-            //             func.return_type.clone(),
-            //         )],
-            //     ))
-            // }
-            Value::Variation(Box::new(FunctionVariation::new_user(
-                params.clone(),
-                *body.clone(),
-                env.deep_clone(),
-                return_type.clone(),
-            )))
-        }
+        } => Value::Variation(Box::new(FunctionVariation::new_user(
+            params.clone(),
+            *body.clone(),
+            env.deep_clone(),
+            return_type.clone(),
+        ))),
         // CheckedAst::Unary(_, _, _) => todo!("Implement Unary AST node: {:?}", ast),
         CheckedAst::Block(exprs, _) => {
             let mut result = Value::Unit;
@@ -139,20 +112,6 @@ fn eval_variation_call(
     args: &[Value],
     env: &mut Environment,
 ) -> InterpretResult {
-    // match variation {
-    //     FunctionVariation::Native(native) => {
-    //         let params = native.params.clone();
-    //         let params = NativeFunctionParameters::new(params, args.to_vec());
-    //         (native.handler)(&params)
-    //     }
-    //     FunctionVariation::User(user) => {
-    //         let mut child_env = env.new_child(user.env.clone());
-    //         for (param, arg) in user.params.iter().zip(args.iter()) {
-    //             child_env.add_value(param.clone(), arg.clone())?;
-    //         }
-    //         interpret_ast(&user.body, &mut child_env)
-    //     }
-    // }
     match variation {
         FunctionVariation::User(UserFunctionVariation { body, .. }) => {
             // let name = name.unwrap_or(Str::Str("anonymous"));

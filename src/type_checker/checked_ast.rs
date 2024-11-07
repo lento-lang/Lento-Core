@@ -38,14 +38,12 @@ pub enum CheckedAst {
     /// 2. Type of the identifier (the type of the value it refers to)
     Identifier(String, Type),
     /// A function variation call is an invocation of a function variation with a list of arguments
-    /// 1. Function variation
-    /// 2. List of arguments
-    /// 3. Type of the return value of the function
     Call {
         function: String,
         variation: Box<VariationType>,
         args: Vec<CheckedAst>,
     },
+    /// A direct function call is an invocation of a variation with a list of arguments
     DirectCall {
         variation: Box<FunctionVariation>,
         args: Vec<CheckedAst>,
@@ -75,15 +73,12 @@ impl GetType for CheckedAst {
             CheckedAst::List(_, ty) => ty,
             CheckedAst::Record(_, ty) => ty,
             CheckedAst::Identifier(_, ty) => ty,
-            // CheckedAst::FunctionCall(_, _, ty) => ty,
             CheckedAst::Call { variation, .. } => variation.get_return_type(),
             CheckedAst::DirectCall {
                 variation: function,
                 ..
             } => function.get_return_type(),
             CheckedAst::Function { body, .. } => body.get_type(),
-            // CheckedAst::Binary(_, _, _, ty) => ty,
-            // CheckedAst::Unary(_, _, ty) => ty,
             CheckedAst::Assignment(_, _, ty) => ty,
             CheckedAst::Block(_, ty) => ty,
         }
@@ -137,20 +132,11 @@ impl CheckedAst {
             CheckedAst::Function { params, body, .. } => {
                 format!("({} -> {})", params, body.print_sexpr())
             }
-            // CheckedAst::Binary(lhs, op, rhs, _) => format!(
-            //     "({} {} {})",
-            //     op.symbol,
-            //     lhs.print_sexpr(),
-            //     rhs.print_sexpr()
-            // ),
-            // CheckedAst::Unary(op, operand, _) => {
-            //     format!("({} {})", op.symbol, operand.print_sexpr())
-            // }
             CheckedAst::Assignment(lhs, rhs, _) => {
-                format!("(= {} {})", lhs.print_sexpr(), rhs.print_sexpr())
+                format!("({} = {})", lhs.print_sexpr(), rhs.print_sexpr())
             }
             CheckedAst::Block(expressions, _) => format!(
-                "({})",
+                "{{{}}}",
                 expressions
                     .iter()
                     .map(|e| e.print_sexpr())

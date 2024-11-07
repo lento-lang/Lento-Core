@@ -90,14 +90,6 @@ impl Ast {
                     .collect::<Vec<String>>()
                     .join(" ")
             ),
-            // Ast::VariationCall(variation, args) => format!(
-            //     "({} {})",
-            //     variation,
-            //     args.iter()
-            //         .map(|e| e.print_sexpr())
-            //         .collect::<Vec<String>>()
-            //         .join(" ")
-            // ),
             Ast::Function { params, body, .. } => {
                 format!("({} -> {})", params, body.print_sexpr())
             }
