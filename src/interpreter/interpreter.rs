@@ -125,8 +125,9 @@ pub fn interpret_ast(ast: &CheckedAst, env: &mut Environment) -> InterpretResult
         // CheckedAst::Unary(_, _, _) => todo!("Implement Unary AST node: {:?}", ast),
         CheckedAst::Block(exprs, _) => {
             let mut result = Value::Unit;
+            let mut scope = env.new_child(Str::Str("<block>"));
             for expr in exprs {
-                result = interpret_ast(expr, env)?;
+                result = interpret_ast(expr, &mut scope)?;
             }
             result
         }
