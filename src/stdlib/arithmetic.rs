@@ -2,7 +2,7 @@ use crate::{
     interpreter::{
         error::runtime_error,
         number::{ArithmeticOperations, Number},
-        value::{FunctionVariation, NativeFunctionParameters, Value},
+        value::{FunctionVariation, Value},
     },
     type_checker::types::{std_compound_types, FunctionParameterType, GetType, TypeTrait},
 };
@@ -15,11 +15,7 @@ pub fn add() -> FunctionVariation {
     FunctionVariation::new_native(
         |values| {
             let ty_num = std_compound_types::any_number();
-            let values = if let NativeFunctionParameters::Singles(v) = values {
-                v
-            } else {
-                panic!("A native function with Singles function parameter type should not be able to receive a Variadic function parameter type")
-            };
+            let values = values.unwrap_singles();
             if values.len() != 2 {
                 return Err(runtime_error("add() expects 2 arguments".to_string()));
             }

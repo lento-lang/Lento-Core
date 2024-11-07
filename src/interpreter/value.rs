@@ -38,6 +38,22 @@ pub enum NativeFunctionParameters {
     Variadic(Vec<Value>, Vec<Value>), // Some initial values of different types, followed by the variadic type values
 }
 
+impl NativeFunctionParameters {
+    pub fn unwrap_singles(self) -> Vec<Value> {
+        match self {
+            NativeFunctionParameters::Singles(v) => v,
+            _ => panic!("unwrap_single called on a NativeFunctionParameters::Variadic"),
+        }
+    }
+
+    pub fn unwrap_variadic(self) -> (Vec<Value>, Vec<Value>) {
+        match self {
+            NativeFunctionParameters::Variadic(v, v2) => (v, v2),
+            _ => panic!("unwrap_variadic called on a NativeFunctionParameters::Singles"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct UserFunctionVariation {
     pub params: FunctionParameterType,
