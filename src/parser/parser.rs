@@ -13,7 +13,6 @@ use crate::{
         token::{LineInfoSpan, TokenInfo, TokenKind},
     },
     stdlib::init::Initializer,
-    type_checker::types::Type,
     util::failable::Failable,
 };
 
@@ -67,12 +66,6 @@ where
     /// - They have different positions
     /// - The symbol is a built-in operator that is overloadable
     operators: HashMap<String, Vec<OperatorInfo>>,
-    /// A map of all defined types in the parser.
-    ///
-    /// ## Note
-    /// This is used to lookup types during parse-time type-inference
-    /// and to prevent redefining types.
-    types: HashMap<String, Type>,
 }
 
 impl<R: Read> Parser<R> {
@@ -80,7 +73,6 @@ impl<R: Read> Parser<R> {
         Self {
             lexer,
             operators: HashMap::new(),
-            types: HashMap::new(),
         }
     }
 
@@ -122,10 +114,6 @@ impl<R: Read> Parser<R> {
 
     pub fn find_operator_pos(&self, symbol: &str, pos: OperatorPosition) -> Option<&OperatorInfo> {
         self.find_operator(symbol, |op| op.position == pos)
-    }
-
-    pub fn get_type(&self, name: &str) -> Option<&Type> {
-        self.types.get(name)
     }
 
     /// Parse a given number of expressions from the stream of tokens.

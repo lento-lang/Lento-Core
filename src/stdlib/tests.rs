@@ -11,28 +11,6 @@ mod tests {
         assert!(parser.get_op("=").is_some());
         assert!(parser.get_op("+").is_some());
         assert!(parser.get_op(",").is_some());
-        // Types
-        assert!(parser.get_type("any").is_some());
-        assert!(parser.get_type("unit").is_some());
-        assert!(parser.get_type("str").is_some());
-        assert!(parser.get_type("char").is_some());
-        assert!(parser.get_type("bool").is_some());
-        assert!(parser.get_type("u1").is_some());
-        assert!(parser.get_type("u8").is_some());
-        assert!(parser.get_type("u16").is_some());
-        assert!(parser.get_type("u32").is_some());
-        assert!(parser.get_type("u64").is_some());
-        assert!(parser.get_type("u128").is_some());
-        assert!(parser.get_type("ubig").is_some());
-        assert!(parser.get_type("i8").is_some());
-        assert!(parser.get_type("i16").is_some());
-        assert!(parser.get_type("i32").is_some());
-        assert!(parser.get_type("i64").is_some());
-        assert!(parser.get_type("i128").is_some());
-        assert!(parser.get_type("ibig").is_some());
-        assert!(parser.get_type("f32").is_some());
-        assert!(parser.get_type("f64").is_some());
-        assert!(parser.get_type("fbig").is_some());
     }
 
     #[test]
