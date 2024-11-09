@@ -784,7 +784,10 @@ pub mod std_types {
 
     #[allow(non_snake_case)]
     pub fn INT() -> Type {
-        Type::Sum(vec![INT8, INT16, INT32, INT64, INT128, INTBIG, UINT()])
+        Type::Sum(vec![
+            UINT1, UINT8, INT8, UINT16, INT16, UINT32, INT32, UINT64, INT64, UINT128, INT128,
+            UINTBIG, INTBIG,
+        ])
     }
 
     #[allow(non_snake_case)]
@@ -797,17 +800,5 @@ pub mod std_types {
     #[allow(non_snake_case)]
     pub fn NUM() -> Type {
         Type::Sum(vec![INT(), FLOAT()])
-    }
-
-    pub fn list(t: Type) -> Type {
-        Type::List(Box::new(t))
-    }
-
-    pub fn tuple(types: Vec<Type>) -> Type {
-        Type::Tuple(types)
-    }
-
-    pub fn record(fields: Vec<(RecordKey, Type)>) -> Type {
-        Type::Record(fields)
     }
 }

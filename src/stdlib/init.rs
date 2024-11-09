@@ -215,6 +215,12 @@ pub fn stdlib() -> Initializer {
                 panic!("stdlib() expects a literal type");
             }
         })
+        .chain([
+            ("uint".into(), std_types::UINT()),
+            ("int".into(), std_types::INT()),
+            ("float".into(), std_types::FLOAT()),
+            ("num".into(), std_types::NUM()),
+        ])
         .collect(),
 
         //--------------------------------------------------------------------------------------//
