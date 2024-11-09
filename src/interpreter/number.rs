@@ -289,14 +289,14 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
                     if let Some(res) = lhs.checked_add(*rhs) {
                         UnsignedInteger::UInt32(res)
                     } else {
-                        UnsignedInteger::UIntVar(Natural::from(*lhs) + Natural::from(*rhs))
+                        UnsignedInteger::UInt64(u64::from(*lhs) + u64::from(*rhs))
                     }
                 }
                 (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
                         UnsignedInteger::UInt64(res)
                     } else {
-                        UnsignedInteger::UIntVar(Natural::from(*lhs) + Natural::from(*rhs))
+                        UnsignedInteger::UInt128(u128::from(*lhs) + u128::from(*rhs))
                     }
                 }
                 (UnsignedInteger::UInt128(lhs), UnsignedInteger::UInt128(rhs)) => {
@@ -347,14 +347,14 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
                     if let Some(res) = lhs.checked_sub(*rhs) {
                         UnsignedInteger::UInt32(res)
                     } else {
-                        UnsignedInteger::UIntVar(Natural::from(*lhs) - Natural::from(*rhs))
+                        UnsignedInteger::UInt64(u64::from(*lhs) - u64::from(*rhs))
                     }
                 }
                 (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => {
                     if let Some(res) = lhs.checked_sub(*rhs) {
                         UnsignedInteger::UInt64(res)
                     } else {
-                        UnsignedInteger::UIntVar(Natural::from(*lhs) - Natural::from(*rhs))
+                        UnsignedInteger::UInt128(u128::from(*lhs) - u128::from(*rhs))
                     }
                 }
                 (UnsignedInteger::UInt128(lhs), UnsignedInteger::UInt128(rhs)) => {
@@ -393,13 +393,19 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
                 (UnsignedInteger::UInt16(lhs), UnsignedInteger::UInt16(rhs)) => {
                     if let Some(res) = lhs.checked_mul(*rhs) {
                         UnsignedInteger::UInt16(res)
+                    } else if let Some(res) = (u32::from(*lhs)).checked_mul(u32::from(*rhs)) {
+                        UnsignedInteger::UInt32(res)
                     } else {
-                        UnsignedInteger::UInt32(u32::from(*lhs) * u32::from(*rhs))
+                        UnsignedInteger::UInt64(u64::from(*lhs) * u64::from(*rhs))
                     }
                 }
                 (UnsignedInteger::UInt32(lhs), UnsignedInteger::UInt32(rhs)) => {
                     if let Some(res) = lhs.checked_mul(*rhs) {
                         UnsignedInteger::UInt32(res)
+                    } else if let Some(res) = (u64::from(*lhs)).checked_mul(u64::from(*rhs)) {
+                        UnsignedInteger::UInt64(res)
+                    } else if let Some(res) = (u128::from(*lhs)).checked_mul(u128::from(*rhs)) {
+                        UnsignedInteger::UInt128(res)
                     } else {
                         UnsignedInteger::UIntVar(Natural::from(*lhs) * Natural::from(*rhs))
                     }
@@ -407,6 +413,8 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
                 (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => {
                     if let Some(res) = lhs.checked_mul(*rhs) {
                         UnsignedInteger::UInt64(res)
+                    } else if let Some(res) = (u128::from(*lhs)).checked_mul(u128::from(*rhs)) {
+                        UnsignedInteger::UInt128(res)
                     } else {
                         UnsignedInteger::UIntVar(Natural::from(*lhs) * Natural::from(*rhs))
                     }
@@ -652,14 +660,14 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
                     if let Some(res) = lhs.checked_add(*rhs) {
                         SignedInteger::Int32(res)
                     } else {
-                        SignedInteger::IntVar(Integer::from(*lhs) + Integer::from(*rhs))
+                        SignedInteger::Int64(i64::from(*lhs) + i64::from(*rhs))
                     }
                 }
                 (SignedInteger::Int64(lhs), SignedInteger::Int64(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
                         SignedInteger::Int64(res)
                     } else {
-                        SignedInteger::IntVar(Integer::from(*lhs) + Integer::from(*rhs))
+                        SignedInteger::Int128(i128::from(*lhs) + i128::from(*rhs))
                     }
                 }
                 (SignedInteger::Int128(lhs), SignedInteger::Int128(rhs)) => {
@@ -703,14 +711,14 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
                     if let Some(res) = lhs.checked_sub(*rhs) {
                         SignedInteger::Int32(res)
                     } else {
-                        SignedInteger::IntVar(Integer::from(*lhs) - Integer::from(*rhs))
+                        SignedInteger::Int64(i64::from(*lhs) - i64::from(*rhs))
                     }
                 }
                 (SignedInteger::Int64(lhs), SignedInteger::Int64(rhs)) => {
                     if let Some(res) = lhs.checked_sub(*rhs) {
                         SignedInteger::Int64(res)
                     } else {
-                        SignedInteger::IntVar(Integer::from(*lhs) - Integer::from(*rhs))
+                        SignedInteger::Int128(i128::from(*lhs) - i128::from(*rhs))
                     }
                 }
                 (SignedInteger::Int128(lhs), SignedInteger::Int128(rhs)) => {
@@ -746,13 +754,19 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
                 (SignedInteger::Int16(lhs), SignedInteger::Int16(rhs)) => {
                     if let Some(res) = lhs.checked_mul(*rhs) {
                         SignedInteger::Int16(res)
+                    } else if let Some(res) = (i32::from(*lhs)).checked_mul(i32::from(*rhs)) {
+                        SignedInteger::Int32(res)
                     } else {
-                        SignedInteger::Int32(i32::from(*lhs) * i32::from(*rhs))
+                        SignedInteger::Int64(i64::from(*lhs) * i64::from(*rhs))
                     }
                 }
                 (SignedInteger::Int32(lhs), SignedInteger::Int32(rhs)) => {
                     if let Some(res) = lhs.checked_mul(*rhs) {
                         SignedInteger::Int32(res)
+                    } else if let Some(res) = (i64::from(*lhs)).checked_mul(i64::from(*rhs)) {
+                        SignedInteger::Int64(res)
+                    } else if let Some(res) = (i128::from(*lhs)).checked_mul(i128::from(*rhs)) {
+                        SignedInteger::Int128(res)
                     } else {
                         SignedInteger::IntVar(Integer::from(*lhs) * Integer::from(*rhs))
                     }
@@ -760,6 +774,8 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
                 (SignedInteger::Int64(lhs), SignedInteger::Int64(rhs)) => {
                     if let Some(res) = lhs.checked_mul(*rhs) {
                         SignedInteger::Int64(res)
+                    } else if let Some(res) = (i128::from(*lhs)).checked_mul(i128::from(*rhs)) {
+                        SignedInteger::Int128(res)
                     } else {
                         SignedInteger::IntVar(Integer::from(*lhs) * Integer::from(*rhs))
                     }
