@@ -163,6 +163,51 @@ pub fn stdlib() -> Initializer {
                     handler: Box::new(arithmetic::add()),
                 },
             },
+            Operator {
+                info: OperatorInfo {
+                    name: "sub".into(),
+                    symbol: "-".into(),
+                    position: OperatorPosition::Infix,
+                    precedence: default_operator_precedence::ADDITIVE,
+                    associativity: OperatorAssociativity::Left,
+                    overloadable: true,
+                    allow_trailing: false,
+                },
+                handler: OperatorHandler::Runtime {
+                    function_name: "sub".into(),
+                    handler: Box::new(arithmetic::sub()),
+                },
+            },
+            Operator {
+                info: OperatorInfo {
+                    name: "mul".into(),
+                    symbol: "*".into(),
+                    position: OperatorPosition::Infix,
+                    precedence: default_operator_precedence::MULTIPLICATIVE,
+                    associativity: OperatorAssociativity::Left,
+                    overloadable: true,
+                    allow_trailing: false,
+                },
+                handler: OperatorHandler::Runtime {
+                    function_name: "mul".into(),
+                    handler: Box::new(arithmetic::mul()),
+                },
+            },
+            Operator {
+                info: OperatorInfo {
+                    name: "div".into(),
+                    symbol: "/".into(),
+                    position: OperatorPosition::Infix,
+                    precedence: default_operator_precedence::MULTIPLICATIVE,
+                    associativity: OperatorAssociativity::Left,
+                    overloadable: true,
+                    allow_trailing: false,
+                },
+                handler: OperatorHandler::Runtime {
+                    function_name: "div".into(),
+                    handler: Box::new(arithmetic::div()),
+                },
+            },
             // Equality operator
             Operator {
                 info: OperatorInfo {
