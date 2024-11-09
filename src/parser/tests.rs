@@ -11,6 +11,7 @@ mod tests {
             ast::Ast,
             parser::{parse_path_one, parse_str_all, parse_str_one},
         },
+        stdlib::init::stdlib,
     };
 
     fn make_u1(n: u8) -> Value {
@@ -282,17 +283,25 @@ mod tests {
         assert!(result.expressions[1] == Ast::Literal(make_u8(2)));
     }
 
-    // #[test]
-    // fn arithmetic_complex() {
-    //     let result = parse_str_one("5 * (10 - 2) / 2 + 1", None);
-    //     assert!(result.is_ok());
-    //     let result = result.unwrap();
-    //     assert!(result.expressions.len() == 1);
-    //     assert!(matches!(
-    //         result.expressions[0],
-    //         Ast::Binary(_)
-    //     ));
-    // }
+    #[test]
+    fn arithmetic_complex() {
+        let result = parse_str_one("5 * (10 - 2) / 2 + 1", Some(&stdlib()));
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.expressions.len() == 1);
+        assert!(matches!(result.expressions[0], Ast::Binary(_, _, _)));
+        if let Ast::Binary(lhs, _, rhs) = &result.expressions[0] {
+            assert!(matches!(*lhs.to_owned(), Ast::Binary(_, _, _)));
+            assert!(matches!(*rhs.to_owned(), Ast::Literal(_)));
+            if let Ast::Binary(lhs, _, _) = &**lhs {
+                assert!(matches!(*lhs.to_owned(), Ast::Binary(_, _, _)));
+                assert!(matches!(*rhs.to_owned(), Ast::Literal(_)));
+                if let Ast::Binary(lhs, _, _) = &**lhs {
+                    assert!(matches!(*lhs.to_owned(), Ast::Literal(_)));
+                }
+            }
+        }
+    }
 
     #[test]
     fn record_literal_empty() {
