@@ -467,19 +467,19 @@ impl<R: Read> Parser<R> {
                         }
                     }
                     _ => {
-                        log::error!("Expected primary expression, but found {:?}", t.token);
+                        log::error!("Expected primary expression, but found {}", t.token);
                         return Err(ParseError {
-                            message: format!(
-                                "Expected primary expression, but found {:?}",
-                                t.token
-                            ),
+                            message: format!("Expected primary expression, but found {}", t.token),
                             span: (t.info.start.index, t.info.end.index),
                         });
                     }
                 })
             }
             Err(err) => Err(ParseError {
-                message: format!("Expected primary expression, but failed due to: {:?}", err),
+                message: format!(
+                    "Expected primary expression, but failed due to: {}",
+                    err.message
+                ),
                 span: (self.lexer.current_index(), self.lexer.current_index()),
             }),
         }
