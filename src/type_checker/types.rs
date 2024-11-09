@@ -5,6 +5,14 @@ use crate::{
 use std::fmt::{Debug, Display};
 
 //--------------------------------------------------------------------------------------//
+//                                     Value trait                                      //
+//--------------------------------------------------------------------------------------//
+
+pub trait GetType {
+    fn get_type(&self) -> &Type;
+}
+
+//--------------------------------------------------------------------------------------//
 //                                     Type System                                      //
 //--------------------------------------------------------------------------------------//
 
@@ -387,8 +395,8 @@ pub enum Type {
 impl TypeTrait for Type {
     fn subtype(&self, other: &Type) -> bool {
         match (self, other) {
-            (&std_primitive_types::ANY, _) => true,
-            (_, &std_primitive_types::ANY) => true,
+            (&std_types::ANY, _) => true,
+            (_, &std_types::ANY) => true,
             (Type::Literal(s1), Type::Literal(s2)) => *s1 == *s2,
             (Type::Generic(s1, params1, _), Type::Generic(s2, params2, _)) => {
                 s1 == s2
@@ -681,7 +689,7 @@ impl Type {
 }
 
 // Standard types
-pub mod std_primitive_types {
+pub mod std_types {
     use super::*;
 
     /// The any type.
@@ -764,53 +772,32 @@ pub mod std_primitive_types {
 
     /// Increases the precision of a floating-point number.
     pub const FLOATBIG: Type = Type::Literal(Str::Str("fbig"));
-}
 
-pub mod std_compound_types {
-    use super::*;
+    //--------------------------------------------------------------------------------------//
+    //   								Compound types                                      //
+    //--------------------------------------------------------------------------------------//
 
-    pub fn any_signed_integer() -> Type {
-        Type::Sum(vec![
-            std_primitive_types::INT8,
-            std_primitive_types::INT16,
-            std_primitive_types::INT32,
-            std_primitive_types::INT64,
-            std_primitive_types::INT128,
-            std_primitive_types::INTBIG,
-        ])
+    #[allow(non_snake_case)]
+    pub fn UINT() -> Type {
+        Type::Sum(vec![UINT1, UINT8, UINT16, UINT32, UINT64, UINT128, UINTBIG])
     }
 
-    pub fn any_unsigned_integer() -> Type {
-        Type::Sum(vec![
-            std_primitive_types::UINT1,
-            std_primitive_types::UINT8,
-            std_primitive_types::UINT16,
-            std_primitive_types::UINT32,
-            std_primitive_types::UINT64,
-            std_primitive_types::UINT128,
-            std_primitive_types::UINTBIG,
-        ])
+    #[allow(non_snake_case)]
+    pub fn INT() -> Type {
+        Type::Sum(vec![INT8, INT16, INT32, INT64, INT128, INTBIG, UINT()])
     }
 
-    pub fn any_float() -> Type {
-        Type::Sum(vec![
-            std_primitive_types::FLOAT32,
-            std_primitive_types::FLOAT64,
-            std_primitive_types::FLOATBIG,
-        ])
+    #[allow(non_snake_case)]
+    pub fn FLOAT() -> Type {
+        Type::Sum(vec![FLOAT32, FLOAT64, FLOATBIG])
     }
 
-    pub fn any_integer() -> Type {
-        Type::Sum(vec![any_signed_integer(), any_unsigned_integer()])
+    /// A number type.
+    /// The type of all numbers, both integers and floating-point numbers.
+    #[allow(non_snake_case)]
+    pub fn NUM() -> Type {
+        Type::Sum(vec![INT(), FLOAT()])
     }
-
-    pub fn any_number() -> Type {
-        Type::Sum(vec![any_integer(), any_float()])
-    }
-}
-
-pub mod std_collection_types {
-    use super::*;
 
     pub fn list(t: Type) -> Type {
         Type::List(Box::new(t))
@@ -823,12 +810,4 @@ pub mod std_collection_types {
     pub fn record(fields: Vec<(RecordKey, Type)>) -> Type {
         Type::Record(fields)
     }
-}
-
-//--------------------------------------------------------------------------------------//
-//                                     Value trait                                      //
-//--------------------------------------------------------------------------------------//
-
-pub trait GetType {
-    fn get_type(&self) -> &Type;
 }

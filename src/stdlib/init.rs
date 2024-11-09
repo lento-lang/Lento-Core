@@ -18,7 +18,7 @@ use crate::{
     stdlib::arithmetic,
     type_checker::{
         checker::TypeChecker,
-        types::{std_primitive_types, FunctionParameterType, Type},
+        types::{std_types, FunctionParameterType, Type},
     },
     util::str::Str,
 };
@@ -133,10 +133,10 @@ pub fn stdlib() -> Initializer {
                 handler: OperatorHandler::Static(
                     OperatorSignature {
                         params: FunctionParameterType::Singles(vec![
-                            ("lhs".into(), std_primitive_types::ANY),
-                            ("rhs".into(), std_primitive_types::ANY),
+                            ("lhs".into(), std_types::ANY),
+                            ("rhs".into(), std_types::ANY),
                         ]),
-                        returns: std_primitive_types::ANY,
+                        returns: std_types::ANY,
                     },
                     |op| {
                         if let StaticOperatorAst::Infix(lhs, rhs) = op {
@@ -187,25 +187,25 @@ pub fn stdlib() -> Initializer {
         types: vec![
             Type::Literal(Str::Str("any")),
             Type::Literal(Str::Str("unit")),
-            std_primitive_types::STRING,
-            std_primitive_types::CHAR,
-            std_primitive_types::BOOL,
-            std_primitive_types::UINT1,
-            std_primitive_types::UINT8,
-            std_primitive_types::UINT16,
-            std_primitive_types::UINT32,
-            std_primitive_types::UINT64,
-            std_primitive_types::UINT128,
-            std_primitive_types::UINTBIG,
-            std_primitive_types::INT8,
-            std_primitive_types::INT16,
-            std_primitive_types::INT32,
-            std_primitive_types::INT64,
-            std_primitive_types::INT128,
-            std_primitive_types::INTBIG,
-            std_primitive_types::FLOAT32,
-            std_primitive_types::FLOAT64,
-            std_primitive_types::FLOATBIG,
+            std_types::STRING,
+            std_types::CHAR,
+            std_types::BOOL,
+            std_types::UINT1,
+            std_types::UINT8,
+            std_types::UINT16,
+            std_types::UINT32,
+            std_types::UINT64,
+            std_types::UINT128,
+            std_types::UINTBIG,
+            std_types::INT8,
+            std_types::INT16,
+            std_types::INT32,
+            std_types::INT64,
+            std_types::INT128,
+            std_types::INTBIG,
+            std_types::FLOAT32,
+            std_types::FLOAT64,
+            std_types::FLOATBIG,
         ]
         .into_iter()
         .map(|ty| {

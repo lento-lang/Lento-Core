@@ -3,7 +3,7 @@ use crate::{
         error::runtime_error,
         value::{FunctionVariation, Value},
     },
-    type_checker::types::{std_primitive_types, FunctionParameterType},
+    type_checker::types::{std_types, FunctionParameterType},
 };
 
 pub fn eq() -> FunctionVariation {
@@ -16,9 +16,9 @@ pub fn eq() -> FunctionVariation {
             Ok(Value::Boolean(values[0] == values[1]))
         },
         FunctionParameterType::Singles(vec![
-            ("lhs".to_string(), std_primitive_types::ANY),
-            ("rhs".to_string(), std_primitive_types::ANY),
+            ("lhs".to_string(), std_types::ANY),
+            ("rhs".to_string(), std_types::ANY),
         ]),
-        std_primitive_types::BOOL,
+        std_types::BOOL,
     )
 }

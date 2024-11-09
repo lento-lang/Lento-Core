@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::type_checker::{
     checked_ast::CheckedAst,
-    types::{std_primitive_types, FunctionParameterType, GetType, Type, VariationType},
+    types::{std_types, FunctionParameterType, GetType, Type, VariationType},
 };
 
 use super::{environment::Environment, interpreter::InterpretResult, number::Number};
@@ -251,17 +251,17 @@ pub enum Value {
 impl GetType for Value {
     fn get_type(&self) -> &Type {
         match self {
-            Value::Unit => &std_primitive_types::UNIT,
+            Value::Unit => &std_types::UNIT,
             Value::Number(n) => n.get_type(),
-            Value::String(_) => &std_primitive_types::STRING,
-            Value::Char(_) => &std_primitive_types::CHAR,
-            Value::Boolean(_) => &std_primitive_types::BOOL,
+            Value::String(_) => &std_types::STRING,
+            Value::Char(_) => &std_types::CHAR,
+            Value::Boolean(_) => &std_types::BOOL,
             Value::Tuple(_, t) => t,
             Value::List(_, t) => t,
             Value::Record(_, t) => t,
             Value::Variation(f) => f.get_return_type(), //.get_type(),
             Value::Function(f) => f.get_type(),
-            Value::Type(_) => &std_primitive_types::TYPE,
+            Value::Type(_) => &std_types::TYPE,
         }
     }
 }

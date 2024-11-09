@@ -53,7 +53,7 @@ mod tests {
         let target = triple!("x86_64-unknown-windows-msvc");
         let isa = build_isa(target.clone());
         let mut cranelift = Cranelift::new(isa, settings::Flags::new(settings::builder()));
-        let module = parse_str_all(r#"print("Hello, World!");"#).expect("Failed to parse");
+        let module = parse_str_all(r#"print("Hello, World!");"#, None).expect("Failed to parse");
         let result = cranelift.compile_module(&module, default_options(target));
         assert!(result.is_ok());
     }
@@ -65,7 +65,7 @@ mod tests {
         let target = triple!("x86_64-unknown-linux-gnu");
         let isa = build_isa(target.clone());
         let mut cranelift = Cranelift::new(isa, settings::Flags::new(settings::builder()));
-        let module = parse_str_all(r#"print("Hello, World!");"#).expect("Failed to parse");
+        let module = parse_str_all(r#"print("Hello, World!");"#, None).expect("Failed to parse");
         let result = cranelift.compile_module(&module, default_options(target));
         assert!(result.is_ok());
     }

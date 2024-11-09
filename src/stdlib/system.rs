@@ -1,11 +1,11 @@
 use crate::{
     interpreter::number::{Number, SignedInteger},
     interpreter::value::{FunctionVariation, NativeFunctionParameters, Value},
-    type_checker::types::{std_primitive_types, FunctionParameterType, GetType, Type},
+    type_checker::types::{std_types, FunctionParameterType, GetType, Type},
 };
 
-const TY_ANY: Type = std_primitive_types::ANY;
-const TY_UNIT: Type = std_primitive_types::UNIT;
+const TY_ANY: Type = std_types::ANY;
+const TY_UNIT: Type = std_types::UNIT;
 
 //--------------------------------------------------------------------------------------//
 //                               Native Runtime Functions                               //
@@ -45,7 +45,7 @@ pub fn type_of() -> FunctionVariation {
             Ok(Value::Type(values[0].get_type().clone()))
         },
         FunctionParameterType::Singles(vec![("value".to_string(), TY_ANY)]),
-        std_primitive_types::TYPE,
+        std_types::TYPE,
     )
 }
 
@@ -68,19 +68,19 @@ pub fn exit() -> FunctionVariation {
                     } else {
                         panic!(
                             "exit() expects 1 argument of type '{}', got '{}'",
-                            std_primitive_types::INT32,
+                            std_types::INT32,
                             n.get_type()
                         );
                     }
                 }
                 _ => panic!(
                     "exit() expects 1 argument of type '{}', got '{}'",
-                    std_primitive_types::INT32,
+                    std_types::INT32,
                     values[0].get_type()
                 ),
             }
         },
-        FunctionParameterType::Singles(vec![("code".to_string(), std_primitive_types::INT32)]),
+        FunctionParameterType::Singles(vec![("code".to_string(), std_types::INT32)]),
         TY_UNIT,
     )
 }

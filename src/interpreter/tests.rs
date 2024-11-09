@@ -12,7 +12,7 @@ mod tests {
         type_checker::{
             checked_ast::CheckedAst,
             checker::TypeChecker,
-            types::{std_primitive_types, FunctionParameterType, GetType, Type},
+            types::{std_types, FunctionParameterType, GetType, Type},
         },
         util::str::Str,
     };
@@ -41,7 +41,7 @@ mod tests {
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_primitive_types::UINT8);
+        assert!(result.get_type() == &std_types::UINT8);
         assert_eq!(result, make_u8(3));
     }
 
@@ -53,17 +53,17 @@ mod tests {
                 CheckedAst::Literal(make_u8(2)),
                 CheckedAst::Literal(make_u8(3)),
             ],
-            Type::Tuple(vec![std_primitive_types::UINT8; 3]),
+            Type::Tuple(vec![std_types::UINT8; 3]),
         );
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &Type::Tuple(vec![std_primitive_types::UINT8; 3]));
+        assert!(result.get_type() == &Type::Tuple(vec![std_types::UINT8; 3]));
         assert_eq!(
             result,
             Value::Tuple(
                 vec![make_u8(1), make_u8(2), make_u8(3)],
-                Type::Tuple(vec![std_primitive_types::UINT8; 3])
+                Type::Tuple(vec![std_types::UINT8; 3])
             )
         );
     }
@@ -80,7 +80,7 @@ mod tests {
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_primitive_types::UINT8);
+        assert!(result.get_type() == &std_types::UINT8);
         assert_eq!(result, make_u8(3));
     }
 
@@ -89,16 +89,16 @@ mod tests {
         let ast = CheckedAst::DirectCall {
             variation: Box::new(FunctionVariation::new_user(
                 FunctionParameterType::Singles(vec![]),
-                CheckedAst::Block(vec![], std_primitive_types::UNIT),
+                CheckedAst::Block(vec![], std_types::UNIT),
                 empty_env(), // Empty environment
-                std_primitive_types::UNIT,
+                std_types::UNIT,
             )),
             args: vec![],
         };
         let result = interpret_ast(&ast, &mut empty_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_primitive_types::UNIT);
+        assert!(result.get_type() == &std_types::UNIT);
         assert_eq!(result, Value::Unit);
     }
 
@@ -107,9 +107,9 @@ mod tests {
         let ast = CheckedAst::DirectCall {
             variation: Box::new(FunctionVariation::new_user(
                 FunctionParameterType::Singles(vec![]),
-                CheckedAst::Block(vec![], std_primitive_types::UNIT),
+                CheckedAst::Block(vec![], std_types::UNIT),
                 empty_env(), // Empty environment
-                std_primitive_types::UNIT,
+                std_types::UNIT,
             )),
             args: vec![CheckedAst::Literal(make_u8(1))],
         };
@@ -120,17 +120,14 @@ mod tests {
     #[test]
     fn assignment() {
         let ast = CheckedAst::Assignment(
-            Box::new(CheckedAst::Identifier(
-                "x".to_string(),
-                std_primitive_types::UINT8,
-            )),
+            Box::new(CheckedAst::Identifier("x".to_string(), std_types::UINT8)),
             Box::new(CheckedAst::Literal(make_u8(1))),
-            std_primitive_types::UINT8,
+            std_types::UINT8,
         );
         let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_primitive_types::UINT8);
+        assert!(result.get_type() == &std_types::UINT8);
         assert_eq!(result, make_u8(1));
     }
 
@@ -152,7 +149,7 @@ mod tests {
         let result = interpret_module(&module, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_primitive_types::UINT8);
+        assert!(result.get_type() == &std_types::UINT8);
         assert_eq!(result, make_u8(3));
     }
 

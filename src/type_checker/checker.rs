@@ -10,7 +10,7 @@ use crate::{
 
 use super::{
     checked_ast::{CheckedAst, CheckedModule},
-    types::{std_primitive_types, FunctionParameterType, GetType, Type, TypeTrait, VariationType},
+    types::{std_types, FunctionParameterType, GetType, Type, TypeTrait, VariationType},
 };
 
 /// A type error is an error that occurs during type checking.
@@ -267,7 +267,7 @@ impl<'a> TypeChecker<'a> {
 
     fn check_tuple(&mut self, elems: &[Ast]) -> TypeResult<CheckedAst> {
         if elems.is_empty() {
-            return Ok(CheckedAst::Tuple(vec![], std_primitive_types::UNIT));
+            return Ok(CheckedAst::Tuple(vec![], std_types::UNIT));
         }
         let checked_elems = self.check_top_exprs(elems)?;
         let elem_types = checked_elems
@@ -363,7 +363,7 @@ impl<'a> TypeChecker<'a> {
         let ty = if let Some(expr) = exprs.last() {
             expr.get_type().clone()
         } else {
-            std_primitive_types::UNIT
+            std_types::UNIT
         };
         Ok(CheckedAst::Block(exprs, ty))
     }

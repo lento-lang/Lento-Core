@@ -4,7 +4,7 @@ use crate::{
         number::{ArithmeticOperations, Number},
         value::{FunctionVariation, Value},
     },
-    type_checker::types::{std_compound_types, FunctionParameterType, GetType, TypeTrait},
+    type_checker::types::{std_types, FunctionParameterType, GetType, TypeTrait},
 };
 
 //--------------------------------------------------------------------------------------//
@@ -14,7 +14,7 @@ use crate::{
 pub fn add() -> FunctionVariation {
     FunctionVariation::new_native(
         |values| {
-            let ty_num = std_compound_types::any_number();
+            let ty_num = std_types::NUM();
             let values = values.unwrap_singles();
             if values.len() != 2 {
                 return Err(runtime_error("add() expects 2 arguments".to_string()));
@@ -36,9 +36,11 @@ pub fn add() -> FunctionVariation {
             }
         },
         FunctionParameterType::Singles(vec![
-            ("lhs".to_string(), std_compound_types::any_number()),
-            ("rhs".to_string(), std_compound_types::any_number()),
+            ("lhs".to_string(), std_types::NUM()),
+            ("rhs".to_string(), std_types::NUM()),
         ]),
-        std_compound_types::any_number(),
+        std_types::NUM(),
+    )
+}
     )
 }

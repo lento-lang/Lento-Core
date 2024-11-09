@@ -8,7 +8,7 @@ use malachite::{
     Integer, Natural, Rational,
 };
 
-use crate::type_checker::types::{std_primitive_types, GetType, Type};
+use crate::type_checker::types::{std_types, GetType, Type};
 
 pub trait NumberCasting<T> {
     /// Upcasts the value to the given reference size
@@ -67,13 +67,13 @@ pub enum UnsignedInteger {
 impl GetType for UnsignedInteger {
     fn get_type(&self) -> &Type {
         match self {
-            UnsignedInteger::UInt1(_) => &std_primitive_types::UINT1,
-            UnsignedInteger::UInt8(_) => &std_primitive_types::UINT8,
-            UnsignedInteger::UInt16(_) => &std_primitive_types::UINT16,
-            UnsignedInteger::UInt32(_) => &std_primitive_types::UINT32,
-            UnsignedInteger::UInt64(_) => &std_primitive_types::UINT64,
-            UnsignedInteger::UInt128(_) => &std_primitive_types::UINT128,
-            UnsignedInteger::UIntVar(_) => &std_primitive_types::UINTBIG,
+            UnsignedInteger::UInt1(_) => &std_types::UINT1,
+            UnsignedInteger::UInt8(_) => &std_types::UINT8,
+            UnsignedInteger::UInt16(_) => &std_types::UINT16,
+            UnsignedInteger::UInt32(_) => &std_types::UINT32,
+            UnsignedInteger::UInt64(_) => &std_types::UINT64,
+            UnsignedInteger::UInt128(_) => &std_types::UINT128,
+            UnsignedInteger::UIntVar(_) => &std_types::UINTBIG,
         }
     }
 }
@@ -333,12 +333,12 @@ pub enum SignedInteger {
 impl GetType for SignedInteger {
     fn get_type(&self) -> &Type {
         match self {
-            SignedInteger::Int8(_) => &std_primitive_types::INT8,
-            SignedInteger::Int16(_) => &std_primitive_types::INT16,
-            SignedInteger::Int32(_) => &std_primitive_types::INT32,
-            SignedInteger::Int64(_) => &std_primitive_types::INT64,
-            SignedInteger::Int128(_) => &std_primitive_types::INT128,
-            SignedInteger::IntVar(_) => &std_primitive_types::INTBIG,
+            SignedInteger::Int8(_) => &std_types::INT8,
+            SignedInteger::Int16(_) => &std_types::INT16,
+            SignedInteger::Int32(_) => &std_types::INT32,
+            SignedInteger::Int64(_) => &std_types::INT64,
+            SignedInteger::Int128(_) => &std_types::INT128,
+            SignedInteger::IntVar(_) => &std_types::INTBIG,
         }
     }
 }
@@ -535,9 +535,9 @@ pub enum FloatingPoint {
 impl GetType for FloatingPoint {
     fn get_type(&self) -> &Type {
         match self {
-            FloatingPoint::Float32(_) => &std_primitive_types::FLOAT32,
-            FloatingPoint::Float64(_) => &std_primitive_types::FLOAT64,
-            FloatingPoint::FloatBig(_) => &std_primitive_types::FLOATBIG,
+            FloatingPoint::Float32(_) => &std_types::FLOAT32,
+            FloatingPoint::Float64(_) => &std_types::FLOAT64,
+            FloatingPoint::FloatBig(_) => &std_types::FLOATBIG,
         }
     }
 }
