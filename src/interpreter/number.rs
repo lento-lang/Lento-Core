@@ -971,37 +971,37 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
     }
 
     fn div(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Result<FloatingPoint, RuntimeError> {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+        Ok(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => FloatingPoint::div(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => FloatingPoint::div(lhs, &rhs.upcast(lhs.get_size()))?,
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => FloatingPoint::div(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => FloatingPoint::div(&lhs.upcast(rhs.get_size()), rhs)?,
             // If lhs is equal to rhs, perform the division
             Ordering::Equal => match (lhs, rhs) {
                 (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
                     if *rhs == 0.0 {
                         return div_zero_error();
                     } else {
-                        Ok(FloatingPoint::Float32(lhs / rhs))
+                        FloatingPoint::Float32(lhs / rhs)
                     }
                 }
                 (FloatingPoint::Float64(lhs), FloatingPoint::Float64(rhs)) => {
                     if *rhs == 0.0 {
                         return div_zero_error();
                     } else {
-                        Ok(FloatingPoint::Float64(lhs / rhs))
+                        FloatingPoint::Float64(lhs / rhs)
                     }
                 }
                 (FloatingPoint::FloatBig(lhs), FloatingPoint::FloatBig(rhs)) => {
                     if rhs.cmp(&Rational::from(0)) == Ordering::Equal {
                         return div_zero_error();
                     } else {
-                        Ok(FloatingPoint::FloatBig(lhs / rhs))
+                        FloatingPoint::FloatBig(lhs / rhs)
                     }
                 }
                 _ => panic!("Cannot divide floating point numbers of different sizes"),
             },
-        }
+        })
     }
 }
 
