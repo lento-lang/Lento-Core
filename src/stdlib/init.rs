@@ -109,6 +109,14 @@ impl Initializer {
                 OperatorHandler::Static(_, _) => {}
             }
         }
+        for (name, ty) in &self.types {
+            if let Err(e) = env.add_type(Str::String(name.to_string()), ty.clone()) {
+                panic!(
+                    "Environment initialization failed when adding type '{}': {:?}",
+                    name, e
+                );
+            }
+        }
     }
 }
 
@@ -230,8 +238,9 @@ pub fn stdlib() -> Initializer {
         //						            Built-in Types                                      //
         //--------------------------------------------------------------------------------------//
         types: vec![
-            Type::Literal(Str::Str("any")),
-            Type::Literal(Str::Str("unit")),
+            std_types::ANY,
+            std_types::TYPE,
+            std_types::UNIT,
             std_types::STRING,
             std_types::CHAR,
             std_types::BOOL,
@@ -257,7 +266,7 @@ pub fn stdlib() -> Initializer {
             if let Type::Literal(ref name) = ty {
                 (name.to_string(), ty)
             } else {
-                panic!("stdlib() expects a literal type");
+                panic!("Expected literal type");
             }
         })
         .chain([
@@ -319,7 +328,7 @@ pub fn stdlib() -> Initializer {
                 Value::Number(Number::FloatingPoint(FloatingPoint::Float64(f64::INFINITY))),
             ),
             (
-                Str::String("nan".to_string()),
+                Str::String("NaN".to_string()),
                 Value::Number(Number::FloatingPoint(FloatingPoint::Float64(f64::NAN))),
             ),
         ],

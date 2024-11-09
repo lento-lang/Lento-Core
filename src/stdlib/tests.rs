@@ -17,14 +17,25 @@ mod tests {
     fn test_init_environment() {
         let mut env = Environment::new(Str::empty());
         stdlib().init_environment(&mut env);
+        // Variables
         assert!(env.lookup_variable("pi").is_some());
         assert!(env.lookup_variable("tau").is_some());
         assert!(env.lookup_variable("e").is_some());
         assert!(env.lookup_variable("phi").is_some());
         assert!(env.lookup_variable("sqrt2").is_some());
-        assert!(env.lookup_variable("add").is_some());
-        assert!(env.lookup_variable("print").is_some());
-        assert!(env.lookup_variable("exit").is_some());
+        assert!(env.lookup_variable("ln2").is_some());
+        assert!(env.lookup_variable("ln10").is_some());
+        assert!(env.lookup_variable("inf").is_some());
+        assert!(env.lookup_variable("NaN").is_some());
+        // Functions
+        assert!(env.lookup_function("print").is_some());
+        assert!(env.lookup_function("typeof").is_some());
+        assert!(env.lookup_function("exit").is_some());
+        assert!(env.lookup_function("add").is_some());
+        assert!(env.lookup_function("sub").is_some());
+        assert!(env.lookup_function("mul").is_some());
+        assert!(env.lookup_function("div").is_some());
+        assert!(env.lookup_function("eq").is_some());
         // Types
         assert!(env.get_type("any").is_some());
         assert!(env.get_type("unit").is_some());
@@ -47,5 +58,9 @@ mod tests {
         assert!(env.get_type("f32").is_some());
         assert!(env.get_type("f64").is_some());
         assert!(env.get_type("fbig").is_some());
+        assert!(env.get_type("uint").is_some());
+        assert!(env.get_type("int").is_some());
+        assert!(env.get_type("float").is_some());
+        assert!(env.get_type("num").is_some());
     }
 }
