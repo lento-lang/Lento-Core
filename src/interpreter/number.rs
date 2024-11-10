@@ -41,6 +41,10 @@ fn div_zero_error<T>() -> Result<T, RuntimeError> {
     })
 }
 
+pub trait ComparisonOperations<T> {
+    fn cmp(lhs: &T, rhs: &T) -> Ordering;
+}
+
 /// Represents the size of a number
 /// The size is used to determine the maximum and minimum values that can be stored in the number
 /// The size is also used to determine the type of the number
@@ -254,6 +258,28 @@ impl UnsignedInteger {
     }
 }
 
+impl ComparisonOperations<UnsignedInteger> for UnsignedInteger {
+    fn cmp(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Ordering {
+        match lhs.get_size().cmp(&rhs.get_size()) {
+            // If lhs is greater than rhs, upcast rhs to the size of lhs
+            Ordering::Greater => UnsignedInteger::cmp(lhs, &rhs.upcast(lhs.get_size())),
+            // If lhs is less than rhs, upcast lhs to the size of rhs
+            Ordering::Less => UnsignedInteger::cmp(&lhs.upcast(rhs.get_size()), rhs),
+            // If lhs is equal to rhs, perform the comparison
+            Ordering::Equal => match (lhs, rhs) {
+                (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => lhs.cmp(rhs),
+                (UnsignedInteger::UInt8(lhs), UnsignedInteger::UInt8(rhs)) => lhs.cmp(rhs),
+                (UnsignedInteger::UInt16(lhs), UnsignedInteger::UInt16(rhs)) => lhs.cmp(rhs),
+                (UnsignedInteger::UInt32(lhs), UnsignedInteger::UInt32(rhs)) => lhs.cmp(rhs),
+                (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => lhs.cmp(rhs),
+                (UnsignedInteger::UInt128(lhs), UnsignedInteger::UInt128(rhs)) => lhs.cmp(rhs),
+                (UnsignedInteger::UIntVar(lhs), UnsignedInteger::UIntVar(rhs)) => lhs.cmp(rhs),
+                _ => panic!("Cannot compare unsigned integers of different sizes"),
+            },
+        }
+    }
+}
+
 impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
     fn add(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Number {
         Number::UnsignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
@@ -321,54 +347,60 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
             // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return UnsignedInteger::sub(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the subtraction
-            Ordering::Equal => match (lhs, rhs) {
-                (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
-                    if lhs >= rhs {
-                        UnsignedInteger::UInt1(lhs - rhs)
-                    } else {
-                        UnsignedInteger::UInt1(0)
+            Ordering::Equal => {
+                if UnsignedInteger::cmp(lhs, rhs) == Ordering::Less {
+                    return SignedInteger::sub(&lhs.to_signed(), &rhs.to_signed());
+                } else {
+                    match (lhs, rhs) {
+                        (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
+                            if lhs >= rhs {
+                                UnsignedInteger::UInt1(lhs - rhs)
+                            } else {
+                                UnsignedInteger::UInt1(0)
+                            }
+                        }
+                        (UnsignedInteger::UInt8(lhs), UnsignedInteger::UInt8(rhs)) => {
+                            if let Some(res) = lhs.checked_sub(*rhs) {
+                                UnsignedInteger::UInt8(res)
+                            } else {
+                                UnsignedInteger::UInt16(u16::from(*lhs) - u16::from(*rhs))
+                            }
+                        }
+                        (UnsignedInteger::UInt16(lhs), UnsignedInteger::UInt16(rhs)) => {
+                            if let Some(res) = lhs.checked_sub(*rhs) {
+                                UnsignedInteger::UInt16(res)
+                            } else {
+                                UnsignedInteger::UInt32(u32::from(*lhs) - u32::from(*rhs))
+                            }
+                        }
+                        (UnsignedInteger::UInt32(lhs), UnsignedInteger::UInt32(rhs)) => {
+                            if let Some(res) = lhs.checked_sub(*rhs) {
+                                UnsignedInteger::UInt32(res)
+                            } else {
+                                UnsignedInteger::UInt64(u64::from(*lhs) - u64::from(*rhs))
+                            }
+                        }
+                        (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => {
+                            if let Some(res) = lhs.checked_sub(*rhs) {
+                                UnsignedInteger::UInt64(res)
+                            } else {
+                                UnsignedInteger::UInt128(u128::from(*lhs) - u128::from(*rhs))
+                            }
+                        }
+                        (UnsignedInteger::UInt128(lhs), UnsignedInteger::UInt128(rhs)) => {
+                            if let Some(res) = lhs.checked_sub(*rhs) {
+                                UnsignedInteger::UInt128(res)
+                            } else {
+                                UnsignedInteger::UIntVar(Natural::from(*lhs) - Natural::from(*rhs))
+                            }
+                        }
+                        (UnsignedInteger::UIntVar(lhs), UnsignedInteger::UIntVar(rhs)) => {
+                            UnsignedInteger::UIntVar(lhs - rhs)
+                        }
+                        _ => panic!("Cannot subtract unsigned integers of different sizes"),
                     }
                 }
-                (UnsignedInteger::UInt8(lhs), UnsignedInteger::UInt8(rhs)) => {
-                    if let Some(res) = lhs.checked_sub(*rhs) {
-                        UnsignedInteger::UInt8(res)
-                    } else {
-                        UnsignedInteger::UInt16(u16::from(*lhs) - u16::from(*rhs))
-                    }
-                }
-                (UnsignedInteger::UInt16(lhs), UnsignedInteger::UInt16(rhs)) => {
-                    if let Some(res) = lhs.checked_sub(*rhs) {
-                        UnsignedInteger::UInt16(res)
-                    } else {
-                        UnsignedInteger::UInt32(u32::from(*lhs) - u32::from(*rhs))
-                    }
-                }
-                (UnsignedInteger::UInt32(lhs), UnsignedInteger::UInt32(rhs)) => {
-                    if let Some(res) = lhs.checked_sub(*rhs) {
-                        UnsignedInteger::UInt32(res)
-                    } else {
-                        UnsignedInteger::UInt64(u64::from(*lhs) - u64::from(*rhs))
-                    }
-                }
-                (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => {
-                    if let Some(res) = lhs.checked_sub(*rhs) {
-                        UnsignedInteger::UInt64(res)
-                    } else {
-                        UnsignedInteger::UInt128(u128::from(*lhs) - u128::from(*rhs))
-                    }
-                }
-                (UnsignedInteger::UInt128(lhs), UnsignedInteger::UInt128(rhs)) => {
-                    if let Some(res) = lhs.checked_sub(*rhs) {
-                        UnsignedInteger::UInt128(res)
-                    } else {
-                        UnsignedInteger::UIntVar(Natural::from(*lhs) - Natural::from(*rhs))
-                    }
-                }
-                (UnsignedInteger::UIntVar(lhs), UnsignedInteger::UIntVar(rhs)) => {
-                    UnsignedInteger::UIntVar(lhs - rhs)
-                }
-                _ => panic!("Cannot subtract unsigned integers of different sizes"),
-            },
+            }
         })
     }
 
