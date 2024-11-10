@@ -631,6 +631,17 @@ impl SignedInteger {
             SignedInteger::IntVar(v) => FloatingPoint::FloatBig(Rational::from(v.clone())),
         }
     }
+
+    pub fn to_bigint(&self) -> Integer {
+        match self {
+            SignedInteger::Int8(v) => Integer::from(*v as i64),
+            SignedInteger::Int16(v) => Integer::from(*v as i64),
+            SignedInteger::Int32(v) => Integer::from(*v as i64),
+            SignedInteger::Int64(v) => Integer::from(*v as i64),
+            SignedInteger::Int128(v) => Integer::from(*v as i128),
+            SignedInteger::IntVar(v) => v.clone(),
+        }
+    }
 }
 
 impl ArithmeticOperations<SignedInteger> for SignedInteger {

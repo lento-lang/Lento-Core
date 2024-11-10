@@ -563,8 +563,11 @@ impl<R: Read> Parser<R> {
             } {
                 rhs = self.parse_expr(rhs, Self::next_prec(&curr_op, &next_op))?;
             }
-            // TODO: Fix static operator handling
-            expr = Ast::Binary(Box::new(expr), curr_op.clone(), Box::new(rhs));
+            if let Some(desugar) = syntax_sugar::try_binary(&expr, &curr_op, &rhs) {
+                expr = desugar;
+            } else {
+                expr = Ast::Binary(Box::new(expr), curr_op.clone(), Box::new(rhs));
+            }
         }
         Ok(expr)
     }
@@ -627,6 +630,46 @@ impl<R: Read> Parser<R> {
                 ),
                 span: (self.lexer.current_index(), self.lexer.current_index()),
             }),
+        }
+    }
+}
+
+mod syntax_sugar {
+    use malachite::{num::basic::traits::Zero, Integer, Rational};
+
+    use crate::interpreter::number::{FloatingPoint, Number};
+
+    use super::*;
+
+    pub fn try_literal_fraction(lhs: &Number, rhs: &Number) -> Option<Ast> {
+        let lhs = match lhs {
+            Number::UnsignedInteger(lhs) => lhs.to_signed(),
+            Number::SignedInteger(lhs) => lhs.clone(),
+            _ => return None,
+        }
+        .to_bigint();
+        let rhs = match rhs {
+            Number::UnsignedInteger(rhs) => rhs.to_signed(),
+            Number::SignedInteger(rhs) => rhs.clone(),
+            _ => return None,
+        }
+        .to_bigint();
+        if rhs.cmp(&Integer::ZERO) == std::cmp::Ordering::Equal {
+            return None;
+        }
+        Some(Ast::Literal(Value::Number(Number::FloatingPoint(
+            FloatingPoint::FloatBig(Rational::from_integers(lhs, rhs)),
+        ))))
+    }
+
+    pub fn try_binary(lhs: &Ast, op: &OperatorInfo, rhs: &Ast) -> Option<Ast> {
+        match (lhs, op, rhs) {
+            (
+                Ast::Literal(Value::Number(lhs)),
+                OperatorInfo { name, symbol, .. },
+                Ast::Literal(Value::Number(rhs)),
+            ) if name == "div" && symbol == "/" => try_literal_fraction(lhs, rhs),
+            _ => None,
         }
     }
 }
