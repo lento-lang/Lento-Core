@@ -637,7 +637,7 @@ impl<R: Read> Parser<R> {
 mod syntax_sugar {
     use malachite::{num::basic::traits::Zero, Integer, Rational};
 
-    use crate::interpreter::number::{FloatingPoint, Number};
+    use crate::interpreter::number::{FloatingPoint, Number, NumberCasting};
 
     use super::*;
 
@@ -658,7 +658,7 @@ mod syntax_sugar {
             return None;
         }
         Some(Ast::Literal(Value::Number(Number::FloatingPoint(
-            FloatingPoint::FloatBig(Rational::from_integers(lhs, rhs)),
+            FloatingPoint::FloatBig(Rational::from_integers(lhs, rhs)).optimize(),
         ))))
     }
 
