@@ -29,10 +29,10 @@ pub trait NumberCasting<T> {
 }
 
 pub trait ArithmeticOperations<T> {
-    fn add(lhs: &T, rhs: &T) -> T;
-    fn sub(lhs: &T, rhs: &T) -> T;
-    fn mul(lhs: &T, rhs: &T) -> T;
-    fn div(lhs: &T, rhs: &T) -> Result<T, RuntimeError>;
+    fn add(lhs: &T, rhs: &T) -> Number;
+    fn sub(lhs: &T, rhs: &T) -> Number;
+    fn mul(lhs: &T, rhs: &T) -> Number;
+    fn div(lhs: &T, rhs: &T) -> Result<Number, RuntimeError>;
 }
 
 fn div_zero_error<T>() -> Result<T, RuntimeError> {
@@ -255,12 +255,12 @@ impl UnsignedInteger {
 }
 
 impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
-    fn add(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> UnsignedInteger {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn add(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Number {
+        Number::UnsignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => UnsignedInteger::add(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return UnsignedInteger::add(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => UnsignedInteger::add(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return UnsignedInteger::add(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the addition
             Ordering::Equal => match (lhs, rhs) {
                 (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
@@ -311,15 +311,15 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
                 }
                 _ => panic!("Cannot add unsigned integers of different sizes"),
             },
-        }
+        })
     }
 
-    fn sub(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> UnsignedInteger {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn sub(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Number {
+        Number::UnsignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => UnsignedInteger::sub(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return UnsignedInteger::sub(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => UnsignedInteger::sub(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return UnsignedInteger::sub(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the subtraction
             Ordering::Equal => match (lhs, rhs) {
                 (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
@@ -369,15 +369,15 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
                 }
                 _ => panic!("Cannot subtract unsigned integers of different sizes"),
             },
-        }
+        })
     }
 
-    fn mul(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> UnsignedInteger {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn mul(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Number {
+        Number::UnsignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => UnsignedInteger::mul(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return UnsignedInteger::mul(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => UnsignedInteger::mul(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return UnsignedInteger::mul(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the multiplication
             Ordering::Equal => match (lhs, rhs) {
                 (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
@@ -431,65 +431,67 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
                 }
                 _ => panic!("Cannot multiply unsigned integers of different sizes"),
             },
-        }
+        })
     }
 
-    fn div(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Result<UnsignedInteger, RuntimeError> {
-        Ok(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => UnsignedInteger::div(lhs, &rhs.upcast(lhs.get_size()))?,
-            // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => UnsignedInteger::div(&lhs.upcast(rhs.get_size()), rhs)?,
-            // If lhs is equal to rhs, perform the division
-            Ordering::Equal => match (lhs, rhs) {
-                (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        UnsignedInteger::UInt1(lhs / rhs)
+    fn div(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Result<Number, RuntimeError> {
+        Ok(Number::UnsignedInteger(
+            match lhs.get_size().cmp(&rhs.get_size()) {
+                // If lhs is greater than rhs, upcast rhs to the size of lhs
+                Ordering::Greater => return UnsignedInteger::div(lhs, &rhs.upcast(lhs.get_size())),
+                // If lhs is less than rhs, upcast lhs to the size of rhs
+                Ordering::Less => return UnsignedInteger::div(&lhs.upcast(rhs.get_size()), rhs),
+                // If lhs is equal to rhs, perform the division
+                Ordering::Equal => match (lhs, rhs) {
+                    (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            UnsignedInteger::UInt1(lhs / rhs)
+                        }
                     }
-                }
-                (UnsignedInteger::UInt8(lhs), UnsignedInteger::UInt8(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        UnsignedInteger::UInt8(lhs / rhs)
+                    (UnsignedInteger::UInt8(lhs), UnsignedInteger::UInt8(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            UnsignedInteger::UInt8(lhs / rhs)
+                        }
                     }
-                }
-                (UnsignedInteger::UInt16(lhs), UnsignedInteger::UInt16(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        UnsignedInteger::UInt16(lhs / rhs)
+                    (UnsignedInteger::UInt16(lhs), UnsignedInteger::UInt16(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            UnsignedInteger::UInt16(lhs / rhs)
+                        }
                     }
-                }
-                (UnsignedInteger::UInt32(lhs), UnsignedInteger::UInt32(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        UnsignedInteger::UInt32(lhs / rhs)
+                    (UnsignedInteger::UInt32(lhs), UnsignedInteger::UInt32(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            UnsignedInteger::UInt32(lhs / rhs)
+                        }
                     }
-                }
-                (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        UnsignedInteger::UInt64(lhs / rhs)
+                    (UnsignedInteger::UInt64(lhs), UnsignedInteger::UInt64(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            UnsignedInteger::UInt64(lhs / rhs)
+                        }
                     }
-                }
-                (UnsignedInteger::UInt128(lhs), UnsignedInteger::UInt128(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        UnsignedInteger::UInt128(lhs / rhs)
+                    (UnsignedInteger::UInt128(lhs), UnsignedInteger::UInt128(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            UnsignedInteger::UInt128(lhs / rhs)
+                        }
                     }
-                }
-                (UnsignedInteger::UIntVar(lhs), UnsignedInteger::UIntVar(rhs)) => {
-                    UnsignedInteger::UIntVar(lhs / rhs)
-                }
-                _ => panic!("Cannot divide unsigned integers of different sizes"),
+                    (UnsignedInteger::UIntVar(lhs), UnsignedInteger::UIntVar(rhs)) => {
+                        UnsignedInteger::UIntVar(lhs / rhs)
+                    }
+                    _ => panic!("Cannot divide unsigned integers of different sizes"),
+                },
             },
-        })
+        ))
     }
 }
 
@@ -645,12 +647,12 @@ impl SignedInteger {
 }
 
 impl ArithmeticOperations<SignedInteger> for SignedInteger {
-    fn add(lhs: &SignedInteger, rhs: &SignedInteger) -> SignedInteger {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn add(lhs: &SignedInteger, rhs: &SignedInteger) -> Number {
+        Number::SignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => SignedInteger::add(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return SignedInteger::add(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => SignedInteger::add(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return SignedInteger::add(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the addition
             Ordering::Equal => match (lhs, rhs) {
                 (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
@@ -693,15 +695,15 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
                 }
                 _ => panic!("Cannot add signed integers of different sizes"),
             },
-        }
+        })
     }
 
-    fn sub(lhs: &SignedInteger, rhs: &SignedInteger) -> SignedInteger {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn sub(lhs: &SignedInteger, rhs: &SignedInteger) -> Number {
+        Number::SignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => SignedInteger::sub(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return SignedInteger::sub(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => SignedInteger::sub(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return SignedInteger::sub(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the subtraction
             Ordering::Equal => match (lhs, rhs) {
                 (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
@@ -744,15 +746,15 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
                 }
                 _ => panic!("Cannot subtract signed integers of different sizes"),
             },
-        }
+        })
     }
 
-    fn mul(lhs: &SignedInteger, rhs: &SignedInteger) -> SignedInteger {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn mul(lhs: &SignedInteger, rhs: &SignedInteger) -> Number {
+        Number::SignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => SignedInteger::mul(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return SignedInteger::mul(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => SignedInteger::mul(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return SignedInteger::mul(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the multiplication
             Ordering::Equal => match (lhs, rhs) {
                 (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
@@ -803,62 +805,64 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
                 }
                 _ => panic!("Cannot multiply signed integers of different sizes"),
             },
-        }
+        })
     }
 
-    fn div(lhs: &SignedInteger, rhs: &SignedInteger) -> Result<SignedInteger, RuntimeError> {
-        Ok(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => SignedInteger::div(lhs, &rhs.upcast(lhs.get_size()))?,
-            // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => SignedInteger::div(&lhs.upcast(rhs.get_size()), rhs)?,
-            // If lhs is equal to rhs, perform the division
-            Ordering::Equal => match (lhs, rhs) {
-                (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        SignedInteger::Int8(lhs / rhs)
+    fn div(lhs: &SignedInteger, rhs: &SignedInteger) -> Result<Number, RuntimeError> {
+        Ok(Number::SignedInteger(
+            match lhs.get_size().cmp(&rhs.get_size()) {
+                // If lhs is greater than rhs, upcast rhs to the size of lhs
+                Ordering::Greater => return SignedInteger::div(lhs, &rhs.upcast(lhs.get_size())),
+                // If lhs is less than rhs, upcast lhs to the size of rhs
+                Ordering::Less => return SignedInteger::div(&lhs.upcast(rhs.get_size()), rhs),
+                // If lhs is equal to rhs, perform the division
+                Ordering::Equal => match (lhs, rhs) {
+                    (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            SignedInteger::Int8(lhs / rhs)
+                        }
                     }
-                }
-                (SignedInteger::Int16(lhs), SignedInteger::Int16(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        SignedInteger::Int16(lhs / rhs)
+                    (SignedInteger::Int16(lhs), SignedInteger::Int16(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            SignedInteger::Int16(lhs / rhs)
+                        }
                     }
-                }
-                (SignedInteger::Int32(lhs), SignedInteger::Int32(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        SignedInteger::Int32(lhs / rhs)
+                    (SignedInteger::Int32(lhs), SignedInteger::Int32(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            SignedInteger::Int32(lhs / rhs)
+                        }
                     }
-                }
-                (SignedInteger::Int64(lhs), SignedInteger::Int64(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        SignedInteger::Int64(lhs / rhs)
+                    (SignedInteger::Int64(lhs), SignedInteger::Int64(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            SignedInteger::Int64(lhs / rhs)
+                        }
                     }
-                }
-                (SignedInteger::Int128(lhs), SignedInteger::Int128(rhs)) => {
-                    if *rhs == 0 {
-                        return div_zero_error();
-                    } else {
-                        SignedInteger::Int128(lhs / rhs)
+                    (SignedInteger::Int128(lhs), SignedInteger::Int128(rhs)) => {
+                        if *rhs == 0 {
+                            return div_zero_error();
+                        } else {
+                            SignedInteger::Int128(lhs / rhs)
+                        }
                     }
-                }
-                (SignedInteger::IntVar(lhs), SignedInteger::IntVar(rhs)) => {
-                    if rhs.cmp(&Integer::from(0)) == Ordering::Equal {
-                        return div_zero_error();
-                    } else {
-                        SignedInteger::IntVar(lhs / rhs)
+                    (SignedInteger::IntVar(lhs), SignedInteger::IntVar(rhs)) => {
+                        if rhs.cmp(&Integer::from(0)) == Ordering::Equal {
+                            return div_zero_error();
+                        } else {
+                            SignedInteger::IntVar(lhs / rhs)
+                        }
                     }
-                }
-                _ => panic!("Cannot divide signed integers of different sizes"),
+                    _ => panic!("Cannot divide signed integers of different sizes"),
+                },
             },
-        })
+        ))
     }
 }
 
@@ -931,12 +935,12 @@ impl NumberCasting<FloatingPoint> for FloatingPoint {
 }
 
 impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
-    fn add(lhs: &FloatingPoint, rhs: &FloatingPoint) -> FloatingPoint {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn add(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Number {
+        Number::FloatingPoint(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => FloatingPoint::add(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return FloatingPoint::add(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => FloatingPoint::add(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return FloatingPoint::add(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the addition
             Ordering::Equal => match (lhs, rhs) {
                 (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
@@ -950,15 +954,15 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
                 }
                 _ => panic!("Cannot add floating point numbers of different sizes"),
             },
-        }
+        })
     }
 
-    fn sub(lhs: &FloatingPoint, rhs: &FloatingPoint) -> FloatingPoint {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn sub(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Number {
+        Number::FloatingPoint(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => FloatingPoint::sub(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return FloatingPoint::sub(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => FloatingPoint::sub(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return FloatingPoint::sub(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the subtraction
             Ordering::Equal => match (lhs, rhs) {
                 (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
@@ -972,15 +976,15 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
                 }
                 _ => panic!("Cannot subtract floating point numbers of different sizes"),
             },
-        }
+        })
     }
 
-    fn mul(lhs: &FloatingPoint, rhs: &FloatingPoint) -> FloatingPoint {
-        match lhs.get_size().cmp(&rhs.get_size()) {
+    fn mul(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Number {
+        Number::FloatingPoint(match lhs.get_size().cmp(&rhs.get_size()) {
             // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => FloatingPoint::mul(lhs, &rhs.upcast(lhs.get_size())),
+            Ordering::Greater => return FloatingPoint::mul(lhs, &rhs.upcast(lhs.get_size())),
             // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => FloatingPoint::mul(&lhs.upcast(rhs.get_size()), rhs),
+            Ordering::Less => return FloatingPoint::mul(&lhs.upcast(rhs.get_size()), rhs),
             // If lhs is equal to rhs, perform the multiplication
             Ordering::Equal => match (lhs, rhs) {
                 (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
@@ -994,41 +998,43 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
                 }
                 _ => panic!("Cannot multiply floating point numbers of different sizes"),
             },
-        }
+        })
     }
 
-    fn div(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Result<FloatingPoint, RuntimeError> {
-        Ok(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
-            Ordering::Greater => FloatingPoint::div(lhs, &rhs.upcast(lhs.get_size()))?,
-            // If lhs is less than rhs, upcast lhs to the size of rhs
-            Ordering::Less => FloatingPoint::div(&lhs.upcast(rhs.get_size()), rhs)?,
-            // If lhs is equal to rhs, perform the division
-            Ordering::Equal => match (lhs, rhs) {
-                (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
-                    if *rhs == 0.0 {
-                        return div_zero_error();
-                    } else {
-                        FloatingPoint::Float32(lhs / rhs)
+    fn div(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Result<Number, RuntimeError> {
+        Ok(Number::FloatingPoint(
+            match lhs.get_size().cmp(&rhs.get_size()) {
+                // If lhs is greater than rhs, upcast rhs to the size of lhs
+                Ordering::Greater => return FloatingPoint::div(lhs, &rhs.upcast(lhs.get_size())),
+                // If lhs is less than rhs, upcast lhs to the size of rhs
+                Ordering::Less => return FloatingPoint::div(&lhs.upcast(rhs.get_size()), rhs),
+                // If lhs is equal to rhs, perform the division
+                Ordering::Equal => match (lhs, rhs) {
+                    (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
+                        if *rhs == 0.0 {
+                            return div_zero_error();
+                        } else {
+                            FloatingPoint::Float32(lhs / rhs)
+                        }
                     }
-                }
-                (FloatingPoint::Float64(lhs), FloatingPoint::Float64(rhs)) => {
-                    if *rhs == 0.0 {
-                        return div_zero_error();
-                    } else {
-                        FloatingPoint::Float64(lhs / rhs)
+                    (FloatingPoint::Float64(lhs), FloatingPoint::Float64(rhs)) => {
+                        if *rhs == 0.0 {
+                            return div_zero_error();
+                        } else {
+                            FloatingPoint::Float64(lhs / rhs)
+                        }
                     }
-                }
-                (FloatingPoint::FloatBig(lhs), FloatingPoint::FloatBig(rhs)) => {
-                    if rhs.cmp(&Rational::from(0)) == Ordering::Equal {
-                        return div_zero_error();
-                    } else {
-                        FloatingPoint::FloatBig(lhs / rhs)
+                    (FloatingPoint::FloatBig(lhs), FloatingPoint::FloatBig(rhs)) => {
+                        if rhs.cmp(&Rational::from(0)) == Ordering::Equal {
+                            return div_zero_error();
+                        } else {
+                            FloatingPoint::FloatBig(lhs / rhs)
+                        }
                     }
-                }
-                _ => panic!("Cannot divide floating point numbers of different sizes"),
+                    _ => panic!("Cannot divide floating point numbers of different sizes"),
+                },
             },
-        })
+        ))
     }
 }
 
@@ -1053,31 +1059,31 @@ impl ArithmeticOperations<Number> for Number {
     fn add(lhs: &Number, rhs: &Number) -> Number {
         match (lhs, rhs) {
             (Number::UnsignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::UnsignedInteger(UnsignedInteger::add(lhs, rhs))
+                UnsignedInteger::add(lhs, rhs)
             }
             (Number::SignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::add(lhs, rhs))
+                SignedInteger::add(lhs, rhs)
             }
             (Number::FloatingPoint(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::add(lhs, rhs))
+                FloatingPoint::add(lhs, rhs)
             }
             (Number::UnsignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::add(&lhs.to_signed(), rhs))
+                SignedInteger::add(&lhs.to_signed(), rhs)
             }
             (Number::SignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::add(lhs, &rhs.to_signed()))
+                SignedInteger::add(lhs, &rhs.to_signed())
             }
             (Number::UnsignedInteger(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::add(&lhs.to_float(), rhs))
+                FloatingPoint::add(&lhs.to_float(), rhs)
             }
             (Number::FloatingPoint(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::add(lhs, &rhs.to_float()))
+                FloatingPoint::add(lhs, &rhs.to_float())
             }
             (Number::SignedInteger(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::add(&lhs.to_float(), rhs))
+                FloatingPoint::add(&lhs.to_float(), rhs)
             }
             (Number::FloatingPoint(lhs), Number::SignedInteger(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::add(lhs, &rhs.to_float()))
+                FloatingPoint::add(lhs, &rhs.to_float())
             }
         }
     }
@@ -1085,31 +1091,31 @@ impl ArithmeticOperations<Number> for Number {
     fn sub(lhs: &Number, rhs: &Number) -> Number {
         match (lhs, rhs) {
             (Number::UnsignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::UnsignedInteger(UnsignedInteger::sub(lhs, rhs))
+                UnsignedInteger::sub(lhs, rhs)
             }
             (Number::SignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::sub(lhs, rhs))
+                SignedInteger::sub(lhs, rhs)
             }
             (Number::FloatingPoint(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::sub(lhs, rhs))
+                FloatingPoint::sub(lhs, rhs)
             }
             (Number::UnsignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::sub(&lhs.to_signed(), rhs))
+                SignedInteger::sub(&lhs.to_signed(), rhs)
             }
             (Number::SignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::sub(lhs, &rhs.to_signed()))
+                SignedInteger::sub(lhs, &rhs.to_signed())
             }
             (Number::UnsignedInteger(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::sub(&lhs.to_float(), rhs))
+                FloatingPoint::sub(&lhs.to_float(), rhs)
             }
             (Number::FloatingPoint(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::sub(lhs, &rhs.to_float()))
+                FloatingPoint::sub(lhs, &rhs.to_float())
             }
             (Number::SignedInteger(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::sub(&lhs.to_float(), rhs))
+                FloatingPoint::sub(&lhs.to_float(), rhs)
             }
             (Number::FloatingPoint(lhs), Number::SignedInteger(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::sub(lhs, &rhs.to_float()))
+                FloatingPoint::sub(lhs, &rhs.to_float())
             }
         }
     }
@@ -1117,31 +1123,31 @@ impl ArithmeticOperations<Number> for Number {
     fn mul(lhs: &Number, rhs: &Number) -> Number {
         match (lhs, rhs) {
             (Number::UnsignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::UnsignedInteger(UnsignedInteger::mul(lhs, rhs))
+                UnsignedInteger::mul(lhs, rhs)
             }
             (Number::SignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::mul(lhs, rhs))
+                SignedInteger::mul(lhs, rhs)
             }
             (Number::FloatingPoint(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::mul(lhs, rhs))
+                FloatingPoint::mul(lhs, rhs)
             }
             (Number::UnsignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::mul(&lhs.to_signed(), rhs))
+                SignedInteger::mul(&lhs.to_signed(), rhs)
             }
             (Number::SignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::mul(lhs, &rhs.to_signed()))
+                SignedInteger::mul(lhs, &rhs.to_signed())
             }
             (Number::UnsignedInteger(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::mul(&lhs.to_float(), rhs))
+                FloatingPoint::mul(&lhs.to_float(), rhs)
             }
             (Number::FloatingPoint(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::mul(lhs, &rhs.to_float()))
+                FloatingPoint::mul(lhs, &rhs.to_float())
             }
             (Number::SignedInteger(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::mul(&lhs.to_float(), rhs))
+                FloatingPoint::mul(&lhs.to_float(), rhs)
             }
             (Number::FloatingPoint(lhs), Number::SignedInteger(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::mul(lhs, &rhs.to_float()))
+                FloatingPoint::mul(lhs, &rhs.to_float())
             }
         }
     }
@@ -1149,31 +1155,31 @@ impl ArithmeticOperations<Number> for Number {
     fn div(lhs: &Number, rhs: &Number) -> Result<Number, RuntimeError> {
         Ok(match (lhs, rhs) {
             (Number::UnsignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::UnsignedInteger(UnsignedInteger::div(lhs, rhs)?)
+                UnsignedInteger::div(lhs, rhs)?
             }
             (Number::SignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::div(lhs, rhs)?)
+                SignedInteger::div(lhs, rhs)?
             }
             (Number::FloatingPoint(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::div(lhs, rhs)?)
+                FloatingPoint::div(lhs, rhs)?
             }
             (Number::UnsignedInteger(lhs), Number::SignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::div(&lhs.to_signed(), rhs)?)
+                SignedInteger::div(&lhs.to_signed(), rhs)?
             }
             (Number::SignedInteger(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::SignedInteger(SignedInteger::div(lhs, &rhs.to_signed())?)
+                SignedInteger::div(lhs, &rhs.to_signed())?
             }
             (Number::UnsignedInteger(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::div(&lhs.to_float(), rhs)?)
+                FloatingPoint::div(&lhs.to_float(), rhs)?
             }
             (Number::FloatingPoint(lhs), Number::UnsignedInteger(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::div(lhs, &rhs.to_float())?)
+                FloatingPoint::div(lhs, &rhs.to_float())?
             }
             (Number::SignedInteger(lhs), Number::FloatingPoint(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::div(&lhs.to_float(), rhs)?)
+                FloatingPoint::div(&lhs.to_float(), rhs)?
             }
             (Number::FloatingPoint(lhs), Number::SignedInteger(rhs)) => {
-                Number::FloatingPoint(FloatingPoint::div(lhs, &rhs.to_float())?)
+                FloatingPoint::div(lhs, &rhs.to_float())?
             }
         })
     }
