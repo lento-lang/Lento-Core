@@ -334,6 +334,14 @@ pub enum Type {
     /// Or `IO`, `List`, `Option`, `Result`, `Either`, `Tuple`, `Record`, `Function`, `UserDefinedType`.
     Literal(Str),
 
+    /// A type alias.
+    /// The first argument is the name of the type alias.
+    /// The second argument is the type the alias refers to.
+    /// A type alias is a type that refers to another type, and can be used interchangeably with the referred type.
+    /// They are opaque to the type checker and are resolved to the referred type.
+    /// But they can be used to give a user-friendly name to a complex type.
+    Alias(Str, Box<Type>),
+
     /// A function type.
     /// The first argument is the list of parameter types.
     /// The second argument is the return type.
@@ -398,6 +406,8 @@ impl TypeTrait for Type {
             (&std_types::ANY, _) => true,
             (_, &std_types::ANY) => true,
             (Type::Literal(s1), Type::Literal(s2)) => *s1 == *s2,
+            (Type::Alias(_, ty1), _) => ty1.subtype(other),
+            (_, Type::Alias(_, ty)) => self.subtype(ty),
             (Type::Generic(s1, params1, _), Type::Generic(s2, params2, _)) => {
                 s1 == s2
                     && params1.len() == params2.len()
@@ -436,6 +446,7 @@ impl TypeTrait for Type {
     fn simplify(self) -> Self {
         match self {
             Type::Literal(_) => self,
+            Type::Alias(name, ty) => Type::Alias(name, Box::new(ty.simplify())),
             Type::Generic(s, params, body) => Type::Generic(
                 s,
                 params.into_iter().map(Type::simplify).collect(),
@@ -516,6 +527,7 @@ impl Display for Type {
                     write!(f, " -> {}", variation.ret)?;
                 }
                 Ok(())
+            Type::Alias(name, _) => write!(f, "{}", name),
             }
             Type::Tuple(types) => {
                 write!(f, "(")?;
@@ -581,6 +593,7 @@ impl Type {
 
         match self.clone().simplify() {
             Type::Literal(t) => t.to_string().light_blue().to_string(),
+            Type::Alias(name, _) => name.to_string().light_blue().to_string(),
             Type::Function(variations) => {
                 let mut result = String::new();
                 for (i, variation) in variations.iter().enumerate() {
@@ -779,26 +792,37 @@ pub mod std_types {
 
     #[allow(non_snake_case)]
     pub fn UINT() -> Type {
-        Type::Sum(vec![UINT1, UINT8, UINT16, UINT32, UINT64, UINT128, UINTBIG])
+        Type::Alias(
+            Str::Str("uint"),
+            Box::new(Type::Sum(vec![
+                UINT1, UINT8, UINT16, UINT32, UINT64, UINT128, UINTBIG,
+            ])),
+        )
     }
 
     #[allow(non_snake_case)]
     pub fn INT() -> Type {
-        Type::Sum(vec![
-            UINT1, UINT8, INT8, UINT16, INT16, UINT32, INT32, UINT64, INT64, UINT128, INT128,
-            UINTBIG, INTBIG,
-        ])
+        Type::Alias(
+            Str::Str("int"),
+            Box::new(Type::Sum(vec![
+                UINT1, UINT8, INT8, UINT16, INT16, UINT32, INT32, UINT64, INT64, UINT128, INT128,
+                UINTBIG, INTBIG,
+            ])),
+        )
     }
 
     #[allow(non_snake_case)]
     pub fn FLOAT() -> Type {
-        Type::Sum(vec![FLOAT32, FLOAT64, FLOATBIG])
+        Type::Alias(
+            Str::Str("float"),
+            Box::new(Type::Sum(vec![FLOAT32, FLOAT64, FLOATBIG])),
+        )
     }
 
     /// A number type.
     /// The type of all numbers, both integers and floating-point numbers.
     #[allow(non_snake_case)]
     pub fn NUM() -> Type {
-        Type::Sum(vec![INT(), FLOAT()])
+        Type::Alias(Str::Str("num"), Box::new(Type::Sum(vec![INT(), FLOAT()])))
     }
 }
