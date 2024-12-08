@@ -560,14 +560,40 @@ impl<'a> TypeChecker<'a> {
             log::trace!("Found operator: {}", op.info.symbol);
             match &op.handler {
                 OperatorHandler::Runtime(RuntimeOperatorHandler { function_name, .. }) => {
-                    let call = Ast::Call(
-                        Box::new(Ast::Call(
-                            Box::new(Ast::Identifier(function_name.clone())),
-                            Box::new(lhs.clone()),
-                        )),
-                        Box::new(rhs.clone()),
+                    let function_ty = self
+                        .lookup_function(function_name)
+                        .ok_or_else(|| TypeError {
+                            message: format!("Unknown function: '{}'", function_name),
+                        })?
+                        .first()
+                        .ok_or_else(|| TypeError {
+                            message: format!("Function '{}' has no variants", function_name),
+                        })?
+                        .clone();
+
+                    // Assert that the function type has two parameters and the return type
+                    let FunctionType { ret: inner_ret, .. } = function_ty.borrow();
+                    let Type::Function(inner_ty) = inner_ret else {
+                        return Err(TypeError {
+                            message: format!("Expected function type, found '{}'", inner_ret),
+                        });
+                    };
+                    let FunctionType { ret: outer_ret, .. } = inner_ty.borrow();
+
+                    let result = CheckedAst::Call {
+                        function: Box::new(CheckedAst::Call {
+                            function: Box::new(CheckedAst::Identifier(
+                                function_name.clone(),
+                                Type::Function(Box::new(function_ty.clone())),
+                            )),
+                            arg: Box::new(checked_lhs),
+                            return_type: inner_ret.clone(),
+                        }),
+                        arg: Box::new(checked_rhs),
+                        return_type: outer_ret.clone(),
+                    };
                     );
-                    return self.check_expr(&call);
+                    return Ok(result);
                 }
                 OperatorHandler::Static(StaticOperatorHandler { handler, .. }) => {
                     // Evaluate the handler at compile-time
