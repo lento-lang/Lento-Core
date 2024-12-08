@@ -261,11 +261,8 @@ impl UnsignedInteger {
 impl ComparisonOperations<UnsignedInteger> for UnsignedInteger {
     fn cmp(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Ordering {
         match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => UnsignedInteger::cmp(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => UnsignedInteger::cmp(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the comparison
             Ordering::Equal => match (lhs, rhs) {
                 (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => lhs.cmp(rhs),
                 (UnsignedInteger::UInt8(lhs), UnsignedInteger::UInt8(rhs)) => lhs.cmp(rhs),
@@ -283,11 +280,8 @@ impl ComparisonOperations<UnsignedInteger> for UnsignedInteger {
 impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
     fn add(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Number {
         Number::UnsignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return UnsignedInteger::add(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return UnsignedInteger::add(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the addition
             Ordering::Equal => match (lhs, rhs) {
                 (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
                     let res = lhs + rhs;
@@ -342,11 +336,8 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
 
     fn sub(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Number {
         Number::UnsignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return UnsignedInteger::sub(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return UnsignedInteger::sub(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the subtraction
             Ordering::Equal => {
                 if UnsignedInteger::cmp(lhs, rhs) == Ordering::Less {
                     return SignedInteger::sub(&lhs.to_signed(), &rhs.to_signed());
@@ -406,11 +397,8 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
 
     fn mul(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Number {
         Number::UnsignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return UnsignedInteger::mul(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return UnsignedInteger::mul(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the multiplication
             Ordering::Equal => match (lhs, rhs) {
                 (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
                     UnsignedInteger::UInt1(lhs * rhs)
@@ -469,11 +457,8 @@ impl ArithmeticOperations<UnsignedInteger> for UnsignedInteger {
     fn div(lhs: &UnsignedInteger, rhs: &UnsignedInteger) -> Result<Number, RuntimeError> {
         Ok(Number::UnsignedInteger(
             match lhs.get_size().cmp(&rhs.get_size()) {
-                // If lhs is greater than rhs, upcast rhs to the size of lhs
                 Ordering::Greater => return UnsignedInteger::div(lhs, &rhs.upcast(lhs.get_size())),
-                // If lhs is less than rhs, upcast lhs to the size of rhs
                 Ordering::Less => return UnsignedInteger::div(&lhs.upcast(rhs.get_size()), rhs),
-                // If lhs is equal to rhs, perform the division
                 Ordering::Equal => match (lhs, rhs) {
                     (UnsignedInteger::UInt1(lhs), UnsignedInteger::UInt1(rhs)) => {
                         if *rhs == 0 {
@@ -681,11 +666,8 @@ impl SignedInteger {
 impl ArithmeticOperations<SignedInteger> for SignedInteger {
     fn add(lhs: &SignedInteger, rhs: &SignedInteger) -> Number {
         Number::SignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return SignedInteger::add(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return SignedInteger::add(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the addition
             Ordering::Equal => match (lhs, rhs) {
                 (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
                     if let Some(res) = lhs.checked_add(*rhs) {
@@ -732,11 +714,8 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
 
     fn sub(lhs: &SignedInteger, rhs: &SignedInteger) -> Number {
         Number::SignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return SignedInteger::sub(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return SignedInteger::sub(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the subtraction
             Ordering::Equal => match (lhs, rhs) {
                 (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
                     if let Some(res) = lhs.checked_sub(*rhs) {
@@ -783,11 +762,8 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
 
     fn mul(lhs: &SignedInteger, rhs: &SignedInteger) -> Number {
         Number::SignedInteger(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return SignedInteger::mul(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return SignedInteger::mul(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the multiplication
             Ordering::Equal => match (lhs, rhs) {
                 (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
                     if let Some(res) = lhs.checked_mul(*rhs) {
@@ -843,11 +819,8 @@ impl ArithmeticOperations<SignedInteger> for SignedInteger {
     fn div(lhs: &SignedInteger, rhs: &SignedInteger) -> Result<Number, RuntimeError> {
         Ok(Number::SignedInteger(
             match lhs.get_size().cmp(&rhs.get_size()) {
-                // If lhs is greater than rhs, upcast rhs to the size of lhs
                 Ordering::Greater => return SignedInteger::div(lhs, &rhs.upcast(lhs.get_size())),
-                // If lhs is less than rhs, upcast lhs to the size of rhs
                 Ordering::Less => return SignedInteger::div(&lhs.upcast(rhs.get_size()), rhs),
-                // If lhs is equal to rhs, perform the division
                 Ordering::Equal => match (lhs, rhs) {
                     (SignedInteger::Int8(lhs), SignedInteger::Int8(rhs)) => {
                         if *rhs == 0 {
@@ -969,11 +942,8 @@ impl NumberCasting<FloatingPoint> for FloatingPoint {
 impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
     fn add(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Number {
         Number::FloatingPoint(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return FloatingPoint::add(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return FloatingPoint::add(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the addition
             Ordering::Equal => match (lhs, rhs) {
                 (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
                     FloatingPoint::Float32(lhs + rhs)
@@ -991,11 +961,8 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
 
     fn sub(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Number {
         Number::FloatingPoint(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return FloatingPoint::sub(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return FloatingPoint::sub(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the subtraction
             Ordering::Equal => match (lhs, rhs) {
                 (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
                     FloatingPoint::Float32(lhs - rhs)
@@ -1013,11 +980,8 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
 
     fn mul(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Number {
         Number::FloatingPoint(match lhs.get_size().cmp(&rhs.get_size()) {
-            // If lhs is greater than rhs, upcast rhs to the size of lhs
             Ordering::Greater => return FloatingPoint::mul(lhs, &rhs.upcast(lhs.get_size())),
-            // If lhs is less than rhs, upcast lhs to the size of rhs
             Ordering::Less => return FloatingPoint::mul(&lhs.upcast(rhs.get_size()), rhs),
-            // If lhs is equal to rhs, perform the multiplication
             Ordering::Equal => match (lhs, rhs) {
                 (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
                     FloatingPoint::Float32(lhs * rhs)
@@ -1036,11 +1000,8 @@ impl ArithmeticOperations<FloatingPoint> for FloatingPoint {
     fn div(lhs: &FloatingPoint, rhs: &FloatingPoint) -> Result<Number, RuntimeError> {
         Ok(Number::FloatingPoint(
             match lhs.get_size().cmp(&rhs.get_size()) {
-                // If lhs is greater than rhs, upcast rhs to the size of lhs
                 Ordering::Greater => return FloatingPoint::div(lhs, &rhs.upcast(lhs.get_size())),
-                // If lhs is less than rhs, upcast lhs to the size of rhs
                 Ordering::Less => return FloatingPoint::div(&lhs.upcast(rhs.get_size()), rhs),
-                // If lhs is equal to rhs, perform the division
                 Ordering::Equal => match (lhs, rhs) {
                     (FloatingPoint::Float32(lhs), FloatingPoint::Float32(rhs)) => {
                         if *rhs == 0.0 {

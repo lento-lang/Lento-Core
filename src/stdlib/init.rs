@@ -68,22 +68,12 @@ impl Initializer {
         );
         for op in &self.operators {
             type_checker.add_operator(op.clone());
-            // Also add runtime handler functions to the type checker
-            // if let OperatorHandler::Runtime {
-            //     function_name,
-            //     signature,
-            // } = &op.handler
-            // {
-            //     type_checker.add_function(function_name, signature.function_type());
-            // }
         }
         for (name, ty) in &self.types {
             type_checker.add_type(name, ty.clone());
         }
         for (name, func) in &self.functions {
-            // for variation in func.get_variations() {
-            //     type_checker.add_function(name, variation.get_type());
-            // }
+            // TODO: Implement support for function overloading (multiple variations)
             type_checker.add_function(name, func.get_type());
         }
     }
@@ -121,12 +111,7 @@ impl Initializer {
                     function_name,
                     signature,
                 }) => {
-                    // if let Err(e) = env.add_function_variation(function_name, *handler.clone()) {
-                    //     panic!(
-                    //         "Environment initialization failed when adding operator '{}': {}",
-                    //         op.info.name, e.message
-                    //     );
-                    // }
+                    // TODO: Implement support for function overloading (multiple variations)
                     // Assert that the function is already in the environment
                     if let Some(func) = env.lookup_function(function_name) {
                         if !signature.function_type().equals(&func.get_type()) {

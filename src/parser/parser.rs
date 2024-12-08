@@ -14,7 +14,6 @@ use crate::{
     },
     parser::ast::{ParamAst, TypeAst},
     stdlib::init::Initializer,
-    // type_checker::types::FunctionParameterType,
     util::failable::Failable,
 };
 

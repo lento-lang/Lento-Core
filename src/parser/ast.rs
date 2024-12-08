@@ -50,7 +50,6 @@ pub enum Ast {
     Call(Box<Ast>, Box<Ast>),
     /// A function declaration is a named function with a list of parameters and a body expression
     Function {
-        // name: String,
         param: ParamAst,
         body: Box<Ast>,
         return_type: Option<TypeAst>,

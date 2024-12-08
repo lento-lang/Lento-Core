@@ -352,10 +352,6 @@ impl<R: Read> Lexer<R> {
     pub fn peek_token_not(&mut self, predicate: impl Fn(&TokenKind) -> bool) -> LexResult {
         let mut idx = 0usize;
         let mut token = self.peek_token(idx);
-        // while Self::check_token(&token, predicate.clone()) {
-        //     token = self.peek_token(idx + 1);
-        //     idx += 1;
-        // }
         while check_token(&token, &predicate) {
             token = self.peek_token(idx + 1);
             idx += 1;
@@ -577,24 +573,24 @@ impl<R: Read> Lexer<R> {
         match self.peek_char(1) {
             // i8
             Some('8') => {
-                self.next_char(); // Eat the 'i'
-                self.next_char(); // Eat the '8'
+                self.next_char();
+                self.next_char();
                 self.set_number_ty(ty, NumInfo::int(BitSize::Bit8))?;
             }
             // i16 or i128
             Some('1') => match self.peek_char(2) {
                 Some('6') => {
-                    self.next_char(); // Eat the 'i'
-                    self.next_char(); // Eat the '1'
-                    self.next_char(); // Eat the '6'
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::int(BitSize::Bit16))?;
                 }
                 Some('2') => {
                     if self.peek_char(3) == Some('8') {
-                        self.next_char(); // Eat the 'i'
-                        self.next_char(); // Eat the '1'
-                        self.next_char(); // Eat the '2'
-                        self.next_char(); // Eat the '8'
+                        self.next_char();
+                        self.next_char();
+                        self.next_char();
+                        self.next_char();
                         self.set_number_ty(ty, NumInfo::int(BitSize::Bit128))?;
                     }
                 }
@@ -603,28 +599,28 @@ impl<R: Read> Lexer<R> {
             // i32
             Some('3') => {
                 if self.peek_char(2) == Some('2') {
-                    self.next_char(); // Eat the 'i'
-                    self.next_char(); // Eat the '3'
-                    self.next_char(); // Eat the '2'
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::int(BitSize::Bit32))?;
                 }
             }
             // i64
             Some('6') => {
                 if self.peek_char(2) == Some('4') {
-                    self.next_char(); // Eat the 'i'
-                    self.next_char(); // Eat the '6'
-                    self.next_char(); // Eat the '4'
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::int(BitSize::Bit64))?;
                 }
             }
             // ibig
             Some('b') => {
                 if self.peek_char(2) == Some('i') && self.peek_char(3) == Some('g') {
-                    self.next_char(); // Eat the 'i'
-                    self.next_char(); // Eat the 'b'
-                    self.next_char(); // Eat the 'i'
-                    self.next_char(); // Eat the 'g'
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::int(BitSize::BitVar))?;
                 }
             }
@@ -642,58 +638,58 @@ impl<R: Read> Lexer<R> {
             // u1, u16 or u128
             Some('1') => match self.peek_char(2) {
                 Some('6') => {
-                    self.next_char(); // Eat the 'u'
-                    self.next_char(); // Eat the '1'
-                    self.next_char(); // Eat the '6'
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::uint(BitSize::Bit16))?;
                 }
                 Some('2') => {
                     if self.peek_char(2) == Some('8') {
-                        self.next_char(); // Eat the 'u'
-                        self.next_char(); // Eat the '1'
-                        self.next_char(); // Eat the '2'
-                        self.next_char(); // Eat the '8'
+                        self.next_char();
+                        self.next_char();
+                        self.next_char();
+                        self.next_char();
                         self.set_number_ty(ty, NumInfo::uint(BitSize::Bit128))?;
                     }
                 }
                 _ => {
-                    self.next_char(); // Eat the 'u'
-                    self.next_char(); // Eat the '1'
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::uint(BitSize::Bit1))?;
                 }
             },
 
             // u8
             Some('8') => {
-                self.next_char(); // Eat the 'u'
-                self.next_char(); // Eat the '8'
+                self.next_char();
+                self.next_char();
                 self.set_number_ty(ty, NumInfo::uint(BitSize::Bit8))?;
             }
             // u32
             Some('3') => {
                 if self.peek_char(2) == Some('2') {
-                    self.next_char(); // Eat the 'u'
-                    self.next_char(); // Eat the '3'
-                    self.next_char(); // Eat the '2'
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::uint(BitSize::Bit32))?;
                 }
             }
             // u64
             Some('6') => {
                 if self.peek_char(2) == Some('4') {
-                    self.next_char(); // Eat the 'u'
-                    self.next_char(); // Eat the '6'
-                    self.next_char(); // Eat the '4'
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::uint(BitSize::Bit64))?;
                 }
             }
             // ubig
             Some('b') => {
                 if self.peek_char(2) == Some('i') && self.peek_char(3) == Some('g') {
-                    self.next_char(); // Eat the 'u'
-                    self.next_char(); // Eat the 'b'
-                    self.next_char(); // Eat the 'i'
-                    self.next_char(); // Eat the 'g'
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
+                    self.next_char();
                     self.set_number_ty(ty, NumInfo::uint(BitSize::BitVar))?;
                 }
             }

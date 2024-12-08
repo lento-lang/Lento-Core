@@ -79,18 +79,12 @@ pub enum CheckedAst {
     /// 1. Name of the identifier
     /// 2. Type of the identifier (the type of the value it refers to)
     Identifier(String, Type),
-    // FunctionIdentifier(String, FunctionType),
     /// A function variation call is an invocation of a function variation with a list of arguments
     Call {
         function: Box<CheckedAst>,
         arg: Box<CheckedAst>,
         return_type: Type,
     },
-    /// A direct function call is an invocation of a variation with a list of arguments
-    // DirectCall {
-    //     variation: Box<Function>,
-    //     args: Vec<CheckedAst>,
-    // },
     /// A function declaration is a named function with a list of parameters and a body expression
     Function(Box<CheckedFunction>),
     /// An assignment expression assigns a value to a variable
@@ -142,7 +136,6 @@ impl CheckedAst {
             ),
             CheckedAst::Record(_elements, _) => todo!(),
             CheckedAst::Identifier(name, _) => name.clone(),
-            // CheckedAst::FunctionIdentifier(name, _) => name.clone(),
             CheckedAst::Call { function, arg, .. } => {
                 if let CheckedAst::Identifier(name, _) = &**function {
                     format!("{}({})", name, arg.print_sexpr())
@@ -150,18 +143,6 @@ impl CheckedAst {
                     format!("{}({})", function.print_sexpr(), arg.print_sexpr())
                 }
             }
-            // CheckedAst::DirectCall {
-            //     variation: function,
-            //     args,
-            //     ..
-            // } => format!(
-            //     "[{}]({})",
-            //     function,
-            //     args.iter()
-            //         .map(|e| e.print_sexpr())
-            //         .collect::<Vec<String>>()
-            //         .join(" ")
-            // ),
             CheckedAst::Function(func) => {
                 format!(
                     "({} {} -> {})",

@@ -174,7 +174,6 @@ pub struct OperatorInfo {
 pub struct RuntimeOperatorHandler {
     pub function_name: String,
     pub signature: OperatorSignature,
-    // handler: Box<Function>,
 }
 
 #[derive(Clone, Debug)]

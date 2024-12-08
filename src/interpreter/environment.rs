@@ -85,19 +85,8 @@ impl<'a> Environment<'a> {
         variation: Function,
     ) -> Result<(), RuntimeError> {
         if let Some(_existing) = self.functions.get_mut(name) {
-            // if existing
-            //     .get_variations()
-            //     .iter()
-            //     .any(|v| v.get_params() == variation.get_param())
-            // {
-            //     return Err(RuntimeError {
-            //         message: format!(
-            //             "Function variation of '{}' with the same signature already exists",
-            //             name
-            //         ),
-            //     });
-            // }
-            // existing.add_variation(variation);
+            // TODO: Allow for multiple variations of the same function
+            // TODO: with the same name but different parameter types
             return Err(RuntimeError {
                 message: format!(
                     "Function {} already exists in the current environment",
@@ -105,8 +94,6 @@ impl<'a> Environment<'a> {
                 ),
             });
         } else {
-            // self.functions
-            //     .insert(name.to_string(), Function::new(vec![variation]));
             self.functions.insert(name.to_string(), variation);
         }
         Ok(())
@@ -157,9 +144,6 @@ impl<'a> Environment<'a> {
             })
         } else {
             match value {
-                // Value::Variation(variation) => {
-                //     self.add_function_variation(&name.to_string(), *variation)?;
-                // }
                 Value::Function(func) => {
                     if self.functions.contains_key(&name) {
                         return Err(RuntimeError {

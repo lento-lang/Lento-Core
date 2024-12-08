@@ -10,7 +10,6 @@ pub fn eq() -> Function {
     Function::new_native(
         "eq".into(),
         |values| {
-            // let values = values.unwrap_singles();
             if values.len() != 2 {
                 return Err(runtime_error("eq() expects 2 arguments".to_string()));
             }

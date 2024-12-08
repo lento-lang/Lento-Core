@@ -48,199 +48,6 @@ pub trait TypeTrait {
     fn simplify(self) -> Self;
 }
 
-// // Compound Type Expressions
-// pub type TypedParam = (String, Type);
-
-// impl FunctionParameterType {
-//     /// Match the given arguments to the function parameters.
-//     /// Return true if the arguments suffice the parameter types.
-//     pub fn match_args(&self, args: &[Value]) -> bool {
-//         match self {
-//             FunctionParameterType::Singles(types) => {
-//                 if types.len() != args.len() {
-//                     return false;
-//                 }
-//                 for (i, (_, t)) in types.iter().enumerate() {
-//                     if !args[i].get_type().subtype(t) {
-//                         return false;
-//                     }
-//                 }
-//                 true
-//             }
-//             FunctionParameterType::Variadic(types, (_, var_type)) => {
-//                 if types.len() > args.len() {
-//                     return false;
-//                 }
-//                 for (i, (_, t)) in types.iter().enumerate() {
-//                     if !t.subtype(args[i].get_type()) {
-//                         return false;
-//                     }
-//                 }
-//                 for arg in &args[types.len()..] {
-//                     if !var_type.subtype(arg.get_type()) {
-//                         return false;
-//                     }
-//                 }
-//                 true
-//             }
-//         }
-//     }
-
-//     pub fn match_args_types(&self, arg_types: &[&Type]) -> bool {
-//         match self {
-//             FunctionParameterType::Singles(types) => {
-//                 if types.len() != arg_types.len() {
-//                     return false;
-//                 }
-//                 for (i, (_, t)) in types.iter().enumerate() {
-//                     if !arg_types[i].subtype(t) {
-//                         return false;
-//                     }
-//                 }
-//                 true
-//             }
-//             FunctionParameterType::Variadic(types, (_, var_type)) => {
-//                 if types.len() > arg_types.len() {
-//                     return false;
-//                 }
-//                 for (i, (_, t)) in types.iter().enumerate() {
-//                     if !t.subtype(arg_types[i]) {
-//                         return false;
-//                     }
-//                 }
-//                 for arg in &arg_types[types.len()..] {
-//                     if !var_type.subtype(arg) {
-//                         return false;
-//                     }
-//                 }
-//                 true
-//             }
-//         }
-//     }
-
-//     pub fn is_variadic(&self) -> bool {
-//         match self {
-//             FunctionParameterType::Singles(_) => false,
-//             FunctionParameterType::Variadic(_, _) => true,
-//         }
-//     }
-
-//     pub fn as_single(&self) -> Option<&Vec<NamedType>> {
-//         match self {
-//             FunctionParameterType::Singles(types) => Some(types),
-//             FunctionParameterType::Variadic(_, _) => None,
-//         }
-//     }
-
-//     pub fn as_variadic(&self) -> Option<(&Vec<NamedType>, &NamedType)> {
-//         match self {
-//             FunctionParameterType::Singles(_) => None,
-//             FunctionParameterType::Variadic(types, variadic) => Some((types, variadic)),
-//         }
-//     }
-
-//     fn fmt_named(f: &mut std::fmt::Formatter<'_>, named: &[NamedType]) -> std::fmt::Result {
-//         if named.is_empty() {
-//             return write!(f, "()");
-//         }
-
-//         if named.len() > 1 {
-//             write!(f, "(")?;
-//         }
-//         for (i, (name, t)) in named.iter().enumerate() {
-//             if i != 0 {
-//                 write!(f, ", ")?;
-//             }
-//             write!(f, "{} {}", t, name)?;
-//         }
-//         if named.len() > 1 {
-//             write!(f, ")")?;
-//         }
-//         Ok(())
-//     }
-
-//     fn fmt_named_color(named: &[NamedType]) -> String {
-//         use colorful::Colorful;
-
-//         if named.is_empty() {
-//             return "()".to_string();
-//         }
-
-//         let mut result = String::new();
-//         if named.len() > 1 {
-//             result.push_str(&"(".dark_gray().to_string());
-//         }
-//         for (i, (name, t)) in named.iter().enumerate() {
-//             if i != 0 {
-//                 result.push_str(&", ".dark_gray().to_string());
-//             }
-//             result.push_str(&format!("{} {}", t.pretty_print_color(), name));
-//         }
-//         if named.len() > 1 {
-//             result.push_str(&")".dark_gray().to_string());
-//         }
-//         result
-//     }
-
-//     fn fmt_unnamed_color(types: &[&Type]) -> String {
-//         use colorful::Colorful;
-
-//         if types.is_empty() {
-//             return "()".to_string();
-//         }
-
-//         let mut result = String::new();
-//         if types.len() > 1 {
-//             result.push_str(&"(".dark_gray().to_string());
-//         }
-//         for (i, t) in types.iter().enumerate() {
-//             if i != 0 {
-//                 result.push_str(&", ".dark_gray().to_string());
-//             }
-//             result.push_str(&t.pretty_print_color());
-//         }
-//         if types.len() > 1 {
-//             result.push_str(&")".dark_gray().to_string());
-//         }
-//         result
-//     }
-
-//     pub fn pretty_print_color(&self) -> String {
-//         use colorful::Colorful;
-
-//         match self {
-//             FunctionParameterType::Singles(types) => FunctionParameterType::fmt_named_color(types),
-//             FunctionParameterType::Variadic(types, variadic) => {
-//                 let mut result = FunctionParameterType::fmt_named_color(types);
-//                 if !types.is_empty() {
-//                     result.push_str(&", ".dark_gray().to_string());
-//                 }
-//                 result.push_str(&format!(
-//                     "...{} {}",
-//                     variadic.1.to_string().light_blue(),
-//                     variadic.0
-//                 ));
-//                 result
-//             }
-//         }
-//     }
-// }
-
-// impl Display for FunctionParameterType {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self {
-//             FunctionParameterType::Singles(types) => FunctionParameterType::fmt_named(f, types),
-//             FunctionParameterType::Variadic(types, variadic) => {
-//                 FunctionParameterType::fmt_named(f, types)?;
-//                 if !types.is_empty() {
-//                     write!(f, ", ")?;
-//                 }
-//                 write!(f, "...{} {}", variadic.1, variadic.0)
-//             }
-//         }
-//     }
-// }
-
 #[derive(Clone, Debug)]
 pub struct FunctionType {
     pub param: CheckedParam,
@@ -255,47 +62,11 @@ impl FunctionType {
 
 impl TypeTrait for FunctionType {
     fn subtype(&self, other: &Self) -> bool {
-        // match (self.params.is_variadic(), other.params.is_variadic()) {
-        //     (true, true) => {
-        //         let (params, variadic) = self.params.as_variadic().unwrap();
-        //         let (other_params, other_variadic) = other.params.as_variadic().unwrap();
-        //         params.len() == other_params.len()
-        //             && params
-        //                 .iter()
-        //                 .zip(other_params)
-        //                 .all(|((_, p1), (_, p2))| p1.subtype(p2))
-        //             && variadic.1.subtype(&other_variadic.1)
-        //             && self.ret.subtype(&other.ret)
-        //     }
-        //     (false, false) => {
-        //         let params = self.params.as_single().unwrap();
-        //         let other_params = other.params.as_single().unwrap();
-        //         params.len() == other_params.len()
-        //             && params
-        //                 .iter()
-        //                 .zip(other_params)
-        //                 .all(|((_, p1), (_, p2))| p1.subtype(p2))
-        //             && self.ret.subtype(&other.ret)
-        //     }
-        //     (true, false) => false, // Cannot convert a variadic function to a non-variadic function.
-        //     (false, true) => false, // Cannot convert a non-variadic function to a variadic function.
-        // }
         self.param.ty.subtype(&other.param.ty) && self.ret.subtype(&other.ret)
     }
 
     fn simplify(self) -> Self {
         FunctionType {
-            // params: match self.params {
-            //     FunctionParameterType::Singles(types) => FunctionParameterType::Singles(
-            //         types.into_iter().map(|(n, t)| (n, t.simplify())).collect(),
-            //     ),
-            //     FunctionParameterType::Variadic(types, variadic) => {
-            //         FunctionParameterType::Variadic(
-            //             types.into_iter().map(|(n, t)| (n, t.simplify())).collect(),
-            //             (variadic.0, variadic.1.simplify()),
-            //         )
-            //     }
-            // },
             param: CheckedParam {
                 name: self.param.name,
                 ty: self.param.ty.simplify(),
@@ -432,13 +203,6 @@ impl TypeTrait for Type {
             }
             _ => false,
         };
-
-        // log::trace!(
-        //     "Subtype ({}): {} <: {}",
-        //     subtype,
-        //     self.pretty_print_color(),
-        //     other.pretty_print_color()
-        // );
         subtype
     }
 
@@ -471,14 +235,6 @@ impl TypeTrait for Type {
                 }
                 Type::Sum(result)
             }
-
-            // Type::Enum(name, variants) => Type::Enum(
-            //     name,
-            //     variants
-            //         .into_iter()
-            //         .map(|(n, t)| (n, t.into_iter().map(Type::simplify).collect()))
-            //         .collect(),
-            // ),
             Type::Variant(parent, name, fields) => Type::Variant(
                 parent,
                 name,
@@ -494,41 +250,6 @@ impl Display for Type {
             Type::Literal(t) => write!(f, "{}", t),
             Type::Alias(name, _) => write!(f, "{}", name),
             Type::Function(func) => {
-                // let print_params =
-                //     |f: &mut std::fmt::Formatter<'_>, p: &Vec<CheckedParam>| -> std::fmt::Result {
-                //         if p.len() != 1 {
-                //             write!(f, "(")?;
-                //         }
-                //         for (i, CheckedParam { name: _, ty }) in p.iter().enumerate() {
-                //             if i > 0 {
-                //                 write!(f, ", ")?;
-                //             }
-                //             write!(f, "{}", ty)?;
-                //         }
-                //         if p.len() != 1 {
-                //             write!(f, ")")
-                //         } else {
-                //             Ok(())
-                //         }
-                //     };
-                // for (i, variation) in variations.iter().enumerate() {
-                //     if i > 0 {
-                //         write!(f, " | ")?;
-                //     }
-                //     // match &variation.param {
-                //     //     FunctionParameterType::Singles(s) => print_params(f, s)?,
-                //     //     FunctionParameterType::Variadic(s, v) => {
-                //     //         print_params(f, s)?;
-                //     //         if !s.is_empty() {
-                //     //             write!(f, ", ")?;
-                //     //         }
-                //     //         write!(f, "...{}", v.1)?;
-                //     //     }
-                //     // };
-                //     write!(f, "{}", variation.param.ty)?;
-                //     write!(f, " -> {}", variation.ret)?;
-                // }
-                // Ok(())
                 write!(f, "{}", func.param.ty)?;
                 write!(f, " -> {}", func.ret)
             }
@@ -575,7 +296,6 @@ impl Display for Type {
                 }
                 write!(f, ">")
             }
-            // Type::Enum(e, _) => write!(f, "{}", e),
             Type::Variant(_, name, fields) => {
                 write!(f, "{}(", name)?;
                 for (i, t) in fields.iter().enumerate() {
@@ -598,35 +318,6 @@ impl Type {
             Type::Literal(t) => t.to_string().light_blue().to_string(),
             Type::Alias(name, _) => name.to_string().light_blue().to_string(),
             Type::Function(variations) => {
-                // let mut result = String::new();
-                // for (i, variation) in variations.iter().enumerate() {
-                //     if i > 0 {
-                //         result.push_str(&" | ".dark_gray().to_string());
-                //     }
-                //     // match &variation.param {
-                //     //     FunctionParameterType::Singles(s) => {
-                //     //         result.push_str(&FunctionParameterType::fmt_unnamed_color(
-                //     //             &s.iter().map(|(_, t)| t).collect::<Vec<_>>(),
-                //     //         ));
-                //     //     }
-                //     //     FunctionParameterType::Variadic(s, v) => {
-                //     //         result.push_str(&FunctionParameterType::fmt_unnamed_color(
-                //     //             &s.iter().map(|(_, t)| t).collect::<Vec<_>>(),
-                //     //         ));
-                //     //         if !s.is_empty() {
-                //     //             result.push_str(&", ".dark_gray().to_string());
-                //     //         }
-                //     //         result.push_str(&format!("...{}", v.1.pretty_print_color()));
-                //     //     }
-                //     // };
-                //     result.push_str(&variation.param.ty.pretty_print_color());
-                //     result.push_str(&format!(
-                //         " {} {}",
-                //         "->".dark_gray(),
-                //         variation.ret.pretty_print_color()
-                //     ));
-                // }
-                // result
                 format!(
                     "{} {} {}",
                     variations.param.ty.pretty_print_color(),

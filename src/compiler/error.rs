@@ -1,4 +1,4 @@
-// Lexer error
+/// Lexer error
 #[derive(Debug, Clone)]
 pub struct CompileError {
     pub message: String,

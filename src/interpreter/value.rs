@@ -31,29 +31,6 @@ impl Display for RecordKey {
     }
 }
 
-// /// Is the value representation of `FunctionParameterType`.
-// #[derive(Debug, Clone)]
-// pub enum NativeParameters {
-//     Singles(Vec<Value>),
-//     Variadic(Vec<Value>, Vec<Value>), // Some initial values of different types, followed by the variadic type values
-// }
-
-// impl NativeParameters {
-//     pub fn unwrap_singles(self) -> Vec<Value> {
-//         match self {
-//             NativeParameters::Singles(v) => v,
-//             _ => panic!("unwrap_single called on a NativeFunctionParameters::Variadic"),
-//         }
-//     }
-
-//     pub fn unwrap_variadic(self) -> (Vec<Value>, Vec<Value>) {
-//         match self {
-//             NativeParameters::Variadic(v, v2) => (v, v2),
-//             _ => panic!("unwrap_variadic called on a NativeFunctionParameters::Singles"),
-//         }
-//     }
-// }
-
 /// User-defined functions
 #[derive(Debug, Clone)]
 pub struct UserFunction {
@@ -114,13 +91,6 @@ impl Function {
         })
     }
 
-    // pub fn get_param(&self) -> &CheckedParam {
-    //     match self {
-    //         Function::User(UserFunction { param: params, .. }) => params,
-    //         Function::Native { params, .. } => params,
-    //     }
-    // }
-
     pub fn get_return_type(&self) -> &Type {
         match self {
             Function::User(UserFunction { ret, .. }) => ret,
@@ -133,9 +103,7 @@ impl Function {
             Function::User(UserFunction {
                 param: params, ret, ..
             }) => FunctionType::new(params.clone(), ret.clone()),
-            Function::Native(NativeFunction { params, ret, .. }) =>
-            //FunctionType::new(params.clone(), ret.clone()),
-            {
+            Function::Native(NativeFunction { params, ret, .. }) => {
                 let mut params = params.iter().rev(); // innermost first
                 let mut function_type =
                     FunctionType::new(params.next().unwrap().clone(), ret.clone());
@@ -162,82 +130,6 @@ impl Display for Function {
         Type::Function(Box::new(self.get_type().clone())).fmt(f)
     }
 }
-
-// #[derive(Debug, Clone)]
-// pub struct Function {
-//     // name: String,
-//     singles: Vec<FunctionVariation>,
-//     variadics: Vec<FunctionVariation>,
-//     // TODO: Add an environment for each function variation
-//     signature: Type,
-// }
-
-// impl Function {
-//     pub fn new(variations: Vec<FunctionVariation>) -> Self {
-//         let signature = Function::signature_from(&variations);
-//         let (singles, variadics) = Self::split_variations(variations);
-//         Self {
-//             signature,
-//             singles,
-//             variadics,
-//         }
-//     }
-
-//     fn split_variations(
-//         variations: Vec<FunctionVariation>,
-//     ) -> (Vec<FunctionVariation>, Vec<FunctionVariation>) {
-//         let mut singles = vec![];
-//         let mut variadics = vec![];
-//         for v in variations {
-//             match v.get_params() {
-//                 FunctionParameterType::Singles(_) => singles.push(v),
-//                 FunctionParameterType::Variadic(_, _) => variadics.push(v),
-//             }
-//         }
-//         (singles, variadics)
-//     }
-
-//     // pub fn get_name(&self) -> &str {
-//     //     &self.name
-//     // }
-
-//     /// A sum type of all the function variation signatures
-//     pub fn signature_from(variations: &[FunctionVariation]) -> Type {
-//         Type::Function(
-//             variations
-//                 .iter()
-//                 .map(|v| v.get_type().clone())
-//                 .collect::<Vec<_>>(),
-//         )
-//     }
-
-//     /// Get the function variations with **singles first** and **then variadics**.
-//     pub fn get_variations(&self) -> Vec<&FunctionVariation> {
-//         let mut variations = self.singles.iter().collect::<Vec<&FunctionVariation>>();
-//         variations.extend(self.variadics.iter());
-//         variations
-//     }
-
-//     pub fn add_variation(&mut self, variation: FunctionVariation) {
-//         match variation.get_params() {
-//             FunctionParameterType::Singles(_) => self.singles.push(variation),
-//             FunctionParameterType::Variadic(_, _) => self.variadics.push(variation),
-//         }
-//     }
-
-//     pub fn get_variation(&self, variation: &FunctionType) -> Option<&FunctionVariation> {
-//         if let Some(v) = self.singles.iter().find(|&s| s.get_type() == *variation) {
-//             return Some(v);
-//         }
-//         self.variadics.iter().find(|&v| v.get_type() == *variation)
-//     }
-// }
-
-// impl GetType for Function {
-//     fn get_type(&self) -> &Type {
-//         &self.signature
-//     }
-// }
 
 /// A Lento value is a value that can be stored in a variable, returned from a function, or passed as an argument.
 /// These values are stored in the interpreter's memory during runtime and are garbage collected when they are no longer in use.
@@ -347,7 +239,6 @@ impl PartialEq for Value {
             (Self::Tuple(l0, _), Self::Tuple(r0, _)) => l0 == r0,
             (Self::List(l0, _), Self::List(r0, _)) => l0 == r0,
             (Self::Record(l0, _), Self::Record(r0, _)) => l0 == r0,
-            // (Self::Variation(l0), Self::Variation(r0)) => l0.get_type() == r0.get_type(),
             (Self::Function(l0), Self::Function(r0)) => l0.get_type().equals(&r0.get_type()),
             (Self::Type(l0), Self::Type(r0)) => l0.equals(r0),
             _ => false,
