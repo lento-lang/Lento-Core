@@ -22,8 +22,11 @@ impl Debug for ParseError {
 /// operator table.
 #[derive(Debug, PartialEq)]
 pub enum ParseOperatorError {
-    SymbolNotOverloadable,
     PositionForSymbolExists,
+    /// Any operator cannot override an existing static operator.
+    CannotOverrideStaticOperator,
+    /// When adding a static operator, no other operator with the same symbol can exist.
+    NonStaticOperatorExists,
 }
 
 /// Errors for when a type is inserted into the parser

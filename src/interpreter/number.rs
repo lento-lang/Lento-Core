@@ -671,8 +671,8 @@ impl SignedInteger {
             SignedInteger::Int8(v) => Integer::from(*v as i64),
             SignedInteger::Int16(v) => Integer::from(*v as i64),
             SignedInteger::Int32(v) => Integer::from(*v as i64),
-            SignedInteger::Int64(v) => Integer::from(*v as i64),
-            SignedInteger::Int128(v) => Integer::from(*v as i128),
+            SignedInteger::Int64(v) => Integer::from(*v),
+            SignedInteger::Int128(v) => Integer::from(*v),
             SignedInteger::IntVar(v) => v.clone(),
         }
     }

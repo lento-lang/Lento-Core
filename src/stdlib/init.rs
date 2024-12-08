@@ -11,14 +11,15 @@ use crate::{
         ast::Ast,
         op::{
             default_operator_precedence, Operator, OperatorAssociativity, OperatorHandler,
-            OperatorInfo, OperatorPosition, OperatorSignature, StaticOperatorAst,
+            OperatorPosition, OperatorSignature, RuntimeOperatorHandler, StaticOperatorAst,
         },
         parser::Parser,
     },
     stdlib::arithmetic,
     type_checker::{
+        checked_ast::CheckedParam,
         checker::TypeChecker,
-        types::{std_types, FunctionParameterType, Type},
+        types::{std_types, Type, TypeTrait},
     },
     util::str::Str,
 };
@@ -34,14 +35,20 @@ pub struct Initializer {
 
 impl Initializer {
     pub fn init_lexer(&self, lexer: &mut Lexer<impl Read>) {
+        log::trace!("Initializing lexer with {} operators", self.operators.len());
         for op in &self.operators {
-            if let OperatorHandler::Static(_, _handler) = &op.handler {
+            // TODO: Why does this only add static operators to the lexer?
+            if let OperatorHandler::Static(_) = &op.handler {
                 lexer.operators.insert(op.info.symbol.clone());
             }
         }
     }
 
     pub fn init_parser(&self, parser: &mut Parser<impl Read>) {
+        log::trace!(
+            "Initializing parser with {} operators",
+            self.operators.len()
+        );
         for op in &self.operators {
             if let Err(e) = parser.define_op(op.info.clone()) {
                 panic!(
@@ -53,28 +60,42 @@ impl Initializer {
     }
 
     pub fn init_type_checker(&self, type_checker: &mut TypeChecker) {
+        log::trace!(
+            "Initializing type checker with {} types, {} functions, and {} operators",
+            self.types.len(),
+            self.functions.len(),
+            self.operators.len()
+        );
         for op in &self.operators {
             type_checker.add_operator(op.clone());
             // Also add runtime handler functions to the type checker
-            if let OperatorHandler::Runtime {
-                function_name,
-                handler,
-            } = &op.handler
-            {
-                type_checker.add_function(function_name, handler.get_type());
-            }
+            // if let OperatorHandler::Runtime {
+            //     function_name,
+            //     signature,
+            // } = &op.handler
+            // {
+            //     type_checker.add_function(function_name, signature.function_type());
+            // }
         }
         for (name, ty) in &self.types {
             type_checker.add_type(name, ty.clone());
         }
         for (name, func) in &self.functions {
-            for variation in func.get_variations() {
-                type_checker.add_function(name, variation.get_type());
-            }
+            // for variation in func.get_variations() {
+            //     type_checker.add_function(name, variation.get_type());
+            // }
+            type_checker.add_function(name, func.get_type());
         }
     }
 
     pub fn init_environment(&self, env: &mut Environment) {
+        log::trace!(
+            "Initializing environment with {} values, {} functions, {} operators and {} types",
+            self.values.len(),
+            self.functions.len(),
+            self.operators.len(),
+            self.types.len()
+        );
         for (name, val) in &self.values {
             if let Err(e) = env.add_value(name.clone(), val.clone()) {
                 panic!(
@@ -84,9 +105,10 @@ impl Initializer {
             }
         }
         for (name, func) in &self.functions {
-            if let Err(e) =
-                env.add_value(Str::String(name.to_string()), Value::Function(func.clone()))
-            {
+            if let Err(e) = env.add_value(
+                Str::String(name.to_string()),
+                Value::Function(Box::new(func.clone())),
+            ) {
                 panic!(
                     "Environment initialization failed when adding function '{}': {:?}",
                     name, e
@@ -95,18 +117,29 @@ impl Initializer {
         }
         for op in &self.operators {
             match &op.handler {
-                OperatorHandler::Runtime {
+                OperatorHandler::Runtime(RuntimeOperatorHandler {
                     function_name,
-                    handler,
-                } => {
-                    if let Err(e) = env.add_function_variation(function_name, *handler.clone()) {
-                        panic!(
-                            "Environment initialization failed when adding operator '{}': {}",
-                            op.info.name, e.message
-                        );
+                    signature,
+                }) => {
+                    // if let Err(e) = env.add_function_variation(function_name, *handler.clone()) {
+                    //     panic!(
+                    //         "Environment initialization failed when adding operator '{}': {}",
+                    //         op.info.name, e.message
+                    //     );
+                    // }
+                    // Assert that the function is already in the environment
+                    if let Some(func) = env.lookup_function(function_name) {
+                        if !signature.function_type().equals(&func.get_type()) {
+                            panic!(
+                                "Function type mismatch for operator '{}': expected '{}', got '{}'",
+                                op.info.name,
+                                signature.function_type(),
+                                func.get_type()
+                            );
+                        }
                     }
                 }
-                OperatorHandler::Static(_, _) => {}
+                OperatorHandler::Static(_) => {}
             }
         }
         for (name, ty) in &self.types {
@@ -128,110 +161,75 @@ pub fn stdlib() -> Initializer {
         operators: vec![
             // Assignment operator, native to the language
             // TODO: Implement this operator statically in the parser instead of using an operator handler
-            Operator {
-                info: OperatorInfo {
-                    name: "assign".into(),
-                    symbol: "=".into(),
-                    position: OperatorPosition::Infix,
-                    precedence: default_operator_precedence::ASSIGNMENT,
-                    associativity: OperatorAssociativity::Right,
-                    overloadable: false,
-                    allow_trailing: false,
-                },
-                handler: OperatorHandler::Static(
-                    OperatorSignature {
-                        params: FunctionParameterType::Singles(vec![
-                            ("lhs".into(), std_types::ANY),
-                            ("rhs".into(), std_types::ANY),
-                        ]),
-                        returns: std_types::ANY,
-                    },
-                    |op| {
-                        if let StaticOperatorAst::Infix(lhs, rhs) = op {
-                            Ast::Assignment(Box::new(lhs), Box::new(rhs))
-                        } else {
-                            panic!("assign expects an infix operator");
-                        }
-                    },
+            Operator::new_static(
+                "assign".into(),
+                "=".into(),
+                OperatorPosition::Infix,
+                default_operator_precedence::ASSIGNMENT,
+                OperatorAssociativity::Right,
+                false,
+                OperatorSignature::new(
+                    vec![
+                        CheckedParam::from_str("target", std_types::ANY.clone()),
+                        CheckedParam::from_str("value", std_types::ANY.clone()),
+                    ],
+                    std_types::ANY.clone(),
                 ),
-            },
+                |op| {
+                    if let StaticOperatorAst::Infix(lhs, rhs) = op {
+                        Ast::Assignment(Box::new(lhs), Box::new(rhs))
+                    } else {
+                        panic!("assign expects an infix operator");
+                    }
+                },
+            ),
             // Addition operator
-            Operator {
-                info: OperatorInfo {
-                    name: "add".into(),
-                    symbol: "+".into(),
-                    position: OperatorPosition::Infix,
-                    precedence: default_operator_precedence::ADDITIVE,
-                    associativity: OperatorAssociativity::Left,
-                    overloadable: true,
-                    allow_trailing: false,
-                },
-                handler: OperatorHandler::Runtime {
-                    function_name: "add".into(),
-                    handler: Box::new(arithmetic::add()),
-                },
-            },
-            Operator {
-                info: OperatorInfo {
-                    name: "sub".into(),
-                    symbol: "-".into(),
-                    position: OperatorPosition::Infix,
-                    precedence: default_operator_precedence::ADDITIVE,
-                    associativity: OperatorAssociativity::Left,
-                    overloadable: true,
-                    allow_trailing: false,
-                },
-                handler: OperatorHandler::Runtime {
-                    function_name: "sub".into(),
-                    handler: Box::new(arithmetic::sub()),
-                },
-            },
-            Operator {
-                info: OperatorInfo {
-                    name: "mul".into(),
-                    symbol: "*".into(),
-                    position: OperatorPosition::Infix,
-                    precedence: default_operator_precedence::MULTIPLICATIVE,
-                    associativity: OperatorAssociativity::Left,
-                    overloadable: true,
-                    allow_trailing: false,
-                },
-                handler: OperatorHandler::Runtime {
-                    function_name: "mul".into(),
-                    handler: Box::new(arithmetic::mul()),
-                },
-            },
-            Operator {
-                info: OperatorInfo {
-                    name: "div".into(),
-                    symbol: "/".into(),
-                    position: OperatorPosition::Infix,
-                    precedence: default_operator_precedence::MULTIPLICATIVE,
-                    associativity: OperatorAssociativity::Left,
-                    overloadable: true,
-                    allow_trailing: false,
-                },
-                handler: OperatorHandler::Runtime {
-                    function_name: "div".into(),
-                    handler: Box::new(arithmetic::div()),
-                },
-            },
-            // Equality operator
-            Operator {
-                info: OperatorInfo {
-                    name: "eq".into(),
-                    symbol: "==".into(),
-                    position: OperatorPosition::Infix,
-                    precedence: default_operator_precedence::EQUALITY,
-                    associativity: OperatorAssociativity::Left,
-                    overloadable: true,
-                    allow_trailing: false,
-                },
-                handler: OperatorHandler::Runtime {
-                    function_name: "eq".into(),
-                    handler: Box::new(logical::eq()),
-                },
-            },
+            Operator::new_runtime(
+                "add".into(),
+                "+".into(),
+                OperatorPosition::Infix,
+                default_operator_precedence::ADDITIVE,
+                OperatorAssociativity::Left,
+                false,
+                OperatorSignature::from_function(&arithmetic::add().get_type()),
+            ),
+            Operator::new_runtime(
+                "sub".into(),
+                "-".into(),
+                OperatorPosition::Infix,
+                default_operator_precedence::ADDITIVE,
+                OperatorAssociativity::Left,
+                false,
+                OperatorSignature::from_function(&arithmetic::sub().get_type()),
+            ),
+            Operator::new_runtime(
+                "mul".into(),
+                "*".into(),
+                OperatorPosition::Infix,
+                default_operator_precedence::MULTIPLICATIVE,
+                OperatorAssociativity::Left,
+                false,
+                OperatorSignature::from_function(&arithmetic::mul().get_type()),
+            ),
+            Operator::new_runtime(
+                "div".into(),
+                "/".into(),
+                OperatorPosition::Infix,
+                default_operator_precedence::MULTIPLICATIVE,
+                OperatorAssociativity::Left,
+                false,
+                OperatorSignature::from_function(&arithmetic::div().get_type()),
+            ),
+            // Comparison operators
+            Operator::new_runtime(
+                "eq".into(),
+                "==".into(),
+                OperatorPosition::Infix,
+                default_operator_precedence::EQUALITY,
+                OperatorAssociativity::Left,
+                false,
+                OperatorSignature::from_function(&logical::eq().get_type()),
+            ),
         ],
 
         //--------------------------------------------------------------------------------------//
@@ -337,9 +335,14 @@ pub fn stdlib() -> Initializer {
         //                                       Functions                                      //
         //--------------------------------------------------------------------------------------//
         functions: vec![
-            ("print", Function::new(vec![system::print()])),
-            ("typeof", Function::new(vec![system::type_of()])),
-            ("exit", Function::new(vec![system::exit()])),
+            ("add", arithmetic::add()),
+            ("sub", arithmetic::sub()),
+            ("mul", arithmetic::mul()),
+            ("div", arithmetic::div()),
+            ("eq", logical::eq()),
+            ("print", system::print()),
+            ("typeof", system::type_of()),
+            ("exit", system::exit()),
         ],
     }
 }

@@ -12,7 +12,9 @@ use crate::{
         readers::{bytes_reader::BytesReader, stdin::StdinReader},
         token::{LineInfoSpan, TokenInfo, TokenKind},
     },
+    parser::ast::{ParamAst, TypeAst},
     stdlib::init::Initializer,
+    // type_checker::types::FunctionParameterType,
     util::failable::Failable,
 };
 
@@ -84,10 +86,14 @@ impl<R: Read> Parser<R> {
     /// If the operator already exists with the same signature,
     pub fn define_op(&mut self, op: OperatorInfo) -> Failable<ParseOperatorError> {
         if let Some(existing) = self.get_op(&op.symbol) {
-            if existing.iter().any(|e| !e.overloadable) {
-                return Err(ParseOperatorError::SymbolNotOverloadable);
+            if op.is_static && !existing.is_empty() {
+                return Err(ParseOperatorError::NonStaticOperatorExists);
+            }
+            if existing.iter().any(|e| e.is_static) {
+                return Err(ParseOperatorError::CannotOverrideStaticOperator);
             }
             if existing.iter().any(|e| e.position == op.position) {
+                // TODO: Compare signatures instead of positions
                 return Err(ParseOperatorError::PositionForSymbolExists);
             }
         }
@@ -200,6 +206,54 @@ impl<R: Read> Parser<R> {
                     continue;
                 } else if nt.token == TokenKind::RightParen {
                     break;
+                } else if let TokenKind::Identifier(param_name) = nt.token {
+                    // Found (..., ty id) in an argument list.
+                    // Check if `ty` is an identifier
+                    if args.iter().all(|arg| matches!(arg, Ast::Identifier(_))) {
+                        let Ast::Identifier(param_type) = args.pop().unwrap() else {
+                            unreachable!("All arguments should be identifiers");
+                        };
+                        // Found a type identifier in a function call.
+                        // Try to parse the rest as a function definition if all args are identifiers.
+                        self.lexer.next_token().unwrap(); // Consume the `param_name` identifier
+                                                          // Remove the last argument
+                                                          // Expect the next token to be a comma or right paren
+                        if let Ok(nt) = self.lexer.peek_token(0) {
+                            if nt.token == TokenKind::Comma {
+                                self.lexer.next_token().unwrap();
+                            } else if nt.token == TokenKind::RightParen {
+                                // Continue parsing the function definition
+                                // The ) will be consumed by the `parse_func_def` function
+                            } else {
+                                log::error!("Expected ',' or ')', but found {:?}", nt.token);
+                                return Err(ParseError {
+                                    message: format!(
+                                        "Expected ',' or ')', but found {:?}",
+                                        nt.token
+                                    ),
+                                    span: (nt.info.start.index, nt.info.end.index),
+                                });
+                            }
+                        }
+                        return self.parse_func_def(
+                            None,
+                            id,
+                            args.iter()
+                                .map(|arg| match arg {
+                                    Ast::Identifier(id) => ParamAst {
+                                        name: id.clone(),
+                                        ty: None,
+                                    },
+                                    _ => unreachable!(),
+                                })
+                                // Also add the current parameter
+                                .chain([ParamAst {
+                                    name: param_name,
+                                    ty: Some(TypeAst::Identifier(param_type)),
+                                }])
+                                .collect(),
+                        );
+                    }
                 }
             }
             log::error!(
@@ -216,8 +270,184 @@ impl<R: Read> Parser<R> {
         }
         self.parse_expected(TokenKind::RightParen, ")")?;
 
+        if let Some(func_def) = self.try_parse_func_def_no_types(&id, &args) {
+            return func_def;
+        }
+
         log::trace!("Parsed function call: {}({:?})", id, args);
-        Ok(Ast::FunctionCall(id, args))
+        Ok(syntax_sugar::roll_function_call(id, args))
+        // Ok(Ast::Call(id, args))
+    }
+
+    /// If we encountered an expression like:
+    /// ```lento
+    /// func(a, b, c)
+    /// ```
+    /// Check if the subsequent token is an assignment operator `=`.
+    /// If it is, then we have a function definition of the form:
+    /// ```lento
+    /// func(a, b, c) = expr
+    /// ```
+    fn try_parse_func_def_no_types(
+        &mut self,
+        func_name: &str,
+        args: &[Ast],
+    ) -> Option<ParseResult> {
+        if let Ok(ref nt) = self.lexer.peek_token(0) {
+            if let TokenKind::Op(ref op) = nt.token {
+                if op == "=" {
+                    // If all arguments are identifiers, then this is a function definition
+                    if args.iter().all(|arg| matches!(arg, Ast::Identifier(_))) {
+                        log::trace!(
+                            "Parsed function definition: {}({:?}) -> {:?}",
+                            func_name,
+                            args,
+                            nt
+                        );
+                        self.lexer.next_token().unwrap();
+                        let body = match self.parse_top_expr() {
+                            Ok(body) => body,
+                            Err(err) => {
+                                log::error!("Failed to parse function body: {}", err.message);
+                                return Some(Err(err));
+                            }
+                        };
+                        let params = args
+                            .iter()
+                            .map(|arg| match arg {
+                                Ast::Identifier(id) => ParamAst {
+                                    name: id.clone(),
+                                    ty: None,
+                                },
+                                _ => unreachable!(),
+                            })
+                            .collect::<Vec<_>>();
+                        // Roll functions into single param definitions
+                        let function = syntax_sugar::roll_function_definition(params, body);
+                        return Some(Ok(Ast::Assignment(
+                            Box::new(Ast::Identifier(func_name.to_string())),
+                            Box::new(function),
+                        )));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// If we encountered an expression like:
+    /// ```lento
+    /// int func(
+    /// ```
+    /// or
+    /// ```lento
+    /// func(int a
+    /// ```
+    /// Then we have a function definition of the form:
+    /// ```lento
+    /// int func(...) = expr
+    /// ```
+    /// or
+    /// ```lento
+    /// func(int a, ...) = expr
+    /// ```
+    fn parse_func_def(
+        &mut self,
+        ret_type: Option<String>,
+        name: String,
+        parsed_params: Vec<ParamAst>,
+    ) -> ParseResult {
+        log::trace!("Parsing function definition: {} -> {:?}", name, ret_type);
+        let mut params = parsed_params;
+        while let Ok(end) = self.lexer.peek_token(0) {
+            if end.token == TokenKind::RightParen {
+                break;
+            }
+            let ty = match self.try_parse_type() {
+                Some(Ok(t)) => t,
+                Some(Err(err)) => {
+                    log::error!("Failed to parse function parameter: {}", err.message);
+                    return Err(ParseError {
+                        message: format!("Failed to parse function parameter: {}", err.message),
+                        span: (self.lexer.current_index(), self.lexer.current_index()),
+                    });
+                }
+                None => {
+                    log::error!("Expected parameter type, but found {:?}", end.token);
+                    return Err(ParseError {
+                        message: format!("Expected type identifier, but found {:?}", end.token),
+                        span: (end.info.start.index, end.info.end.index),
+                    });
+                }
+            };
+            let name = match self.lexer.next_token() {
+                Ok(t) => match t.token {
+                    TokenKind::Identifier(id) => id,
+                    _ => {
+                        log::error!("Expected parameter name, but found {:?}", t.token);
+                        return Err(ParseError {
+                            message: format!("Expected parameter name, but found {:?}", t.token),
+                            span: (t.info.start.index, t.info.end.index),
+                        });
+                    }
+                },
+                Err(err) => {
+                    log::error!("Failed to parse parameter name: {}", err.message);
+                    return Err(ParseError {
+                        message: format!("Failed to parse parameter name: {}", err.message),
+                        span: (self.lexer.current_index(), self.lexer.current_index()),
+                    });
+                }
+            };
+            params.push(ParamAst { name, ty: Some(ty) });
+            if let Ok(nt) = self.lexer.peek_token(0) {
+                if nt.token == TokenKind::Comma {
+                    self.lexer.next_token().unwrap();
+                    continue;
+                } else if nt.token == TokenKind::RightParen {
+                    break;
+                }
+            }
+            log::error!(
+                "Expected ',' or ')', but found {:?}",
+                self.lexer.peek_token(0)
+            );
+            return Err(ParseError {
+                message: format!(
+                    "Expected ',' or ')', but found {:?}",
+                    self.lexer.peek_token(0)
+                ),
+                span: (self.lexer.current_index(), self.lexer.current_index()),
+            });
+        }
+        self.parse_expected(TokenKind::RightParen, ")")?;
+        self.parse_expected(TokenKind::Op("=".into()), "=")?;
+        let body = self.parse_top_expr()?;
+        log::trace!(
+            "Parsed function definition: {}({:?}) -> {:?}",
+            name,
+            params,
+            body
+        );
+        let function = syntax_sugar::roll_function_definition(params, body);
+        Ok(Ast::Assignment(
+            Box::new(Ast::Identifier(name)),
+            Box::new(function),
+        ))
+    }
+
+    fn try_parse_type(&mut self) -> Option<Result<TypeAst, ParseError>> {
+        if let Ok(t) = self.lexer.peek_token(0) {
+            match t.token {
+                TokenKind::Identifier(id) => {
+                    self.lexer.next_token().unwrap();
+                    Some(Ok(TypeAst::Identifier(id)))
+                }
+                _ => None,
+            }
+        } else {
+            None
+        }
     }
 
     /// Parses the fields of a record from the lexer.
@@ -343,6 +573,23 @@ impl<R: Read> Parser<R> {
                             {
                                 self.lexer.next_token().unwrap(); // Consume the left paren
                                 return self.parse_paren_call(id);
+                            }
+                        }
+                        // Check if function definition
+                        if let Ok(t) = self.lexer.peek_token(0) {
+                            if let TokenKind::Identifier(name) = t.token {
+                                if let Ok(t) = self.lexer.peek_token(1) {
+                                    if t.token
+                                        == (TokenKind::LeftParen {
+                                            is_function_call: true,
+                                        })
+                                    {
+                                        self.lexer.next_token().unwrap(); // Consume the name identifier
+                                        self.lexer.next_token().unwrap(); // Consume the left paren
+                                                                          // Start parsing the params and body of the function
+                                        return self.parse_func_def(Some(id), name, vec![]);
+                                    }
+                                }
                             }
                         }
                         Ast::Identifier(id)
@@ -671,6 +918,51 @@ mod syntax_sugar {
             ) if name == "div" && symbol == "/" => try_literal_fraction(lhs, rhs),
             _ => None,
         }
+    }
+
+    /// Takes a function name, a list of parameters and a body and rolls them into a single assignment expression.
+    /// Parameters are rolled into a nested function definition.
+    /// All parameters are sorted like:
+    /// ```lento
+    /// func(a, b, c) = expr
+    /// ```
+    /// becomes:
+    /// ```lento
+    /// func = a -> b -> c -> expr
+    /// ```
+    ///
+    /// # Arguments
+    /// - `func_name` The name of the function
+    /// - `params` A list of parameters in left-to-right order: `a, b, c`
+    /// - `body` The body of the function
+    pub fn roll_function_definition(params: Vec<ParamAst>, body: Ast) -> Ast {
+        assert!(!params.is_empty(), "Expected at least one parameter");
+        let mut params = params.iter().rev();
+        let mut function = Ast::Function {
+            param: params.next().unwrap().clone(),
+            body: Box::new(body),
+            return_type: None,
+        };
+        for param in params {
+            function = Ast::Function {
+                param: param.clone(),
+                body: Box::new(function),
+                return_type: None,
+            };
+        }
+        function
+    }
+
+    pub fn roll_function_call(name: String, args: Vec<Ast>) -> Ast {
+        let mut args = args.into_iter();
+        let mut call = Ast::Call(
+            Box::new(Ast::Identifier(name)),
+            Box::new(args.next().unwrap()),
+        );
+        for arg in args {
+            call = Ast::Call(Box::new(call), Box::new(arg));
+        }
+        call
     }
 }
 

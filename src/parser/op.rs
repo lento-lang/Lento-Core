@@ -1,7 +1,9 @@
 use crate::{
-    interpreter::value::FunctionVariation,
     parser::ast::Ast,
-    type_checker::types::{FunctionParameterType, Type},
+    type_checker::{
+        checked_ast::CheckedParam,
+        types::{FunctionType, Type},
+    },
 };
 
 //--------------------------------------------------------------------------------------//
@@ -88,10 +90,46 @@ pub enum StaticOperatorAst {
     Accumulate(Vec<Ast>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct OperatorSignature {
-    pub params: FunctionParameterType,
-    pub returns: Type,
+    pub params: Vec<CheckedParam>,
+    pub ret: Type,
+}
+
+impl OperatorSignature {
+    pub fn new(params: Vec<CheckedParam>, ret: Type) -> Self {
+        Self { params, ret }
+    }
+
+    pub fn function_type(&self) -> FunctionType {
+        let mut params = self.params.iter();
+        let mut func = FunctionType {
+            param: params.next().unwrap().clone(),
+            ret: self.ret.clone(),
+        };
+        for param in params {
+            func = FunctionType {
+                param: param.clone(),
+                ret: Type::Function(Box::new(func)),
+            };
+        }
+        func
+    }
+
+    pub fn from_function(function: &FunctionType) -> Self {
+        let mut params = Vec::new();
+        let mut func = function;
+        while let Type::Function(f) = &func.ret {
+            params.push(f.param.clone());
+            func = f;
+        }
+        params.push(func.param.clone());
+        params.reverse();
+        Self {
+            params,
+            ret: func.ret.clone(),
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------//
@@ -114,8 +152,8 @@ pub struct OperatorInfo {
     pub precedence: OperatorPrecedence,
     /// The associativity of the operator
     pub associativity: OperatorAssociativity,
-    /// If the operator is overloadable (false for built-in operators)
-    pub overloadable: bool,
+    /// If the operator is static (compile-time) or runtime (execution-time)
+    pub is_static: bool,
     /// If the operator allows trailing arguments
     ///
     /// ## Note
@@ -133,17 +171,27 @@ pub struct OperatorInfo {
 }
 
 #[derive(Clone, Debug)]
+pub struct RuntimeOperatorHandler {
+    pub function_name: String,
+    pub signature: OperatorSignature,
+    // handler: Box<Function>,
+}
+
+#[derive(Clone, Debug)]
+pub struct StaticOperatorHandler {
+    pub signature: OperatorSignature,
+    pub handler: fn(StaticOperatorAst) -> Ast,
+}
+
+#[derive(Clone, Debug)]
 pub enum OperatorHandler {
     /// Runtime operators (functions)
-    Runtime {
-        function_name: String,
-        handler: Box<FunctionVariation>,
-    },
+    Runtime(RuntimeOperatorHandler),
     /// The compile-time handler for the operator
     /// (macros or syntax extensions/sugar)
     /// 1. The signature of the operator. This is used for type checking and inference on the operator in expressions.
     /// 2. The native handler function for the operator called at compile-time
-    Static(OperatorSignature, fn(StaticOperatorAst) -> Ast),
+    Static(StaticOperatorHandler),
 }
 
 #[derive(Clone, Debug)]
@@ -158,12 +206,62 @@ pub struct Operator {
 impl Operator {
     pub fn signature(&self) -> OperatorSignature {
         match self.handler {
-            OperatorHandler::Runtime { ref handler, .. } => {
-                let params = handler.get_params().clone();
-                let returns = handler.get_return_type().clone();
-                OperatorSignature { params, returns }
+            OperatorHandler::Runtime(RuntimeOperatorHandler { ref signature, .. }) => {
+                signature.clone()
             }
-            OperatorHandler::Static(ref signature, _) => signature.clone(),
+            OperatorHandler::Static(StaticOperatorHandler { ref signature, .. }) => {
+                signature.clone()
+            }
+        }
+    }
+
+    pub fn new_runtime(
+        function_name: String,
+        symbol: String,
+        position: OperatorPosition,
+        precedence: OperatorPrecedence,
+        associativity: OperatorAssociativity,
+        allow_trailing: bool,
+        signature: OperatorSignature,
+    ) -> Self {
+        Self {
+            info: OperatorInfo {
+                name: function_name.clone(),
+                symbol,
+                position,
+                precedence,
+                associativity,
+                allow_trailing,
+                is_static: false,
+            },
+            handler: OperatorHandler::Runtime(RuntimeOperatorHandler {
+                function_name,
+                signature,
+            }),
+        }
+    }
+
+    pub fn new_static(
+        name: String,
+        symbol: String,
+        position: OperatorPosition,
+        precedence: OperatorPrecedence,
+        associativity: OperatorAssociativity,
+        allow_trailing: bool,
+        signature: OperatorSignature,
+        handler: fn(StaticOperatorAst) -> Ast,
+    ) -> Self {
+        Self {
+            info: OperatorInfo {
+                name,
+                symbol,
+                position,
+                precedence,
+                associativity,
+                allow_trailing,
+                is_static: true,
+            },
+            handler: OperatorHandler::Static(StaticOperatorHandler { signature, handler }),
         }
     }
 }

@@ -1,63 +1,76 @@
 use crate::{
-    interpreter::number::{Number, SignedInteger},
-    interpreter::value::{FunctionVariation, NativeFunctionParameters, Value},
-    type_checker::types::{std_types, FunctionParameterType, GetType, Type},
+    interpreter::{
+        number::{Number, SignedInteger},
+        value::{Function, Value},
+    },
+    type_checker::{
+        checked_ast::CheckedParam,
+        types::{std_types, GetType},
+    },
 };
-
-const TY_ANY: Type = std_types::ANY;
-const TY_UNIT: Type = std_types::UNIT;
 
 //--------------------------------------------------------------------------------------//
 //                               Native Runtime Functions                               //
 //--------------------------------------------------------------------------------------//
 
 /// Print the given values to the console with a newline at the end.
-pub fn print() -> FunctionVariation {
-    FunctionVariation::new_native(
+pub fn print() -> Function {
+    Function::new_native(
+        "print".into(),
         |values| {
-            let values = if let NativeFunctionParameters::Variadic(_, v) = values {
-                v
-            } else {
-                panic!("A native function with Variadic function parameter type should not be able to receive a Singles function parameter type")
-            };
+            // let values = if let NativeFunction::Variadic(_, v) = values {
+            //     v
+            // } else {
+            //     panic!("A native function with Variadic function parameter type should not be able to receive a Singles function parameter type")
+            // };
             for val in values {
                 println!("{}", val);
             }
             Ok(Value::Unit)
         },
-        FunctionParameterType::Variadic(vec![], ("params".to_string(), TY_ANY)),
-        TY_UNIT,
+        // FunctionParameterType::Variadic(vec![], ("params".to_string(), TY_ANY)),
+        vec![CheckedParam {
+            name: "values".to_string(),
+            ty: std_types::ANY,
+        }],
+        std_types::UNIT,
     )
 }
 
 /// Return the type of a value.
-pub fn type_of() -> FunctionVariation {
-    FunctionVariation::new_native(
+pub fn type_of() -> Function {
+    Function::new_native(
+        "type_of".into(),
         |values| {
-            let values = if let NativeFunctionParameters::Singles(v) = values {
-                v
-            } else {
-                panic!("A native function with Singles function parameter type should not be able to receive a Variadic function parameter type")
-            };
+            // let values = if let NativeFunction::Singles(v) = values {
+            //     v
+            // } else {
+            //     panic!("A native function with Singles function parameter type should not be able to receive a Variadic function parameter type")
+            // };
             if values.len() != 1 {
                 panic!("type_of() expects 1 argument");
             }
             Ok(Value::Type(values[0].get_type().clone()))
         },
-        FunctionParameterType::Singles(vec![("value".to_string(), TY_ANY)]),
+        // FunctionParameterType::Singles(vec![("value".to_string(), TY_ANY)]),
+        vec![CheckedParam {
+            name: "value".to_string(),
+            ty: std_types::ANY,
+        }],
         std_types::TYPE,
     )
 }
 
 /// Exit the program with the given exit code.
-pub fn exit() -> FunctionVariation {
-    FunctionVariation::new_native(
+pub fn exit() -> Function {
+    Function::new_native(
+        "exit".into(),
         |values| {
-            let values = if let NativeFunctionParameters::Singles(v) = values {
-                v
-            } else {
-                panic!("A native function with Singles function parameter type should not be able to receive a Variadic function parameter type")
-            };
+            // let values = if let NativeFunction::Singles(v) = values {
+            //     v
+            // } else {
+            //     panic!("A native function with Singles function parameter type should not be able to receive a Variadic function parameter type")
+            // };
             if values.len() != 1 {
                 panic!("exit() expects 1 argument");
             }
@@ -80,7 +93,11 @@ pub fn exit() -> FunctionVariation {
                 ),
             }
         },
-        FunctionParameterType::Singles(vec![("code".to_string(), std_types::INT32)]),
-        TY_UNIT,
+        // FunctionParameterType::Singles(vec![("code".to_string(), std_types::INT32)]),
+        vec![CheckedParam {
+            name: "code".to_string(),
+            ty: std_types::INT32,
+        }],
+        std_types::UNIT,
     )
 }

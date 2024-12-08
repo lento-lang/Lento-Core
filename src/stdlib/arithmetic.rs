@@ -2,20 +2,23 @@ use crate::{
     interpreter::{
         error::runtime_error,
         number::{ArithmeticOperations, Number},
-        value::{FunctionVariation, Value},
+        value::{Function, Value},
     },
-    type_checker::types::{std_types, FunctionParameterType, GetType, TypeTrait},
+    type_checker::{
+        checked_ast::CheckedParam,
+        types::{std_types, GetType, TypeTrait},
+    },
 };
 
 //--------------------------------------------------------------------------------------//
 //                               Native Runtime Functions                               //
 //--------------------------------------------------------------------------------------//
 
-pub fn add() -> FunctionVariation {
-    FunctionVariation::new_native(
+pub fn add() -> Function {
+    Function::new_native(
+        "add".into(),
         |values| {
             let ty_num = std_types::NUM();
-            let values = values.unwrap_singles();
             if values.len() != 2 {
                 return Err(runtime_error("add() expects 2 arguments".to_string()));
             }
@@ -35,19 +38,25 @@ pub fn add() -> FunctionVariation {
                 )))
             }
         },
-        FunctionParameterType::Singles(vec![
-            ("lhs".to_string(), std_types::NUM()),
-            ("rhs".to_string(), std_types::NUM()),
-        ]),
+        vec![
+            CheckedParam {
+                name: "lhs".to_string(),
+                ty: std_types::NUM(),
+            },
+            CheckedParam {
+                name: "rhs".to_string(),
+                ty: std_types::NUM(),
+            },
+        ],
         std_types::NUM(),
     )
 }
 
-pub fn sub() -> FunctionVariation {
-    FunctionVariation::new_native(
+pub fn sub() -> Function {
+    Function::new_native(
+        "sub".into(),
         |values| {
             let ty_num = std_types::NUM();
-            let values = values.unwrap_singles();
             if values.len() != 2 {
                 return Err(runtime_error("sub() expects 2 arguments".to_string()));
             }
@@ -67,19 +76,25 @@ pub fn sub() -> FunctionVariation {
                 )))
             }
         },
-        FunctionParameterType::Singles(vec![
-            ("lhs".to_string(), std_types::NUM()),
-            ("rhs".to_string(), std_types::NUM()),
-        ]),
+        vec![
+            CheckedParam {
+                name: "lhs".to_string(),
+                ty: std_types::NUM(),
+            },
+            CheckedParam {
+                name: "rhs".to_string(),
+                ty: std_types::NUM(),
+            },
+        ],
         std_types::NUM(),
     )
 }
 
-pub fn mul() -> FunctionVariation {
-    FunctionVariation::new_native(
+pub fn mul() -> Function {
+    Function::new_native(
+        "mul".into(),
         |values| {
             let ty_num = std_types::NUM();
-            let values = values.unwrap_singles();
             if values.len() != 2 {
                 return Err(runtime_error("mul() expects 2 arguments".to_string()));
             }
@@ -99,19 +114,25 @@ pub fn mul() -> FunctionVariation {
                 )))
             }
         },
-        FunctionParameterType::Singles(vec![
-            ("lhs".to_string(), std_types::NUM()),
-            ("rhs".to_string(), std_types::NUM()),
-        ]),
+        vec![
+            CheckedParam {
+                name: "lhs".to_string(),
+                ty: std_types::NUM(),
+            },
+            CheckedParam {
+                name: "rhs".to_string(),
+                ty: std_types::NUM(),
+            },
+        ],
         std_types::NUM(),
     )
 }
 
-pub fn div() -> FunctionVariation {
-    FunctionVariation::new_native(
+pub fn div() -> Function {
+    Function::new_native(
+        "div".into(),
         |values| {
             let ty_num = std_types::NUM();
-            let values = values.unwrap_singles();
             if values.len() != 2 {
                 return Err(runtime_error("div() expects 2 arguments".to_string()));
             }
@@ -131,10 +152,16 @@ pub fn div() -> FunctionVariation {
                 )))
             }
         },
-        FunctionParameterType::Singles(vec![
-            ("lhs".to_string(), std_types::NUM()),
-            ("rhs".to_string(), std_types::NUM()),
-        ]),
+        vec![
+            CheckedParam {
+                name: "lhs".to_string(),
+                ty: std_types::NUM(),
+            },
+            CheckedParam {
+                name: "rhs".to_string(),
+                ty: std_types::NUM(),
+            },
+        ],
         std_types::NUM(),
     )
 }

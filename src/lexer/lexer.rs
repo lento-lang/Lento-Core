@@ -12,8 +12,8 @@ use lazy_regex::regex_replace_all;
 use malachite::{num::conversion::traits::FromSciString, Integer, Natural, Rational};
 
 use crate::{
-    interpreter::number::{FloatingPoint, Number, SignedInteger, UnsignedInteger},
-    type_checker::types::{std_types, Type},
+    interpreter::number::{BitSize, FloatingPoint, Number, SignedInteger, UnsignedInteger},
+    type_checker::types::std_types,
 };
 
 use super::{
@@ -44,6 +44,39 @@ impl Display for InputSource {
             InputSource::File(path) => write!(f, "file '{}'", path.to_string_lossy()),
             InputSource::String => write!(f, "string"),
             InputSource::Stream(name) => write!(f, "stream '{}'", name),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct NumInfo {
+    pub float: bool,
+    pub signed: bool,
+    pub bits: BitSize,
+}
+
+impl NumInfo {
+    pub fn uint(bits: BitSize) -> Self {
+        Self {
+            float: false,
+            signed: false,
+            bits,
+        }
+    }
+
+    pub fn int(bits: BitSize) -> Self {
+        Self {
+            float: false,
+            signed: true,
+            bits,
+        }
+    }
+
+    pub fn float(bits: BitSize) -> Self {
+        Self {
+            float: true,
+            signed: true,
+            bits,
         }
     }
 }
@@ -505,19 +538,22 @@ impl<R: Read> Lexer<R> {
     }
 
     /// Parse the float number suffix: `0.3f32`, `0.3f64` or `0.3fbig`
-    fn read_number_suffix_float(&mut self, ty: &RefCell<Option<Type>>) -> Result<bool, LexerError> {
+    fn read_number_suffix_float(
+        &mut self,
+        ty: &RefCell<Option<NumInfo>>,
+    ) -> Result<bool, LexerError> {
         match (self.peek_char(1), self.peek_char(2)) {
             // f32
             (Some('3'), Some('2')) => {
                 self.next_char();
                 self.next_char();
-                self.set_number_ty(ty, std_types::FLOAT32)?;
+                self.set_number_ty(ty, NumInfo::float(BitSize::Bit32))?;
             }
             // f64
             (Some('6'), Some('4')) => {
                 self.next_char();
                 self.next_char();
-                self.set_number_ty(ty, std_types::FLOAT64)?;
+                self.set_number_ty(ty, NumInfo::float(BitSize::Bit64))?;
             }
             // fbig
             (Some('b'), Some('i')) => {
@@ -525,7 +561,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char();
                     self.next_char();
                     self.next_char();
-                    self.set_number_ty(ty, std_types::FLOATBIG)?;
+                    self.set_number_ty(ty, NumInfo::float(BitSize::BitVar))?;
                 }
             }
             _ => (),
@@ -534,13 +570,16 @@ impl<R: Read> Lexer<R> {
     }
 
     /// Parse the integer number suffix: `42i8`, `42i16`, `42i32`, `42i64`, `42i128` or `42ibig`
-    fn read_number_suffix_int(&mut self, ty: &RefCell<Option<Type>>) -> Result<bool, LexerError> {
+    fn read_number_suffix_int(
+        &mut self,
+        ty: &RefCell<Option<NumInfo>>,
+    ) -> Result<bool, LexerError> {
         match self.peek_char(1) {
             // i8
             Some('8') => {
                 self.next_char(); // Eat the 'i'
                 self.next_char(); // Eat the '8'
-                self.set_number_ty(ty, std_types::INT8)?;
+                self.set_number_ty(ty, NumInfo::int(BitSize::Bit8))?;
             }
             // i16 or i128
             Some('1') => match self.peek_char(2) {
@@ -548,7 +587,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char(); // Eat the 'i'
                     self.next_char(); // Eat the '1'
                     self.next_char(); // Eat the '6'
-                    self.set_number_ty(ty, std_types::INT16)?;
+                    self.set_number_ty(ty, NumInfo::int(BitSize::Bit16))?;
                 }
                 Some('2') => {
                     if self.peek_char(3) == Some('8') {
@@ -556,7 +595,7 @@ impl<R: Read> Lexer<R> {
                         self.next_char(); // Eat the '1'
                         self.next_char(); // Eat the '2'
                         self.next_char(); // Eat the '8'
-                        self.set_number_ty(ty, std_types::INT128)?;
+                        self.set_number_ty(ty, NumInfo::int(BitSize::Bit128))?;
                     }
                 }
                 _ => (),
@@ -567,7 +606,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char(); // Eat the 'i'
                     self.next_char(); // Eat the '3'
                     self.next_char(); // Eat the '2'
-                    self.set_number_ty(ty, std_types::INT32)?;
+                    self.set_number_ty(ty, NumInfo::int(BitSize::Bit32))?;
                 }
             }
             // i64
@@ -576,7 +615,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char(); // Eat the 'i'
                     self.next_char(); // Eat the '6'
                     self.next_char(); // Eat the '4'
-                    self.set_number_ty(ty, std_types::INT64)?;
+                    self.set_number_ty(ty, NumInfo::int(BitSize::Bit64))?;
                 }
             }
             // ibig
@@ -586,7 +625,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char(); // Eat the 'b'
                     self.next_char(); // Eat the 'i'
                     self.next_char(); // Eat the 'g'
-                    self.set_number_ty(ty, std_types::INTBIG)?;
+                    self.set_number_ty(ty, NumInfo::int(BitSize::BitVar))?;
                 }
             }
             _ => (),
@@ -595,7 +634,10 @@ impl<R: Read> Lexer<R> {
     }
 
     /// Parse the unsigned integer number suffix `1u1`, `42u8`, `42u16`, `42u32`, `42u64`, `42u128` or `42ubig`
-    fn read_number_suffix_uint(&mut self, ty: &RefCell<Option<Type>>) -> Result<bool, LexerError> {
+    fn read_number_suffix_uint(
+        &mut self,
+        ty: &RefCell<Option<NumInfo>>,
+    ) -> Result<bool, LexerError> {
         match self.peek_char(1) {
             // u1, u16 or u128
             Some('1') => match self.peek_char(2) {
@@ -603,7 +645,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char(); // Eat the 'u'
                     self.next_char(); // Eat the '1'
                     self.next_char(); // Eat the '6'
-                    self.set_number_ty(ty, std_types::UINT16)?;
+                    self.set_number_ty(ty, NumInfo::uint(BitSize::Bit16))?;
                 }
                 Some('2') => {
                     if self.peek_char(2) == Some('8') {
@@ -611,13 +653,13 @@ impl<R: Read> Lexer<R> {
                         self.next_char(); // Eat the '1'
                         self.next_char(); // Eat the '2'
                         self.next_char(); // Eat the '8'
-                        self.set_number_ty(ty, std_types::UINT128)?;
+                        self.set_number_ty(ty, NumInfo::uint(BitSize::Bit128))?;
                     }
                 }
                 _ => {
                     self.next_char(); // Eat the 'u'
                     self.next_char(); // Eat the '1'
-                    self.set_number_ty(ty, std_types::UINT1)?;
+                    self.set_number_ty(ty, NumInfo::uint(BitSize::Bit1))?;
                 }
             },
 
@@ -625,7 +667,7 @@ impl<R: Read> Lexer<R> {
             Some('8') => {
                 self.next_char(); // Eat the 'u'
                 self.next_char(); // Eat the '8'
-                self.set_number_ty(ty, std_types::UINT8)?;
+                self.set_number_ty(ty, NumInfo::uint(BitSize::Bit8))?;
             }
             // u32
             Some('3') => {
@@ -633,7 +675,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char(); // Eat the 'u'
                     self.next_char(); // Eat the '3'
                     self.next_char(); // Eat the '2'
-                    self.set_number_ty(ty, std_types::UINT32)?;
+                    self.set_number_ty(ty, NumInfo::uint(BitSize::Bit32))?;
                 }
             }
             // u64
@@ -642,7 +684,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char(); // Eat the 'u'
                     self.next_char(); // Eat the '6'
                     self.next_char(); // Eat the '4'
-                    self.set_number_ty(ty, std_types::UINT64)?;
+                    self.set_number_ty(ty, NumInfo::uint(BitSize::Bit64))?;
                 }
             }
             // ubig
@@ -652,7 +694,7 @@ impl<R: Read> Lexer<R> {
                     self.next_char(); // Eat the 'b'
                     self.next_char(); // Eat the 'i'
                     self.next_char(); // Eat the 'g'
-                    self.set_number_ty(ty, std_types::UINTBIG)?;
+                    self.set_number_ty(ty, NumInfo::uint(BitSize::BitVar))?;
                 }
             }
             _ => (),
@@ -660,14 +702,18 @@ impl<R: Read> Lexer<R> {
         Ok(false)
     }
 
-    fn parse_number_type(&self, s: &str, ty: &Type) -> Result<Number, LexerError> {
-        match *ty {
-            std_types::UINT1 => {
+    fn parse_number_type(&self, s: &str, num: NumInfo) -> Result<Number, LexerError> {
+        match num {
+            NumInfo {
+                float: false,
+                signed: false,
+                bits: BitSize::Bit1,
+            } => {
                 if let Ok(i) = s.parse::<u8>() {
                     if i > 1 {
                         Err(LexerError::invalid_number_type(
                             s,
-                            ty,
+                            &std_types::UINT1,
                             self.line_info.clone(),
                             self.input_source.clone(),
                         ))
@@ -677,187 +723,247 @@ impl<R: Read> Lexer<R> {
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::UINT1,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::UINT8 => {
+            NumInfo {
+                float: false,
+                signed: false,
+                bits: BitSize::Bit8,
+            } => {
                 if let Ok(i) = s.parse::<u8>() {
                     Ok(Number::UnsignedInteger(UnsignedInteger::UInt8(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::UINT8,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::UINT16 => {
+            NumInfo {
+                float: false,
+                signed: false,
+                bits: BitSize::Bit16,
+            } => {
                 if let Ok(i) = s.parse::<u16>() {
                     Ok(Number::UnsignedInteger(UnsignedInteger::UInt16(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::UINT16,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::UINT32 => {
+            NumInfo {
+                float: false,
+                signed: false,
+                bits: BitSize::Bit32,
+            } => {
                 if let Ok(i) = s.parse::<u32>() {
                     Ok(Number::UnsignedInteger(UnsignedInteger::UInt32(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::UINT32,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::UINT64 => {
+            NumInfo {
+                float: false,
+                signed: false,
+                bits: BitSize::Bit64,
+            } => {
                 if let Ok(i) = s.parse::<u64>() {
                     Ok(Number::UnsignedInteger(UnsignedInteger::UInt64(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::UINT64,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::UINT128 => {
+            NumInfo {
+                float: false,
+                signed: false,
+                bits: BitSize::Bit128,
+            } => {
                 if let Ok(i) = s.parse::<u128>() {
                     Ok(Number::UnsignedInteger(UnsignedInteger::UInt128(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::UINT128,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::UINTBIG => {
+            NumInfo {
+                float: false,
+                signed: false,
+                bits: BitSize::BitVar,
+            } => {
                 if let Ok(i) = Natural::from_str(s) {
                     Ok(Number::UnsignedInteger(UnsignedInteger::UIntVar(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::UINTBIG,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::INT8 => {
+            NumInfo {
+                float: false,
+                signed: true,
+                bits: BitSize::Bit8,
+            } => {
                 if let Ok(i) = s.parse::<i8>() {
                     Ok(Number::SignedInteger(SignedInteger::Int8(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::INT8,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::INT16 => {
+            NumInfo {
+                float: false,
+                signed: true,
+                bits: BitSize::Bit16,
+            } => {
                 if let Ok(i) = s.parse::<i16>() {
                     Ok(Number::SignedInteger(SignedInteger::Int16(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::INT16,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::INT32 => {
+            NumInfo {
+                float: false,
+                signed: true,
+                bits: BitSize::Bit32,
+            } => {
                 if let Ok(i) = s.parse::<i32>() {
                     Ok(Number::SignedInteger(SignedInteger::Int32(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::INT32,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::INT64 => {
+            NumInfo {
+                float: false,
+                signed: true,
+                bits: BitSize::Bit64,
+            } => {
                 if let Ok(i) = s.parse::<i64>() {
                     Ok(Number::SignedInteger(SignedInteger::Int64(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::INT64,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::INT128 => {
+            NumInfo {
+                float: false,
+                signed: true,
+                bits: BitSize::Bit128,
+            } => {
                 if let Ok(i) = s.parse::<i128>() {
                     Ok(Number::SignedInteger(SignedInteger::Int128(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::INT128,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::INTBIG => {
+            NumInfo {
+                float: false,
+                signed: true,
+                bits: BitSize::BitVar,
+            } => {
                 if let Ok(i) = Integer::from_str(s) {
                     Ok(Number::SignedInteger(SignedInteger::IntVar(i)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::INTBIG,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::FLOAT32 => {
+            NumInfo {
+                float: true,
+                bits: BitSize::Bit32,
+                ..
+            } => {
                 if let Ok(f) = s.parse::<f32>() {
                     Ok(Number::FloatingPoint(FloatingPoint::Float32(f)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::FLOAT32,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::FLOAT64 => {
+            NumInfo {
+                float: true,
+                bits: BitSize::Bit64,
+                ..
+            } => {
                 if let Ok(f) = s.parse::<f64>() {
                     Ok(Number::FloatingPoint(FloatingPoint::Float64(f)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::FLOAT64,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
                 }
             }
-            std_types::FLOATBIG => {
+            NumInfo {
+                float: true,
+                bits: BitSize::BitVar,
+                ..
+            } => {
                 if let Some(f) = Rational::from_sci_string(s) {
                     Ok(Number::FloatingPoint(FloatingPoint::FloatBig(f)))
                 } else {
                     Err(LexerError::invalid_number_type(
                         s,
-                        ty,
+                        &std_types::FLOATBIG,
                         self.line_info.clone(),
                         self.input_source.clone(),
                     ))
@@ -865,7 +971,7 @@ impl<R: Read> Lexer<R> {
             }
             _ => Err(LexerError::invalid_number_type(
                 s,
-                ty,
+                &std_types::NUM(),
                 self.line_info.clone(),
                 self.input_source.clone(),
             )),
@@ -940,10 +1046,10 @@ impl<R: Read> Lexer<R> {
         }
     }
 
-    fn set_number_ty(&self, rc: &RefCell<Option<Type>>, ty: Type) -> Result<(), LexerError> {
+    fn set_number_ty(&self, rc: &RefCell<Option<NumInfo>>, ty: NumInfo) -> Result<(), LexerError> {
         if let Some(ty) = rc.replace(Some(ty)) {
             Err(LexerError {
-                message: format!("Type already set to {}", ty),
+                message: format!("Type already set to {:?}", ty),
                 info: self.line_info.clone(),
                 input_source: self.input_source.clone(),
             })
@@ -956,7 +1062,7 @@ impl<R: Read> Lexer<R> {
     /// Can be an integer or a float (casted at runtime).
     fn read_number(&mut self, c: char) -> LexResult {
         let has_dot = Cell::new(false);
-        let ty: RefCell<Option<Type>> = RefCell::new(None);
+        let ty: RefCell<Option<NumInfo>> = RefCell::new(None);
         // Set the type of the number and crash if a type is already set
         let s = self.read_while(
             Some(c.to_string()),
@@ -975,13 +1081,13 @@ impl<R: Read> Lexer<R> {
                 'u' => this.read_number_suffix_uint(&ty),  // Always return false
                 'e' => {
                     // Allow scientific notation: `1.0e-2`
-                    this.set_number_ty(&ty, std_types::FLOATBIG)?;
+                    this.set_number_ty(&ty, NumInfo::float(BitSize::BitVar))?;
                     Ok(true) // Always return true to allow the exponent after the 'e'
                 }
                 '+' | '-' => {
                     // If still parsing after `ty = FLOATBIG`, then it's an exponent
                     Ok(if let Some(ty) = ty.borrow().as_ref() {
-                        ty == &std_types::FLOATBIG
+                        *ty == NumInfo::float(BitSize::BitVar)
                     } else {
                         false // Otherwise, it's something else
                     })
@@ -991,7 +1097,7 @@ impl<R: Read> Lexer<R> {
             true,
         )?;
         self.new_token_info(TokenKind::Number(if let Some(ty) = ty.take() {
-            self.parse_number_type(&s, &ty)?
+            self.parse_number_type(&s, ty)?
         } else if has_dot.get() {
             self.parse_number_float(&s)?
         } else {

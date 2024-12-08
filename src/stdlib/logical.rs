@@ -1,24 +1,31 @@
 use crate::{
     interpreter::{
         error::runtime_error,
-        value::{FunctionVariation, Value},
+        value::{Function, Value},
     },
-    type_checker::types::{std_types, FunctionParameterType},
+    type_checker::{checked_ast::CheckedParam, types::std_types},
 };
 
-pub fn eq() -> FunctionVariation {
-    FunctionVariation::new_native(
+pub fn eq() -> Function {
+    Function::new_native(
+        "eq".into(),
         |values| {
-            let values = values.unwrap_singles();
+            // let values = values.unwrap_singles();
             if values.len() != 2 {
                 return Err(runtime_error("eq() expects 2 arguments".to_string()));
             }
             Ok(Value::Boolean(values[0] == values[1]))
         },
-        FunctionParameterType::Singles(vec![
-            ("lhs".to_string(), std_types::ANY),
-            ("rhs".to_string(), std_types::ANY),
-        ]),
+        vec![
+            CheckedParam {
+                name: "lhs".to_string(),
+                ty: std_types::ANY,
+            },
+            CheckedParam {
+                name: "rhs".to_string(),
+                ty: std_types::ANY,
+            },
+        ],
         std_types::BOOL,
     )
 }

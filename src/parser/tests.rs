@@ -153,9 +153,9 @@ mod tests {
     #[test]
     fn call_paren_apply() {
         let result = parse_str_one("println(\"Hello, World!\")", None);
-        let expected = Ast::FunctionCall(
-            "println".to_string(),
-            vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+        let expected = Ast::Call(
+            Box::new(Ast::Identifier("println".to_string())),
+            Box::new(Ast::Literal(Value::String("Hello, World!".to_string()))),
         );
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -166,9 +166,9 @@ mod tests {
     #[test]
     fn call_no_paren_apply() {
         let result = parse_str_one("println \"Hello, World!\"", None);
-        let expected = Ast::FunctionCall(
-            "println".to_string(),
-            vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+        let expected = Ast::Call(
+            Box::new(Ast::Identifier("println".to_string())),
+            Box::new(Ast::Literal(Value::String("Hello, World!".to_string()))),
         );
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -179,9 +179,9 @@ mod tests {
     #[test]
     fn call_tuple_apply() {
         let result = parse_str_one("println (\"Hello, World!\")", None);
-        let expected = Ast::FunctionCall(
-            "println".to_string(),
-            vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+        let expected = Ast::Call(
+            Box::new(Ast::Identifier("println".to_string())),
+            Box::new(Ast::Literal(Value::String("Hello, World!".to_string()))),
         );
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -192,9 +192,9 @@ mod tests {
     #[test]
     fn hello_world_file() {
         let result = parse_path_one(Path::new("./examples/basic/hello_world.lt"), None);
-        let expected = Ast::FunctionCall(
-            "println".to_string(),
-            vec![Ast::Literal(Value::String("Hello, World!".to_string()))],
+        let expected = Ast::Call(
+            Box::new(Ast::Identifier("println".to_string())),
+            Box::new(Ast::Literal(Value::String("Hello, World!".to_string()))),
         );
         assert!(result.is_ok());
         let result = result.unwrap();

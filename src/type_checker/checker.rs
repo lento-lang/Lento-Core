@@ -3,14 +3,17 @@ use std::{borrow::Borrow, collections::HashMap};
 use crate::{
     interpreter::value::{RecordKey, Value},
     parser::{
-        ast::{Ast, Module},
-        op::{Operator, OperatorHandler, OperatorInfo, StaticOperatorAst},
+        ast::{Ast, Module, ParamAst, TypeAst},
+        op::{
+            Operator, OperatorHandler, OperatorInfo, RuntimeOperatorHandler, StaticOperatorAst,
+            StaticOperatorHandler,
+        },
     },
 };
 
 use super::{
-    checked_ast::{CheckedAst, CheckedModule},
-    types::{std_types, FunctionParameterType, GetType, Type, TypeTrait, VariationType},
+    checked_ast::{CheckedAst, CheckedFunction, CheckedModule, CheckedParam},
+    types::{std_types, FunctionType, GetType, Type, TypeTrait},
 };
 
 /// A type error is an error that occurs during type checking.
@@ -30,7 +33,7 @@ struct TypeEnv {
     variables: HashMap<String, Type>,
 
     // The function environment
-    functions: HashMap<String, Vec<VariationType>>,
+    functions: HashMap<String, Vec<FunctionType>>,
 
     // The type environment
     types: HashMap<String, Type>,
@@ -41,11 +44,11 @@ struct TypeEnv {
 
 impl TypeEnv {
     // Add a function to the type environment
-    pub fn add_function(&mut self, name: String, variation: VariationType) {
+    pub fn add_function(&mut self, name: String, variation: FunctionType) {
         self.functions.entry(name).or_default().push(variation);
     }
 
-    pub fn lookup_function(&self, name: &str) -> Option<&[VariationType]> {
+    pub fn lookup_function(&self, name: &str) -> Option<&[FunctionType]> {
         self.functions.get(name).map(Vec::as_ref)
     }
 
@@ -76,7 +79,7 @@ impl TypeEnv {
 enum IdentifierType<'a> {
     Variable(&'a Type),
     Type(&'a Type),
-    Function(&'a [VariationType]),
+    Function(&'a [FunctionType]),
 }
 
 /// The type checker is used to check the types of expressions and functions.
@@ -102,7 +105,7 @@ impl<'a> TypeChecker<'a> {
         self.env.add_operator(op);
     }
 
-    pub fn add_function(&mut self, name: &str, variation: VariationType) {
+    pub fn add_function(&mut self, name: &str, variation: FunctionType) {
         self.env.add_function(name.to_string(), variation);
     }
 
@@ -113,7 +116,7 @@ impl<'a> TypeChecker<'a> {
         }
     }
 
-    fn lookup_function(&self, name: &str) -> Option<&[VariationType]> {
+    fn lookup_function(&self, name: &str) -> Option<&[FunctionType]> {
         self.env
             .lookup_function(name)
             .or_else(|| self.parent.and_then(|p| p.lookup_function(name)))
@@ -156,12 +159,36 @@ impl<'a> TypeChecker<'a> {
     }
 
     fn lookup_operator(&self, symbol: &str) -> Vec<&Operator> {
-        self.env
+        let operators: Vec<&Operator> = self
+            .env
             .operators
             .iter()
             .filter(|o| o.info.symbol == symbol)
             .chain(self.parent.iter().flat_map(|p| p.lookup_operator(symbol)))
-            .collect()
+            .collect();
+        // log::trace!("Looked up operator '{}' found {}", symbol, operators.len());
+        operators
+    }
+
+    fn lookup_static_operator(&self, symbol: &str) -> Option<&StaticOperatorHandler> {
+        let operator: Option<&StaticOperatorHandler> = self.env.operators.iter().find_map(|o| {
+            if o.info.symbol == symbol && o.info.is_static {
+                let OperatorHandler::Static(op) = &o.handler else {
+                    unreachable!("Operator is not static");
+                };
+                Some(op)
+            } else {
+                None
+            }
+        });
+        let operator =
+            operator.or_else(|| self.parent.and_then(|p| p.lookup_static_operator(symbol)));
+        // log::trace!(
+        //     "Looked up static operator '{}' found {:?}",
+        //     symbol,
+        //     operator
+        // );
+        operator
     }
 
     // ================== Scanning functions ==================
@@ -174,15 +201,18 @@ impl<'a> TypeChecker<'a> {
                 };
                 match expr.borrow() {
                     Ast::Function {
-                        params,
+                        param,
                         body,
                         return_type,
                     } => {
-                        let checked = self.check_function(params, body, return_type)?;
-                        let variation = VariationType {
-                            params: params.clone(),
+                        let checked_param = self.check_param(param)?;
+                        let checked =
+                            self.check_function(checked_param.clone(), body, return_type)?;
+                        let variation = FunctionType {
+                            param: checked_param,
                             ret: checked.get_type().clone(),
                         };
+                        log::debug!("Adding function '{}' with variation: {}", name, variation);
                         self.env.add_function(name.clone(), variation);
                     }
                     _ => {
@@ -218,16 +248,16 @@ impl<'a> TypeChecker<'a> {
     pub fn check_expr(&mut self, expr: &Ast) -> TypeResult<CheckedAst> {
         Ok(match expr {
             Ast::Function {
-                params,
+                param,
                 body,
                 return_type,
-            } => self.check_function(params, body, return_type)?,
+            } => self.check_function(self.check_param(param)?, body, return_type)?,
             Ast::Literal(v) => CheckedAst::Literal(v.clone()),
             Ast::Tuple(elems) => self.check_tuple(elems)?,
             Ast::List(elems) => self.check_list(elems)?,
             Ast::Record(pairs) => self.check_record(pairs)?,
             Ast::Identifier(i) => self.check_identifier(i)?,
-            Ast::FunctionCall(name, args) => self.check_call(name, args)?,
+            Ast::Call(expr, args) => self.check_call(expr, args)?,
             Ast::Accumulate(info, operands) => self.check_accumulate(info, operands)?,
             Ast::Binary(lhs, info, rhs) => self.check_binary(lhs, info, rhs)?,
             Ast::Unary(info, operand) => self.check_unary(info, operand)?,
@@ -236,15 +266,41 @@ impl<'a> TypeChecker<'a> {
         })
     }
 
+    fn check_type_expr(&self, expr: &TypeAst) -> TypeResult<Type> {
+        Ok(match expr {
+            TypeAst::Identifier(name) => {
+                self.lookup_type(name).cloned().ok_or_else(|| TypeError {
+                    message: format!("Unknown type: {}", name),
+                })?
+            }
+        })
+    }
+
+    fn check_param(&self, param: &ParamAst) -> TypeResult<CheckedParam> {
+        let param_ty = if let Some(ty) = &param.ty {
+            self.check_type_expr(ty)?
+        } else {
+            return Err(TypeError {
+                message: "Function parameter type is required".to_string(),
+            });
+        };
+        let param = CheckedParam {
+            name: param.name.clone(),
+            ty: param_ty,
+        };
+        Ok(param)
+    }
+
     fn check_function(
         &mut self,
-        params: &FunctionParameterType,
+        param: CheckedParam,
         body: &Ast,
-        return_type: &Option<Type>,
+        return_type: &Option<TypeAst>,
     ) -> TypeResult<CheckedAst> {
         let body = self.new_scope().check_expr(body)?;
         let body_type = body.get_type().clone();
         let return_type = if let Some(ty) = &return_type {
+            let ty = self.check_type_expr(ty)?;
             if !ty.subtype(&body_type) {
                 return Err(TypeError {
                     message: format!(
@@ -253,16 +309,17 @@ impl<'a> TypeChecker<'a> {
 					),
                 });
             }
-            ty.clone()
+            ty
         } else {
             // Infer the return type from the body
             body_type
         };
-        Ok(CheckedAst::Function {
-            params: params.clone(),
-            body: Box::new(body),
+
+        Ok(CheckedAst::Function(Box::new(CheckedFunction::new(
+            param,
+            body,
             return_type,
-        })
+        ))))
     }
 
     fn check_tuple(&mut self, elems: &[Ast]) -> TypeResult<CheckedAst> {
@@ -280,20 +337,27 @@ impl<'a> TypeChecker<'a> {
 
     fn check_list(&mut self, elems: &[Ast]) -> TypeResult<CheckedAst> {
         let checked_elems = self.check_top_exprs(elems)?;
-        let mut elem_types = checked_elems
+        let elem_types = checked_elems
             .iter()
             .map(|e| e.get_type())
             .cloned()
             .collect::<Vec<_>>();
-        elem_types.dedup();
-        let elem_type = if elem_types.len() == 1 {
-            elem_types[0].clone()
+        // Filter out duplicate types (subtypes of existing types)
+        let mut list_types = vec![];
+        for ty in elem_types.iter() {
+            if !elem_types.iter().any(|t| ty.subtype(t)) {
+                // Add the type if it is not a subtype of any other type
+                list_types.push(ty.clone());
+            }
+        }
+        let list_type = if list_types.len() == 1 {
+            list_types[0].clone()
         } else {
-            Type::Sum(elem_types)
+            Type::Sum(list_types)
         };
         Ok(CheckedAst::List(
             checked_elems,
-            Type::List(Box::new(elem_type)),
+            Type::List(Box::new(list_type)),
         ))
     }
 
@@ -318,7 +382,20 @@ impl<'a> TypeChecker<'a> {
             }
             Some(IdentifierType::Type(ty)) => CheckedAst::Literal(Value::Type(ty.clone())),
             Some(IdentifierType::Function(variants)) => {
-                CheckedAst::Identifier(name.to_string(), Type::Function(variants.to_vec()))
+                // TODO: Do not select the first variant!!!
+                // Instead, select the variant that matches the arguments types
+                // Or infer based on the context of use etc.
+                // This is a very temporary solution...
+                if let Some(variant) = variants.first() {
+                    CheckedAst::Identifier(
+                        name.to_string(),
+                        Type::Function(Box::new(variant.clone())),
+                    )
+                } else {
+                    return Err(TypeError {
+                        message: format!("Function '{}' has no variants", name),
+                    });
+                }
             }
             None => {
                 return Err(TypeError {
@@ -368,36 +445,92 @@ impl<'a> TypeChecker<'a> {
         Ok(CheckedAst::Block(exprs, ty))
     }
 
-    fn check_call(&mut self, name: &str, args: &[Ast]) -> TypeResult<CheckedAst> {
-        let args = args
-            .iter()
-            .map(|a| self.check_expr(a))
-            .collect::<TypeResult<Vec<_>>>()?;
-        let arg_types = args.iter().map(|a| a.get_type()).collect::<Vec<_>>();
-        let variants = self.lookup_function(name).ok_or_else(|| TypeError {
-            message: format!("Unknown function: {}", name),
-        })?;
-        for variant in variants {
-            if variant.get_params().match_args_types(&arg_types) {
-                return Ok(CheckedAst::Call {
-                    function: name.to_string(),
-                    variation: Box::new(variant.clone()),
-                    args,
-                });
+    fn check_call(&mut self, expr: &Ast, arg: &Ast) -> TypeResult<CheckedAst> {
+        // let args = args
+        //     .iter()
+        //     .map(|a| self.check_expr(a))
+        //     .collect::<TypeResult<Vec<_>>>()?;
+        // let arg_types = args.iter().map(|a| a.get_type()).collect::<Vec<_>>();
+        // match self.check_expr(expr)? {
+        //     CheckedAst::Function {
+        //         param,
+        //         body: _,
+        //         return_type,
+        //     } => {
+        //         let arg = self.check_expr(arg)?;
+        //         if param.ty.subtype(arg.get_type()) {
+        //             return Ok(CheckedAst::Call {
+        //                 function: Box::new()
+        //                 function: param.name,
+        //                 arg: Box::new(arg),
+        //             });
+        //         } else {
+        //             return Err(TypeError {
+        //                 message: format!(
+        //                     "Function '{}' has no variant with of types: ({})",
+        //                     param.name,
+        //                     arg.get_type()
+        //                 ),
+        //             });
+        //         }
+        //     }
+        //     _ => {
+        //         return Err(TypeError {
+        //             message: format!("Cannot call non-function: {}", expr.print_sexpr()),
+        //         });
+        //     }
+        // }
+        // let variants = self.lookup_function(expr).ok_or_else(|| TypeError {
+        //     message: format!("Unknown function: {}", expr),
+        // })?;
+        // for variant in variants {
+        //     if variant.param.ty.subtype(arg.get_type()) {
+        //         return Ok(CheckedAst::Call {
+        //             function: expr.to_string(),
+        //             variation: Box::new(variant.clone()),
+        //             arg: Box::new(arg),
+        //         });
+        //     }
+        // }
+        // Err(TypeError {
+        //     message: format!(
+        //         "Function '{}' has no variant with of types: ({})",
+        //         expr, arg_type
+        //     ),
+        // })
+
+        // Go through the expression and check if the type is a function
+        let expr = self.check_expr(expr)?;
+        log::trace!(
+            "Checking call: {} ({}) with applied to {}",
+            expr.print_sexpr(),
+            expr.get_type().pretty_print_color(),
+            arg.print_sexpr()
+        );
+        if let Type::Function(fn_ty) = expr.get_type() {
+            let FunctionType { param, ret } = fn_ty.borrow();
+            // Check the type of the argument
+            let arg = self.check_expr(arg)?;
+            if arg.get_type().subtype(&param.ty) {
+                Ok(CheckedAst::Call {
+                    return_type: ret.clone(),
+                    function: Box::new(expr),
+                    arg: Box::new(arg),
+                })
+            } else {
+                Err(TypeError {
+                    message: format!(
+                        "Function of type {} cannot be called with {}",
+                        expr.get_type().pretty_print_color(),
+                        arg.get_type().pretty_print_color()
+                    ),
+                })
             }
+        } else {
+            Err(TypeError {
+                message: format!("Cannot call non-function: {}", expr.get_type()),
+            })
         }
-        Err(TypeError {
-            message: format!(
-                "Function '{}' has no variant with {} arguments of types: ({})",
-                name,
-                args.len(),
-                arg_types
-                    .iter()
-                    .map(|t| t.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-        })
     }
 
     /// Check the type of an accumulate expression.
@@ -411,31 +544,90 @@ impl<'a> TypeChecker<'a> {
             .iter()
             .map(|a| self.check_expr(a))
             .collect::<TypeResult<Vec<_>>>()?;
-        let operand_types = checked_operands
-            .iter()
-            .map(|a| a.get_type())
-            .collect::<Vec<_>>();
-        for op in self.lookup_operator(&info.symbol) {
-            if op.signature().params.match_args_types(&operand_types) {
-                match &op.handler {
-                    OperatorHandler::Runtime { handler, .. } => {
-                        return Ok(CheckedAst::DirectCall {
-                            variation: Box::new(*handler.clone()),
-                            args: checked_operands,
-                        });
+        // let operand_types = checked_operands
+        //     .iter()
+        //     .map(|a| a.get_type())
+        //     .collect::<Vec<_>>();
+        // for op in self.lookup_operator(&info.symbol) {
+        //     // if op.signature().params.match_args_types(&operand_types) {
+        //     //     match &op.handler {
+        //     //         OperatorHandler::Runtime { handler, .. } => {
+        //     //             // return Ok(CheckedAst::DirectCall {
+        //     //             //     variation: Box::new(*handler.clone()),
+        //     //             //     args: checked_operands,
+        //     //             // });
+        //     //             Ok(CheckedAst::Call {
+        //     //                 function: Box::new(CheckedAst::FunctionIdentifier(op.info, ())),
+        //     //                 arg: (),
+        //     //             })
+        //     //         }
+        //     //         OperatorHandler::Static(_, handler) => {
+        //     //             // Evaluate the handler at compile-time
+        //     //             let ast = handler(StaticOperatorAst::Accumulate(operands.to_vec()));
+        //     //             return self.check_expr(&ast);
+        //     //         }
+        //     //     }
+        //     // }
+
+        //     // Verify that the operands types and the operator signature match
+        //     for (operand, param) in checked_operands.iter().zip(op.signature().params.iter()) {
+        //         if !operand.get_type().subtype(&param.ty) {
+        //             continue; // Keep looking for a matching operator
+        //         }
+        //     }
+
+        //     // Construct a function call referencing the operator function handler
+        //     // and type-check the call expression as a function call
+        //     match &op.handler {
+        //         OperatorHandler::Runtime { function_name, .. } => {
+        //             // Construct a function call expression
+        //             let mut operands = operands.iter();
+        //             let mut call = Ast::Call(
+        //                 Box::new(Ast::Identifier(function_name.clone())),
+        //                 Box::new(operands.next().unwrap().clone()),
+        //             );
+        //             for arg in operands {
+        //                 call = Ast::Call(Box::new(call), Box::new(arg.clone()));
+        //             }
+        //             return self.check_expr(&call);
+        //         }
+        //         OperatorHandler::Static(_, handler) => {
+        //             // Evaluate the handler at compile-time
+        //             let ast = handler(StaticOperatorAst::Accumulate(operands.to_vec()));
+        //             return self.check_expr(&ast);
+        //         }
+        //     }
+        // }
+        if let Some(op) = self.lookup_operator(&info.symbol).into_iter().find(|op| {
+            checked_operands
+                .iter()
+                .zip(op.signature().params.iter())
+                .all(|(operand, param)| operand.get_type().subtype(&param.ty))
+        }) {
+            match &op.handler {
+                OperatorHandler::Runtime(RuntimeOperatorHandler { function_name, .. }) => {
+                    // Construct a function call expression
+                    let mut operands = operands.iter();
+                    let mut call = Ast::Call(
+                        Box::new(Ast::Identifier(function_name.clone())),
+                        Box::new(operands.next().unwrap().clone()),
+                    );
+                    for arg in operands {
+                        call = Ast::Call(Box::new(call), Box::new(arg.clone()));
                     }
-                    OperatorHandler::Static(_, handler) => {
-                        // Evaluate the handler at compile-time
-                        let ast = handler(StaticOperatorAst::Accumulate(operands.to_vec()));
-                        return self.check_expr(&ast);
-                    }
+                    self.check_expr(&call)
+                }
+                OperatorHandler::Static(StaticOperatorHandler { handler, .. }) => {
+                    // Evaluate the handler at compile-time
+                    let ast = handler(StaticOperatorAst::Accumulate(operands.to_vec()));
+                    self.check_expr(&ast)
                 }
             }
+        } else {
+            Err(TypeError {
+                message: format!("Unknown accumulate operator: '{}'", info.symbol),
+            })
         }
-
-        Err(TypeError {
-            message: format!("Unknown operator: {}", info.symbol),
-        })
     }
 
     fn check_binary(
@@ -444,40 +636,61 @@ impl<'a> TypeChecker<'a> {
         info: &OperatorInfo,
         rhs: &Ast,
     ) -> TypeResult<CheckedAst> {
-        let ops = self.lookup_operator(&info.symbol);
-        if ops.len() == 1 {
-            if let OperatorHandler::Static(_, handler) = ops[0].handler {
-                return self
-                    .check_expr(&handler(StaticOperatorAst::Infix(lhs.clone(), rhs.clone())));
-            }
+        if let Some(op) = self.lookup_static_operator(&info.symbol) {
+            log::trace!("Found static operator: {}", info.symbol);
+            return self.check_expr(&(op.handler)(StaticOperatorAst::Infix(
+                lhs.clone(),
+                rhs.clone(),
+            )));
         }
         let checked_lhs = self.check_expr(lhs)?;
         let checked_rhs = self.check_expr(rhs)?;
         let lhs_type = checked_lhs.get_type();
         let rhs_type = checked_rhs.get_type();
         for op in self.lookup_operator(&info.symbol) {
-            if op
-                .signature()
-                .params
-                .match_args_types(&[lhs_type, rhs_type])
-            {
-                match &op.handler {
-                    OperatorHandler::Runtime { handler, .. } => {
-                        return Ok(CheckedAst::DirectCall {
-                            variation: Box::new(*handler.clone()),
-                            args: vec![checked_lhs, checked_rhs],
-                        });
-                    }
-                    OperatorHandler::Static(_, handler) => {
-                        // Evaluate the handler at compile-time
-                        let ast = handler(StaticOperatorAst::Infix(lhs.clone(), rhs.clone()));
-                        return self.check_expr(&ast);
-                    }
+            if !lhs_type.subtype(&op.signature().params[0].ty) {
+                log::trace!(
+                    "Skipping operator: {} because lhs type {} is not a subtype of {}",
+                    op.info.symbol,
+                    lhs_type.pretty_print_color(),
+                    op.signature().params[0].ty.pretty_print_color()
+                );
+                continue;
+            }
+            if !rhs_type.subtype(&op.signature().params[1].ty) {
+                log::trace!(
+                    "Skipping operator: {} because rhs type {} is not a subtype of {}",
+                    op.info.symbol,
+                    rhs_type.pretty_print_color(),
+                    op.signature().params[1].ty.pretty_print_color()
+                );
+                continue;
+            }
+            log::trace!("Found operator: {}", op.info.symbol);
+            match &op.handler {
+                OperatorHandler::Runtime(RuntimeOperatorHandler { function_name, .. }) => {
+                    // return Ok(CheckedAst::DirectCall {
+                    //     variation: Box::new(*handler.clone()),
+                    //     args: vec![checked_lhs, checked_rhs],
+                    // });
+                    let call = Ast::Call(
+                        Box::new(Ast::Call(
+                            Box::new(Ast::Identifier(function_name.clone())),
+                            Box::new(lhs.clone()),
+                        )),
+                        Box::new(rhs.clone()),
+                    );
+                    return self.check_expr(&call);
+                }
+                OperatorHandler::Static(StaticOperatorHandler { handler, .. }) => {
+                    // Evaluate the handler at compile-time
+                    let ast = handler(StaticOperatorAst::Infix(lhs.clone(), rhs.clone()));
+                    return self.check_expr(&ast);
                 }
             }
         }
         Err(TypeError {
-            message: format!("Unknown operator: {}", info.symbol),
+            message: format!("Unknown binary operator: '{}'", info.symbol),
         })
     }
 
@@ -485,24 +698,26 @@ impl<'a> TypeChecker<'a> {
         let checked_operand = self.check_expr(operand)?;
         let operand_type = checked_operand.get_type();
         for op in self.lookup_operator(&info.symbol) {
-            if op.signature().params.match_args_types(&[operand_type]) {
-                match &op.handler {
-                    OperatorHandler::Runtime { handler, .. } => {
-                        return Ok(CheckedAst::DirectCall {
-                            variation: Box::new(*handler.clone()),
-                            args: vec![checked_operand],
-                        });
-                    }
-                    OperatorHandler::Static(_, handler) => {
-                        // Evaluate the handler at compile-time
-                        let ast = handler(StaticOperatorAst::Prefix(operand.clone()));
-                        return self.check_expr(&ast);
-                    }
+            if !op.signature().params[0].ty.subtype(operand_type) {
+                continue;
+            }
+            match &op.handler {
+                OperatorHandler::Runtime(RuntimeOperatorHandler { function_name, .. }) => {
+                    let call = Ast::Call(
+                        Box::new(Ast::Identifier(function_name.clone())),
+                        Box::new(operand.clone()),
+                    );
+                    return self.check_expr(&call);
+                }
+                OperatorHandler::Static(StaticOperatorHandler { handler, .. }) => {
+                    // Evaluate the handler at compile-time
+                    let ast = handler(StaticOperatorAst::Prefix(operand.clone()));
+                    return self.check_expr(&ast);
                 }
             }
         }
         Err(TypeError {
-            message: format!("Unknown operator: {}", info.symbol),
+            message: format!("Unknown unary operator: '{}'", info.symbol),
         })
     }
 

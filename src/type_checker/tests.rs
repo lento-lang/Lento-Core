@@ -1,10 +1,16 @@
 #[cfg(test)]
 mod tests {
+    use std::vec;
+
     use crate::{
         interpreter::value::Value,
         parser::parser::from_string,
         stdlib::init::stdlib,
-        type_checker::{checked_ast::CheckedAst, checker::TypeChecker},
+        type_checker::{
+            checked_ast::CheckedAst,
+            checker::TypeChecker,
+            types::{std_types, Type, TypeTrait},
+        },
     };
 
     #[test]
@@ -26,5 +32,21 @@ mod tests {
                 false
             }
         }))
+    }
+
+    #[test]
+    fn subtype_sum() {
+        let sum = Type::Sum(vec![std_types::BOOL, std_types::UNIT]);
+        assert!(std_types::BOOL.subtype(&sum));
+    }
+
+    #[test]
+    fn subtype_sum_sum() {
+        let inner = Type::Sum(vec![std_types::BOOL, std_types::UNIT]);
+        let outer = Type::Sum(vec![inner.clone(), std_types::CHAR]);
+        assert!(inner.subtype(&outer));
+        assert!(!outer.subtype(&inner));
+        assert!(std_types::CHAR.subtype(&outer));
+        assert!(std_types::BOOL.subtype(&outer));
     }
 }

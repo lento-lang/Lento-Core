@@ -1,16 +1,58 @@
 use crate::{
-    interpreter::value::{FunctionVariation, RecordKey, Value},
+    interpreter::value::{Function, RecordKey, Value},
     lexer::lexer::InputSource,
-    type_checker::types::{FunctionParameterType, Type},
+    type_checker::types::Type,
 };
 
-use super::types::{GetType, VariationType};
+use super::types::{FunctionType, GetType};
 
 #[derive(Debug, Clone)]
 pub struct CheckedOperator {
     pub name: String,
     pub symbol: String,
-    pub handler: FunctionVariation,
+    pub handler: Function,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedParam {
+    pub name: String,
+    pub ty: Type,
+}
+
+impl CheckedParam {
+    pub fn new(name: String, ty: Type) -> CheckedParam {
+        CheckedParam { name, ty }
+    }
+
+    pub fn from_str<S: Into<String>>(name: S, ty: Type) -> CheckedParam {
+        CheckedParam::new(name.into(), ty)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedFunction {
+    pub param: CheckedParam,
+    pub body: CheckedAst,
+    pub return_type: Type,
+    pub ty: Type,
+}
+
+impl CheckedFunction {
+    pub fn new(param: CheckedParam, body: CheckedAst, return_type: Type) -> CheckedFunction {
+        let ty = FunctionType::new(param.clone(), return_type.clone());
+        CheckedFunction {
+            param,
+            body,
+            return_type,
+            ty: Type::Function(Box::new(ty)),
+        }
+    }
+}
+
+impl GetType for CheckedFunction {
+    fn get_type(&self) -> &Type {
+        &self.ty
+    }
 }
 
 /// The AST is a tree of nodes that represent the program.
@@ -37,23 +79,20 @@ pub enum CheckedAst {
     /// 1. Name of the identifier
     /// 2. Type of the identifier (the type of the value it refers to)
     Identifier(String, Type),
+    // FunctionIdentifier(String, FunctionType),
     /// A function variation call is an invocation of a function variation with a list of arguments
     Call {
-        function: String,
-        variation: Box<VariationType>,
-        args: Vec<CheckedAst>,
-    },
-    /// A direct function call is an invocation of a variation with a list of arguments
-    DirectCall {
-        variation: Box<FunctionVariation>,
-        args: Vec<CheckedAst>,
-    },
-    /// A function declaration is a named function with a list of parameters and a body expression
-    Function {
-        params: FunctionParameterType,
-        body: Box<CheckedAst>,
+        function: Box<CheckedAst>,
+        arg: Box<CheckedAst>,
         return_type: Type,
     },
+    /// A direct function call is an invocation of a variation with a list of arguments
+    // DirectCall {
+    //     variation: Box<Function>,
+    //     args: Vec<CheckedAst>,
+    // },
+    /// A function declaration is a named function with a list of parameters and a body expression
+    Function(Box<CheckedFunction>),
     /// An assignment expression assigns a value to a variable
     /// 1. Matching pattern (identifier, destructuring of a tuple, record, etc.)
     /// 2. Value
@@ -73,12 +112,8 @@ impl GetType for CheckedAst {
             CheckedAst::List(_, ty) => ty,
             CheckedAst::Record(_, ty) => ty,
             CheckedAst::Identifier(_, ty) => ty,
-            CheckedAst::Call { variation, .. } => variation.get_return_type(),
-            CheckedAst::DirectCall {
-                variation: function,
-                ..
-            } => function.get_return_type(),
-            CheckedAst::Function { body, .. } => body.get_type(),
+            CheckedAst::Call { return_type, .. } => return_type,
+            CheckedAst::Function(func) => func.get_type(),
             CheckedAst::Assignment(_, _, ty) => ty,
             CheckedAst::Block(_, ty) => ty,
         }
@@ -107,30 +142,33 @@ impl CheckedAst {
             ),
             CheckedAst::Record(_elements, _) => todo!(),
             CheckedAst::Identifier(name, _) => name.clone(),
-            CheckedAst::Call {
-                variation, args, ..
-            } => format!(
-                "[{}]({})",
-                variation,
-                args.iter()
-                    .map(|e| e.print_sexpr())
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            ),
-            CheckedAst::DirectCall {
-                variation: function,
-                args,
-                ..
-            } => format!(
-                "[{}]({})",
-                function,
-                args.iter()
-                    .map(|e| e.print_sexpr())
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            ),
-            CheckedAst::Function { params, body, .. } => {
-                format!("({} -> {})", params, body.print_sexpr())
+            // CheckedAst::FunctionIdentifier(name, _) => name.clone(),
+            CheckedAst::Call { function, arg, .. } => {
+                if let CheckedAst::Identifier(name, _) = &**function {
+                    format!("{}({})", name, arg.print_sexpr())
+                } else {
+                    format!("{}({})", function.print_sexpr(), arg.print_sexpr())
+                }
+            }
+            // CheckedAst::DirectCall {
+            //     variation: function,
+            //     args,
+            //     ..
+            // } => format!(
+            //     "[{}]({})",
+            //     function,
+            //     args.iter()
+            //         .map(|e| e.print_sexpr())
+            //         .collect::<Vec<String>>()
+            //         .join(" ")
+            // ),
+            CheckedAst::Function(func) => {
+                format!(
+                    "({} {} -> {})",
+                    func.param.ty,
+                    func.param.name,
+                    func.body.print_sexpr()
+                )
             }
             CheckedAst::Assignment(lhs, rhs, _) => {
                 format!("({} = {})", lhs.print_sexpr(), rhs.print_sexpr())

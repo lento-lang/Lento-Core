@@ -1,9 +1,20 @@
 use std::fmt::Display;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Debug, Eq, PartialOrd, Ord)]
 pub enum Str {
     String(String),
     Str(&'static str),
+}
+
+impl PartialEq for Str {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Str::String(s1), Str::String(s2)) => s1 == s2,
+            (Str::Str(s1), Str::Str(s2)) => s1 == s2,
+            (Str::String(s1), Str::Str(s2)) => s1 == s2,
+            (Str::Str(s1), Str::String(s2)) => s1 == s2,
+        }
+    }
 }
 
 impl Str {

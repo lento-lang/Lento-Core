@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     error::RuntimeError,
-    value::{Function, FunctionVariation, Value},
+    value::{Function, Value},
 };
 
 /// The environment is a map of variable names to values.
@@ -74,12 +74,6 @@ impl<'a> Environment<'a> {
     }
 
     pub fn lookup_function(&self, name: &str) -> Option<&Function> {
-        log::trace!(
-            "Looking up function '{}' in environment '{}' of {:?}",
-            name,
-            self.name,
-            self.functions.keys().collect::<Vec<&String>>()
-        );
         self.functions
             .get(name)
             .or_else(|| self.parent.and_then(|p| p.lookup_function(name)))
@@ -88,25 +82,32 @@ impl<'a> Environment<'a> {
     pub fn add_function_variation(
         &mut self,
         name: &str,
-        variation: FunctionVariation,
+        variation: Function,
     ) -> Result<(), RuntimeError> {
-        if let Some(existing) = self.functions.get_mut(name) {
-            if existing
-                .get_variations()
-                .iter()
-                .any(|v| v.get_params() == variation.get_params())
-            {
-                return Err(RuntimeError {
-                    message: format!(
-                        "Function variation of '{}' with the same signature already exists",
-                        name
-                    ),
-                });
-            }
-            existing.add_variation(variation);
+        if let Some(_existing) = self.functions.get_mut(name) {
+            // if existing
+            //     .get_variations()
+            //     .iter()
+            //     .any(|v| v.get_params() == variation.get_param())
+            // {
+            //     return Err(RuntimeError {
+            //         message: format!(
+            //             "Function variation of '{}' with the same signature already exists",
+            //             name
+            //         ),
+            //     });
+            // }
+            // existing.add_variation(variation);
+            return Err(RuntimeError {
+                message: format!(
+                    "Function {} already exists in the current environment",
+                    name
+                ),
+            });
         } else {
-            self.functions
-                .insert(name.to_string(), Function::new(vec![variation]));
+            // self.functions
+            //     .insert(name.to_string(), Function::new(vec![variation]));
+            self.functions.insert(name.to_string(), variation);
         }
         Ok(())
     }
@@ -114,6 +115,11 @@ impl<'a> Environment<'a> {
     /// Get a value from the environment.
     /// If the value is not found in the current environment, the parent environment is searched recursively.
     pub fn lookup_identifier(&self, name: &str) -> (Option<&Value>, Option<&Function>) {
+        log::trace!(
+            "Looking up identifier '{}' in environment '{}'",
+            name,
+            self.name
+        );
         (self.lookup_variable(name), self.lookup_function(name))
     }
 
@@ -151,9 +157,9 @@ impl<'a> Environment<'a> {
             })
         } else {
             match value {
-                Value::Variation(variation) => {
-                    self.add_function_variation(&name.to_string(), *variation)?;
-                }
+                // Value::Variation(variation) => {
+                //     self.add_function_variation(&name.to_string(), *variation)?;
+                // }
                 Value::Function(func) => {
                     if self.functions.contains_key(&name) {
                         return Err(RuntimeError {
@@ -163,7 +169,7 @@ impl<'a> Environment<'a> {
                             ),
                         });
                     }
-                    self.functions.insert(name, func);
+                    self.functions.insert(name, *func);
                 }
                 _ => {
                     if self.variables.contains_key(&name) {

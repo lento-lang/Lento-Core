@@ -5,20 +5,21 @@ mod tests {
             environment::{global_env, Environment},
             interpreter::{interpret_ast, interpret_module},
             number::{Number, UnsignedInteger},
-            value::{FunctionVariation, Value},
+            value::Value,
         },
         parser::parser,
-        stdlib::arithmetic,
+        stdlib::init::stdlib,
         type_checker::{
-            checked_ast::CheckedAst,
+            checked_ast::{CheckedAst, CheckedFunction, CheckedParam},
             checker::TypeChecker,
-            types::{std_types, FunctionParameterType, GetType, Type},
+            types::{std_types, GetType, Type, TypeTrait},
         },
-        util::str::Str,
     };
 
-    fn empty_env() -> Environment<'static> {
-        Environment::new(Str::Str("empty"))
+    fn std_env() -> Environment<'static> {
+        let mut env = global_env();
+        stdlib().init_environment(&mut env);
+        env
     }
 
     fn make_u8(n: u8) -> Value {
@@ -26,10 +27,26 @@ mod tests {
     }
 
     fn add(lhs: CheckedAst, rhs: CheckedAst) -> CheckedAst {
-        CheckedAst::DirectCall {
-            variation: Box::new(arithmetic::add()),
-            args: vec![lhs, rhs],
+        CheckedAst::Call {
+            function: Box::new(CheckedAst::Call {
+                function: Box::new(CheckedAst::Identifier("add".into(), std_types::NUM())),
+                arg: Box::new(rhs),
+                return_type: std_types::NUM(),
+            }),
+            arg: Box::new(lhs),
+            return_type: std_types::NUM(),
         }
+    }
+
+    fn fn_unit() -> CheckedAst {
+        CheckedAst::Function(Box::new(CheckedFunction::new(
+            CheckedParam {
+                name: "ignore".to_string(),
+                ty: std_types::UNIT,
+            },
+            CheckedAst::Block(vec![], std_types::UNIT),
+            std_types::UNIT,
+        )))
     }
 
     #[test]
@@ -38,10 +55,10 @@ mod tests {
             CheckedAst::Literal(make_u8(1)),
             CheckedAst::Literal(make_u8(2)),
         );
-        let result = interpret_ast(&ast, &mut global_env());
+        let result = interpret_ast(&ast, &mut std_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_types::UINT8);
+        assert!(result.get_type().equals(&std_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
 
@@ -55,10 +72,12 @@ mod tests {
             ],
             Type::Tuple(vec![std_types::UINT8; 3]),
         );
-        let result = interpret_ast(&ast, &mut global_env());
+        let result = interpret_ast(&ast, &mut std_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &Type::Tuple(vec![std_types::UINT8; 3]));
+        assert!(result
+            .get_type()
+            .equals(&Type::Tuple(vec![std_types::UINT8; 3])));
         assert_eq!(
             result,
             Value::Tuple(
@@ -70,50 +89,39 @@ mod tests {
 
     #[test]
     fn function_call() {
-        let ast = CheckedAst::DirectCall {
-            variation: Box::new(arithmetic::add()),
-            args: vec![
-                CheckedAst::Literal(make_u8(1)),
-                CheckedAst::Literal(make_u8(2)),
-            ],
-        };
-        let result = interpret_ast(&ast, &mut global_env());
+        let ast = add(
+            CheckedAst::Literal(make_u8(1)),
+            CheckedAst::Literal(make_u8(2)),
+        );
+        let result = interpret_ast(&ast, &mut std_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_types::UINT8);
+        assert!(result.get_type().equals(&std_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
 
     #[test]
     fn unit_function() {
-        let ast = CheckedAst::DirectCall {
-            variation: Box::new(FunctionVariation::new_user(
-                FunctionParameterType::Singles(vec![]),
-                CheckedAst::Block(vec![], std_types::UNIT),
-                empty_env(), // Empty environment
-                std_types::UNIT,
-            )),
-            args: vec![],
+        let ast = CheckedAst::Call {
+            function: Box::new(fn_unit()),
+            arg: Box::new(CheckedAst::Literal(Value::Unit)),
+            return_type: std_types::UNIT,
         };
-        let result = interpret_ast(&ast, &mut empty_env());
+        let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_types::UNIT);
+        assert!(result.get_type().equals(&std_types::UNIT));
         assert_eq!(result, Value::Unit);
     }
 
     #[test]
     fn invalid_function() {
-        let ast = CheckedAst::DirectCall {
-            variation: Box::new(FunctionVariation::new_user(
-                FunctionParameterType::Singles(vec![]),
-                CheckedAst::Block(vec![], std_types::UNIT),
-                empty_env(), // Empty environment
-                std_types::UNIT,
-            )),
-            args: vec![CheckedAst::Literal(make_u8(1))],
+        let ast = CheckedAst::Call {
+            function: Box::new(fn_unit()),
+            arg: Box::new(CheckedAst::Literal(make_u8(1))),
+            return_type: std_types::UNIT,
         };
-        let result = interpret_ast(&ast, &mut empty_env());
+        let result = interpret_ast(&ast, &mut global_env());
         assert!(result.is_err());
     }
 
@@ -124,10 +132,10 @@ mod tests {
             Box::new(CheckedAst::Literal(make_u8(1))),
             std_types::UINT8,
         );
-        let result = interpret_ast(&ast, &mut global_env());
+        let result = interpret_ast(&ast, &mut std_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_types::UINT8);
+        assert!(result.get_type().equals(&std_types::UINT8));
         assert_eq!(result, make_u8(1));
     }
 
@@ -146,10 +154,10 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let result = interpret_module(&module, &mut global_env());
+        let result = interpret_module(&module, &mut std_env());
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert!(result.get_type() == &std_types::UINT8);
+        assert!(result.get_type().equals(&std_types::UINT8));
         assert_eq!(result, make_u8(3));
     }
 
@@ -168,7 +176,7 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let mut env = global_env();
+        let mut env = std_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
         assert!(env.lookup_function("add").is_some());
@@ -189,7 +197,7 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let mut env = global_env();
+        let mut env = std_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
         assert!(env.lookup_function("add").is_some());
@@ -210,7 +218,7 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let mut env = global_env();
+        let mut env = std_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
         assert!(env.lookup_function("add").is_some());
@@ -231,7 +239,7 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let mut env = global_env();
+        let mut env = std_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
         assert!(env.lookup_function("add").is_some());
@@ -252,7 +260,7 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let mut env = global_env();
+        let mut env = std_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
         assert!(env.lookup_function("add").is_some());
@@ -273,7 +281,7 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let mut env = global_env();
+        let mut env = std_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
         assert!(env.lookup_function("add").is_some());
@@ -292,7 +300,7 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let mut env = global_env();
+        let mut env = std_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
         assert!(env.lookup_function("add").is_some());
@@ -311,7 +319,7 @@ mod tests {
         let module = checker
             .check_module(&module)
             .expect("Failed to type check module");
-        let mut env = global_env();
+        let mut env = std_env();
         let result = interpret_module(&module, &mut env);
         assert!(result.is_ok());
         assert!(env.lookup_function("add").is_some());
