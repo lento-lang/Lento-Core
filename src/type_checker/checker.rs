@@ -557,7 +557,15 @@ impl<'a> TypeChecker<'a> {
                 );
                 continue;
             }
-            log::trace!("Found operator: {}", op.info.symbol);
+            log::trace!(
+                "Found operator: '{}' : ({} <: {}) -> ({} <: {}) -> {}",
+                op.info.symbol,
+                lhs_type.pretty_print_color(),
+                op.signature().params[0].ty.pretty_print_color(),
+                rhs_type.pretty_print_color(),
+                op.signature().params[1].ty.pretty_print_color(),
+                op.signature().ret.pretty_print_color()
+            );
             match &op.handler {
                 OperatorHandler::Runtime(RuntimeOperatorHandler { function_name, .. }) => {
                     let function_ty = self
@@ -592,10 +600,17 @@ impl<'a> TypeChecker<'a> {
                         arg: Box::new(checked_rhs),
                         return_type: outer_ret.clone(),
                     };
+
+                    log::trace!(
+                        "Binary: {} : {}",
+                        result.print_sexpr(),
+                        result.get_type().pretty_print_color()
                     );
+
                     return Ok(result);
                 }
                 OperatorHandler::Static(StaticOperatorHandler { handler, .. }) => {
+                    log::trace!("Static operator: {}", info.symbol);
                     // Evaluate the handler at compile-time
                     let ast = handler(StaticOperatorAst::Infix(lhs.clone(), rhs.clone()));
                     return self.check_expr(&ast);
