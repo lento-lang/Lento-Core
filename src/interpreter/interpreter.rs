@@ -118,7 +118,8 @@ fn eval_call(function: &CheckedAst, arg: &CheckedAst, env: &mut Environment) -> 
                 _ => None,
             },
             CheckedAst::Call { function, arg, .. } => {
-                args.push(arg);
+                // This argument will be applied before the other arguments
+                args.insert(0, arg);
                 // Recurse until we find a native function (if any)
                 unwrap_native(function, args, env)
             }
