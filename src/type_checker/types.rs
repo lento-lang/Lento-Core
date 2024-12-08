@@ -1,4 +1,5 @@
 use crate::{interpreter::value::RecordKey, util::str::Str};
+use colorful::Colorful;
 use std::fmt::{Debug, Display};
 
 use super::checked_ast::CheckedParam;
@@ -79,6 +80,17 @@ impl TypeTrait for FunctionType {
 impl Display for FunctionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} -> {}", self.param.ty, self.ret)
+    }
+}
+
+impl FunctionType {
+    pub fn pretty_print_color(&self) -> String {
+        format!(
+            "{} {} {}",
+            self.param.ty.pretty_print_color(),
+            "->".dark_gray(),
+            self.ret.pretty_print_color()
+        )
     }
 }
 
@@ -312,19 +324,10 @@ impl Display for Type {
 
 impl Type {
     pub fn pretty_print_color(&self) -> String {
-        use colorful::Colorful;
-
         match self.clone().simplify() {
             Type::Literal(t) => t.to_string().light_blue().to_string(),
             Type::Alias(name, _) => name.to_string().light_blue().to_string(),
-            Type::Function(variations) => {
-                format!(
-                    "{} {} {}",
-                    variations.param.ty.pretty_print_color(),
-                    "->".dark_gray(),
-                    variations.ret.pretty_print_color()
-                )
-            }
+            Type::Function(f) => f.pretty_print_color(),
             Type::Tuple(types) => {
                 if types.is_empty() {
                     "()".to_string()
