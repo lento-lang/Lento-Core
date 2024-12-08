@@ -32,7 +32,7 @@ pub fn interpret_module(module: &CheckedModule, env: &mut Environment) -> Interp
 
 /// Interpret a type-checked AST node
 pub fn interpret_ast(ast: &CheckedAst, env: &mut Environment) -> InterpretResult {
-    Ok(match ast {
+    let result = match ast {
         CheckedAst::Call { function, arg, .. } => eval_call(function, arg, env)?,
         CheckedAst::Tuple(v, _) => eval_tuple(v, env)?,
         CheckedAst::Literal(l) => l.clone(),
@@ -86,7 +86,15 @@ pub fn interpret_ast(ast: &CheckedAst, env: &mut Environment) -> InterpretResult
             }
             result
         }
-    })
+    };
+    if !matches!(ast, CheckedAst::Literal(_)) {
+        log::trace!(
+            "Eval: {} -> {}",
+            ast.print_sexpr(),
+            result.pretty_print_color()
+        );
+    }
+    Ok(result)
 }
 
 fn eval_call(function: &CheckedAst, arg: &CheckedAst, env: &mut Environment) -> InterpretResult {
