@@ -137,11 +137,29 @@ impl CheckedAst {
             CheckedAst::Record(_elements, _) => todo!(),
             CheckedAst::Identifier(name, _) => name.clone(),
             CheckedAst::Call { function, arg, .. } => {
-                if let CheckedAst::Identifier(name, _) = &**function {
-                    format!("{}({})", name, arg.print_sexpr())
-                } else {
-                    format!("{}({})", function.print_sexpr(), arg.print_sexpr())
+                // format!("{}({})", function.print_sexpr(), arg.print_sexpr())
+
+                // Unwrap any nested calls to print the full call chain as "f(x, y, z)"
+                let mut function = function;
+                let mut args = vec![arg];
+                while let CheckedAst::Call {
+                    function: f,
+                    arg: a,
+                    ..
+                } = &**function
+                {
+                    function = f;
+                    args.push(a);
                 }
+                format!(
+                    "{}({})",
+                    function.print_sexpr(),
+                    args.iter()
+                        // .rev()
+                        .map(|a| a.print_sexpr())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                )
             }
             CheckedAst::Function(func) => {
                 format!(
