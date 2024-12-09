@@ -104,7 +104,7 @@ impl Function {
                 param: params, ret, ..
             }) => FunctionType::new(params.clone(), ret.clone()),
             Function::Native(NativeFunction { params, ret, .. }) => {
-                let mut params = params.iter().rev(); // innermost first
+                let mut params = params.iter();
                 let mut function_type =
                     FunctionType::new(params.next().unwrap().clone(), ret.clone());
                 for param in params {

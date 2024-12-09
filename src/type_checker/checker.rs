@@ -521,6 +521,19 @@ impl<'a> TypeChecker<'a> {
         }
     }
 
+    /// Check the type of a binary expression.
+    /// A binary expression results in a function variation-specific call on the form:
+    ///
+    /// ```ignore
+    /// operator : lhs -> rhs -> ret
+    /// operator = [lhs, rhs] => ret
+    /// // IDX:      0    1
+    /// lhs `operator` rhs
+    /// <==>
+    /// (call
+    ///     (call (identifier operator) lhs)
+    ///     rhs)
+    /// ```
     fn check_binary(
         &mut self,
         lhs: &Ast,

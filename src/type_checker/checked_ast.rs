@@ -149,13 +149,13 @@ impl CheckedAst {
                 } = &**function
                 {
                     function = f;
-                    args.push(a);
+                    // All nested applications are performed before the current one
+                    args.insert(0, a);
                 }
                 format!(
                     "{}({})",
                     function.print_sexpr(),
                     args.iter()
-                        // .rev()
                         .map(|a| a.print_sexpr())
                         .collect::<Vec<String>>()
                         .join(", ")
