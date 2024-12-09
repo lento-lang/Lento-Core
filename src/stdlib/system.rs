@@ -34,10 +34,10 @@ pub fn print() -> Function {
 /// Return the type of a value.
 pub fn type_of() -> Function {
     Function::new_native(
-        "type_of".into(),
+        "typeof".into(),
         |values| {
             if values.len() != 1 {
-                panic!("type_of() expects 1 argument");
+                panic!("typeof() expects 1 argument");
             }
             Ok(Value::Type(values[0].get_type().clone()))
         },
