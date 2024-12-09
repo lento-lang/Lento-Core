@@ -4,7 +4,7 @@ mod tests {
         interpreter::{
             environment::{global_env, Environment},
             interpreter::{interpret_ast, interpret_module},
-            number::{Number, UnsignedInteger},
+            number::{FloatingPoint, Number, UnsignedInteger},
             value::Value,
         },
         parser::parser,
@@ -24,6 +24,10 @@ mod tests {
 
     fn make_u8(n: u8) -> Value {
         Value::Number(Number::UnsignedInteger(UnsignedInteger::UInt8(n)))
+    }
+
+    fn make_f32(n: f32) -> Value {
+        Value::Number(Number::FloatingPoint(FloatingPoint::Float32(n)))
     }
 
     fn add(lhs: CheckedAst, rhs: CheckedAst) -> CheckedAst {
@@ -137,6 +141,32 @@ mod tests {
         let result = result.unwrap();
         assert!(result.get_type().equals(&std_types::UINT8));
         assert_eq!(result, make_u8(1));
+    }
+
+    #[test]
+    fn arithmetic_complex() {
+        let result1 = parser::parse_str_one("8 / (1f32 / (3 * 3) - 1)", Some(&stdlib()))
+            .expect("Failed to parse expression");
+        let result2 = parser::parse_str_one("8 / (1.0 / (3 * 3) - 1)", Some(&stdlib()))
+            .expect("Failed to parse expression");
+        let mut checker = TypeChecker::default();
+        stdlib().init_type_checker(&mut checker);
+        let result1 = checker
+            .check_module(&result1)
+            .expect("Failed to type check expression");
+        let result2 = checker
+            .check_module(&result2)
+            .expect("Failed to type check expression");
+        let result1 = interpret_module(&result1, &mut std_env());
+        let result2 = interpret_module(&result2, &mut std_env());
+        assert!(result1.is_ok());
+        assert!(result2.is_ok());
+        let result1 = result1.unwrap();
+        let result2 = result2.unwrap();
+        assert!(result1.get_type().equals(&std_types::FLOAT32));
+        assert!(result2.get_type().equals(&std_types::FLOAT32));
+        assert_eq!(result1, make_f32(8.0 / (1.0 / (3.0 * 3.0) - 1.0)));
+        assert_eq!(result2, make_f32(8.0 / (1.0 / (3.0 * 3.0) - 1.0)));
     }
 
     #[test]
