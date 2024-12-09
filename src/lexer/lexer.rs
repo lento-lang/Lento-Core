@@ -541,22 +541,29 @@ impl<R: Read> Lexer<R> {
         match (self.peek_char(1), self.peek_char(2)) {
             // f32
             (Some('3'), Some('2')) => {
-                self.next_char();
-                self.next_char();
+                self.next_char(); // f
+                self.next_char(); // 3
+                self.next_char(); // 2
+                log::trace!(
+                    "read_number_suffix_float: f32, current char: {:?}",
+                    self.peek_char(0)
+                );
                 self.set_number_ty(ty, NumInfo::float(BitSize::Bit32))?;
             }
             // f64
             (Some('6'), Some('4')) => {
-                self.next_char();
-                self.next_char();
+                self.next_char(); // f
+                self.next_char(); // 6
+                self.next_char(); // 4
                 self.set_number_ty(ty, NumInfo::float(BitSize::Bit64))?;
             }
             // fbig
             (Some('b'), Some('i')) => {
                 if self.peek_char(3) == Some('g') {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // f
+                    self.next_char(); // b
+                    self.next_char(); // i
+                    self.next_char(); // g
                     self.set_number_ty(ty, NumInfo::float(BitSize::BitVar))?;
                 }
             }
@@ -573,24 +580,24 @@ impl<R: Read> Lexer<R> {
         match self.peek_char(1) {
             // i8
             Some('8') => {
-                self.next_char();
-                self.next_char();
+                self.next_char(); // i
+                self.next_char(); // 8
                 self.set_number_ty(ty, NumInfo::int(BitSize::Bit8))?;
             }
             // i16 or i128
             Some('1') => match self.peek_char(2) {
                 Some('6') => {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // i
+                    self.next_char(); // 1
+                    self.next_char(); // 6
                     self.set_number_ty(ty, NumInfo::int(BitSize::Bit16))?;
                 }
                 Some('2') => {
                     if self.peek_char(3) == Some('8') {
-                        self.next_char();
-                        self.next_char();
-                        self.next_char();
-                        self.next_char();
+                        self.next_char(); // i
+                        self.next_char(); // 1
+                        self.next_char(); // 2
+                        self.next_char(); // 8
                         self.set_number_ty(ty, NumInfo::int(BitSize::Bit128))?;
                     }
                 }
@@ -599,28 +606,28 @@ impl<R: Read> Lexer<R> {
             // i32
             Some('3') => {
                 if self.peek_char(2) == Some('2') {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // i
+                    self.next_char(); // 3
+                    self.next_char(); // 2
                     self.set_number_ty(ty, NumInfo::int(BitSize::Bit32))?;
                 }
             }
             // i64
             Some('6') => {
                 if self.peek_char(2) == Some('4') {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // i
+                    self.next_char(); // 6
+                    self.next_char(); // 4
                     self.set_number_ty(ty, NumInfo::int(BitSize::Bit64))?;
                 }
             }
             // ibig
             Some('b') => {
                 if self.peek_char(2) == Some('i') && self.peek_char(3) == Some('g') {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // i
+                    self.next_char(); // b
+                    self.next_char(); // i
+                    self.next_char(); // g
                     self.set_number_ty(ty, NumInfo::int(BitSize::BitVar))?;
                 }
             }
@@ -638,58 +645,58 @@ impl<R: Read> Lexer<R> {
             // u1, u16 or u128
             Some('1') => match self.peek_char(2) {
                 Some('6') => {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // u
+                    self.next_char(); // 1
+                    self.next_char(); // 6
                     self.set_number_ty(ty, NumInfo::uint(BitSize::Bit16))?;
                 }
                 Some('2') => {
                     if self.peek_char(2) == Some('8') {
-                        self.next_char();
-                        self.next_char();
-                        self.next_char();
-                        self.next_char();
+                        self.next_char(); // u
+                        self.next_char(); // 1
+                        self.next_char(); // 2
+                        self.next_char(); // 8
                         self.set_number_ty(ty, NumInfo::uint(BitSize::Bit128))?;
                     }
                 }
                 _ => {
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // u
+                    self.next_char(); // 1
                     self.set_number_ty(ty, NumInfo::uint(BitSize::Bit1))?;
                 }
             },
 
             // u8
             Some('8') => {
-                self.next_char();
-                self.next_char();
+                self.next_char(); // u
+                self.next_char(); // 8
                 self.set_number_ty(ty, NumInfo::uint(BitSize::Bit8))?;
             }
             // u32
             Some('3') => {
                 if self.peek_char(2) == Some('2') {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // u
+                    self.next_char(); // 3
+                    self.next_char(); // 2
                     self.set_number_ty(ty, NumInfo::uint(BitSize::Bit32))?;
                 }
             }
             // u64
             Some('6') => {
                 if self.peek_char(2) == Some('4') {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // u
+                    self.next_char(); // 6
+                    self.next_char(); // 4
                     self.set_number_ty(ty, NumInfo::uint(BitSize::Bit64))?;
                 }
             }
             // ubig
             Some('b') => {
                 if self.peek_char(2) == Some('i') && self.peek_char(3) == Some('g') {
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
-                    self.next_char();
+                    self.next_char(); // u
+                    self.next_char(); // b
+                    self.next_char(); // i
+                    self.next_char(); // g
                     self.set_number_ty(ty, NumInfo::uint(BitSize::BitVar))?;
                 }
             }
