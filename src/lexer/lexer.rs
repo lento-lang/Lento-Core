@@ -544,10 +544,6 @@ impl<R: Read> Lexer<R> {
                 self.next_char(); // f
                 self.next_char(); // 3
                 self.next_char(); // 2
-                log::trace!(
-                    "read_number_suffix_float: f32, current char: {:?}",
-                    self.peek_char(0)
-                );
                 self.set_number_ty(ty, NumInfo::float(BitSize::Bit32))?;
             }
             // f64
