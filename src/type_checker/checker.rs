@@ -298,9 +298,9 @@ impl<'a> TypeChecker<'a> {
             if !ty.subtype(&body_type) {
                 return Err(TypeError {
                     message: format!(
-						"Function body type does not match the return type. Expected '{}', found '{}'",
-						ty, &body_type
-					),
+                        "Function body type does not match the return type. Expected '{}', found '{}'",
+                        ty, &body_type
+                    ),
                 });
             }
             ty
