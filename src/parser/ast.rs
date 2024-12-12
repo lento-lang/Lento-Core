@@ -30,7 +30,7 @@ pub enum Ast {
     /// A function call is an invocation of a function with a list of arguments
     /// 1. Name of the function
     /// 2. List of arguments
-    FunctionCall(String, Vec<Ast>),
+    Call(Box<Ast>, Vec<Ast>),
     /// A function declaration is a named function with a list of parameters and a body expression
     Function {
         // name: String,
@@ -82,9 +82,9 @@ impl Ast {
             ),
             Ast::Record(_elements) => todo!(),
             Ast::Identifier(name) => name.clone(),
-            Ast::FunctionCall(name, args) => format!(
+            Ast::Call(expr, args) => format!(
                 "({} {})",
-                name,
+                expr.print_sexpr(),
                 args.iter()
                     .map(|e| e.print_sexpr())
                     .collect::<Vec<String>>()

@@ -186,8 +186,8 @@ impl<R: Read> Parser<R> {
         }))
     }
 
-    fn parse_paren_call(&mut self, id: String) -> ParseResult {
-        log::trace!("Parsing parenthesized function call: {}", id);
+    fn parse_paren_call(&mut self, expr: Ast) -> ParseResult {
+        log::trace!("Parsing parenthesized function call: {}", expr.print_sexpr());
         let mut args = Vec::new();
         while let Ok(end) = self.lexer.peek_token(0) {
             if end.token == TokenKind::RightParen {
@@ -216,8 +216,23 @@ impl<R: Read> Parser<R> {
         }
         self.parse_expected(TokenKind::RightParen, ")")?;
 
-        log::trace!("Parsed function call: {}({:?})", id, args);
-        Ok(Ast::FunctionCall(id, args))
+        log::trace!("Parsed function call: {}({:?})", expr.print_sexpr(), args);
+        Ok(Ast::Call(Box::new(expr), args))
+    }
+
+    fn try_parse_non_paren_call(&mut self, expr: &Ast) -> Option<ParseResult> {
+        log::trace!("Trying to parse non-parenthesized function call: {}", expr.print_sexpr());
+        let mut args = Vec::new();
+        while let Ok(nt) = self.lexer.peek_token(0) {
+            if nt.token.is_top_level_terminal(true) { break; }
+            let arg = self.parse_top_expr().ok()?;
+            args.push(arg);
+        }
+        if args.is_empty() {
+            return None;
+        }
+        log::trace!("Parsed non-parenthesized function call: {}({:?})", expr.print_sexpr(), args);
+        Some(Ok(Ast::Call(Box::new(expr.clone()), args)))
     }
 
     /// Parses the fields of a record from the lexer.
@@ -334,6 +349,7 @@ impl<R: Read> Parser<R> {
                 Ok(match t.token {
                     lit if lit.is_literal() => self.parse_literal(&lit, t.info)?,
                     TokenKind::Identifier(id) => {
+                        let expr = Ast::Identifier(id);
                         // Check if function call
                         if let Ok(t) = self.lexer.peek_token(0) {
                             if t.token
@@ -342,10 +358,14 @@ impl<R: Read> Parser<R> {
                                 })
                             {
                                 self.lexer.next_token().unwrap(); // Consume the left paren
-                                return self.parse_paren_call(id);
+                                return self.parse_paren_call(expr);
+                            }
+                            // Try to parse a paren-less function call
+                            else if let Some(call) = self.try_parse_non_paren_call(&expr) {
+                                return call;
                             }
                         }
-                        Ast::Identifier(id)
+                        expr
                     }
                     TokenKind::Op(op) => {
                         // TODO: Don't lookup operators in the parser, do this in the type checker!

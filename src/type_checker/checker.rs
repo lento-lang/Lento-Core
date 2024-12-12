@@ -227,7 +227,7 @@ impl<'a> TypeChecker<'a> {
             Ast::List(elems) => self.check_list(elems)?,
             Ast::Record(pairs) => self.check_record(pairs)?,
             Ast::Identifier(i) => self.check_identifier(i)?,
-            Ast::FunctionCall(name, args) => self.check_call(name, args)?,
+            Ast::Call(expr, args) => self.check_call(expr, args)?,
             Ast::Accumulate(info, operands) => self.check_accumulate(info, operands)?,
             Ast::Binary(lhs, info, rhs) => self.check_binary(lhs, info, rhs)?,
             Ast::Unary(info, operand) => self.check_unary(info, operand)?,
@@ -368,15 +368,11 @@ impl<'a> TypeChecker<'a> {
         Ok(CheckedAst::Block(exprs, ty))
     }
 
-    fn check_call(&mut self, name: &str, args: &[Ast]) -> TypeResult<CheckedAst> {
-        let args = args
-            .iter()
-            .map(|a| self.check_expr(a))
-            .collect::<TypeResult<Vec<_>>>()?;
-        let arg_types = args.iter().map(|a| a.get_type()).collect::<Vec<_>>();
+    fn check_func_ident(&self, name: &str, args: Vec<CheckedAst>) -> TypeResult<CheckedAst> {
         let variants = self.lookup_function(name).ok_or_else(|| TypeError {
             message: format!("Unknown function: {}", name),
         })?;
+        let arg_types = args.iter().map(|a| a.get_type()).collect::<Vec<_>>();
         for variant in variants {
             if variant.get_params().match_args_types(&arg_types) {
                 return Ok(CheckedAst::Call {
@@ -390,7 +386,7 @@ impl<'a> TypeChecker<'a> {
             message: format!(
                 "Function '{}' has no variant with {} arguments of types: ({})",
                 name,
-                args.len(),
+                arg_types.len(),
                 arg_types
                     .iter()
                     .map(|t| t.to_string())
@@ -398,6 +394,50 @@ impl<'a> TypeChecker<'a> {
                     .join(", ")
             ),
         })
+    }
+
+    fn check_func_expr(&mut self, expr: &Ast, args: Vec<CheckedAst>) -> TypeResult<CheckedAst> {
+        let arg_types = args.iter().map(|a| a.get_type()).collect::<Vec<_>>();
+        let checked_expr = self.check_expr(expr)?;
+        let expr_type = checked_expr.get_type();
+        if let Type::Function(variants) = expr_type {
+            for variant in variants {
+                if variant.get_params().match_args_types(&arg_types) {
+                    // TODO: Don't use string for `function` field, use CheckedAst instead...
+                    return Ok(CheckedAst::Call {
+                        function: "".to_string(),
+                        variation: Box::new(variant.clone()),
+                        args: vec![checked_expr],
+                    });
+                }
+            }
+            return Err(TypeError {
+                message: format!(
+                    "Function expression has no variant with {} arguments of types: ({})",
+                    arg_types.len(),
+                    arg_types
+                        .iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            });
+        }
+        Err(TypeError {
+            message: format!("Expression is not a function: {}", expr_type),
+        })
+    }
+
+    fn check_call(&mut self, expr: &Ast, args: &[Ast]) -> TypeResult<CheckedAst> {
+        let args = args
+            .iter()
+            .map(|a| self.check_expr(a))
+            .collect::<TypeResult<Vec<_>>>()?;
+        if let Ast::Identifier(name) = expr {
+            self.check_func_ident(name, args)
+        } else {
+            self.check_func_expr(expr, args)
+        }
     }
 
     /// Check the type of an accumulate expression.
